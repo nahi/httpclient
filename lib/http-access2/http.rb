@@ -112,7 +112,7 @@ class Message
       @reason_phrase = nil
       @request_method = nil
       @request_uri = nil
-      @request_query_uri = nil
+      @request_query = nil
       @request_via_proxy = false
     end
 
@@ -124,7 +124,7 @@ class Message
 	else
 	  URI.parse(uri.to_s)
 	end
-      @request_query_uri = create_query_uri(@request_uri, query)
+      @request_query = create_query_uri(@request_uri, query)
       @request_via_proxy = via_proxy
     end
 
@@ -196,12 +196,12 @@ class Message
 
     def request_line
       path = unless @request_via_proxy
-	  @request_query_uri
+	  @request_query
 	else
 	  if @request_uri.port
-	    "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port }#{ @request_query_uri }"
+	    "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port }#{ @request_query }"
 	  else
-	    "#{ @request_uri.scheme }://#{ @request_uri.host }#{ @request_query_uri }"
+	    "#{ @request_uri.scheme }://#{ @request_uri.host }#{ @request_query }"
 	  end
 	end
       dump_line("#{ @request_method } #{ path } #{ @http_version }")

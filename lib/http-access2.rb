@@ -23,7 +23,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.15 2003/06/01 10:07:36 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.16 2003/06/06 14:49:14 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -689,6 +689,10 @@ class SSLSocketWrap
     @ssl_socket = create_ssl_socket(@socket)
   end
 
+  def ssl_connect
+    @ssl_socket.connect
+  end
+
   def peer_cert
     @ssl_socket.peer_cert
   end
@@ -734,7 +738,6 @@ private
       ssl_socket = OpenSSL::SSL::SSLSocket.new(socket)
       @context.set_context(ctx)
     end
-    ssl_socket.connect
     ssl_socket
   end
 end
@@ -995,17 +998,13 @@ private
     begin
       retry_number = 0
       timeout(@connect_timeout) do
-	@socket = if @debug_dev	
-	    DebugSocket.create_socket(site.host, site.port, @debug_dev)
-	  else
-	    TCPSocket.new(site.host, site.port)
-	  end
+	@socket = create_socket(site)
 	@src.host = @socket.addr[3]
 	@src.port = @socket.addr[1]
 	if @dest.scheme == 'https'
-	  # wrap socket with OpenSSL.
-	  context = @ssl_config.create_context(@dest)
-	  @socket = SSLSocketWrap.new(@socket, context)
+	  @socket = create_ssl_socket(@socket)
+	  connect_ssl_proxy(@socket) if @proxy
+	  @socket.ssl_connect
 	end
       end
     rescue TimeoutError
@@ -1023,6 +1022,29 @@ private
     @readbuf = ''
   end
 
+  def create_socket(site)
+    if @debug_dev	
+      DebugSocket.create_socket(site.host, site.port, @debug_dev)
+    else
+      TCPSocket.new(site.host, site.port)
+    end
+  end
+
+  # wrap socket with OpenSSL.
+  def create_ssl_socket(raw_socket)
+    context = @ssl_config.create_context(@dest)
+    SSLSocketWrap.new(raw_socket, context)
+  end
+
+  def connect_ssl_proxy(socket)
+    socket << sprintf("CONNECT %s:%s HTTP/1.1\r\n\r\n", @dest.host, @dest.port)
+    parse_header(socket)
+    unless @status == 200
+      raise BadResponse.new(
+	"connect to ssl proxy failed with status #{@status} #{@reason}")
+    end
+  end
+
   # Read status block.
   StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d+)(?:\s+(.*))?#{ RS }\z)
   def read_header
@@ -1034,41 +1056,7 @@ private
       raise InvalidState, 'state != :META'
     end
 
-    begin
-      timeout(@receive_timeout) do
-	begin
-	  @status_line = @socket.gets(RS)
-	  if @status_line.nil?
-	    raise KeepAliveDisconnected.new
-	  end
-	  StatusParseRegexp =~ @status_line
-	  unless $1
-	    raise BadResponse.new(@status_line)
-	  end
-	  @version, @status, @reason = $1, $2.to_i, $3
-	  @next_connection = if HTTP.keep_alive_enabled?(@version)
-	      true
-	    else
-	      false
-	    end
-
-	  @headers = []
-	  until ((line = @socket.gets(RS)) == RS)
-	    unless line
-	      raise BadResponse.new('Unexpected EOF.')
-	    end
-	    line.sub!(/#{ RS }\z/, '')
-	    if line.sub!(/^\t/, '')
-      	      @headers[-1] << line
-	    else
-      	      @headers.push(line)
-      	    end
-	  end
-	end while (@version == '1.1' && @status == 100)
-      end
-    rescue TimeoutError
-      raise
-    end
+    parse_header(@socket)
 
     @content_length = nil
     @chunked = false
@@ -1108,6 +1096,39 @@ private
     @next_connection = false unless @content_length
 
     return [@version, @status, @reason]
+  end
+
+  def parse_header(socket)
+    begin
+      timeout(@receive_timeout) do
+	begin
+	  @status_line = socket.gets(RS)
+	  if @status_line.nil?
+	    raise KeepAliveDisconnected.new
+	  end
+	  StatusParseRegexp =~ @status_line
+	  unless $1
+	    raise BadResponse.new(@status_line)
+	  end
+	  @version, @status, @reason = $1, $2.to_i, $3
+	  @next_connection = HTTP.keep_alive_enabled?(@version) ? true : false
+	  @headers = []
+	  until ((line = socket.gets(RS)) == RS)
+	    unless line
+	      raise BadResponse.new('Unexpected EOF.')
+	    end
+	    line.sub!(/#{ RS }\z/, '')
+	    if line.sub!(/^\t/, '')
+      	      @headers[-1] << line
+	    else
+      	      @headers.push(line)
+      	    end
+	  end
+	end while (@version == '1.1' && @status == 100)
+      end
+    rescue TimeoutError
+      raise
+    end
   end
 
   def read_body
