@@ -23,16 +23,16 @@ class Error < StandardError; end
 class BadResponseError < Error; end
 
   class << self
-    def httpDate( aTime )
-      aTime.gmtime.strftime( "%a, %d %b %Y %H:%M:%S GMT" )
+    def httpDate(aTime)
+      aTime.gmtime.strftime("%a, %d %b %Y %H:%M:%S GMT")
     end
 
-    ProtocolVersionRegexp = Regexp.new( '^(?:HTTP/|)(\d+)\.(\d+)$' )
-    def keepAliveEnabled?( version )
+    ProtocolVersionRegexp = Regexp.new('^(?:HTTP/|)(\d+)\.(\d+)$')
+    def keepAliveEnabled?(version)
       ProtocolVersionRegexp =~ version
-      if ( $1 && ( $1.to_i > 1 ))
+      if ($1 && ($1.to_i > 1))
 	true
-      elsif ( $2 && ( $2.to_i >= 1 ))
+      elsif ($2 && ($2.to_i >= 1))
 	true
       else
 	false
@@ -116,19 +116,19 @@ class Message
       @requestViaProxy = false
     end
 
-    def initRequest( method, uri, query = nil, viaProxy = false )
+    def initRequest(method, uri, query = nil, viaProxy = false)
       @isRequest = true
       @requestMethod = method
-      @requestUri = if uri.is_a?( URI )
+      @requestUri = if uri.is_a?(URI)
 	  uri
 	else
-	  URI.parse( uri.to_s )
+	  URI.parse(uri.to_s)
 	end
-      @requestQueryUri = createQueryUri( @requestUri, query )
+      @requestQueryUri = createQueryUri(@requestUri, query)
       @requestViaProxy = viaProxy
     end
 
-    def initResponse( statusCode )
+    def initResponse(statusCode)
       @isRequest = false
       self.responseStatusCode = statusCode
     end
@@ -136,13 +136,13 @@ class Message
     attr_accessor :requestViaProxy
 
     attr_reader :responseStatusCode
-    def responseStatusCode=( statusCode )
+    def responseStatusCode=(statusCode)
       @responseStatusCode = statusCode
-      @reasonPhrase = StatusCodeMap[ @responseStatusCode ]
+      @reasonPhrase = StatusCodeMap[@responseStatusCode]
     end
 
     # bodySize == nil means that the body is_a? IO
-    def bodySize=( bodySize )
+    def bodySize=(bodySize)
       @bodySize = bodySize
       if @bodySize
 	@chunked = false
@@ -151,37 +151,37 @@ class Message
       end
     end
 
-    def dump( dev = '' )
+    def dump(dev = '')
       setHeader
       if @isRequest
 	dev << requestLine
       else
 	dev << responseStatusLine
       end
-      @headerItem.each do | key, value |
-	dev << dumpLine( "#{ key }: #{ value }" )
+      @headerItem.each do |key, value|
+	dev << dumpLine("#{ key }: #{ value }")
       end
       dev
     end
 
-    def set( key, value )
-      @headerItem.push( [ key, value ] )
+    def set(key, value)
+      @headerItem.push([key, value])
     end
 
-    def get( key = nil )
+    def get(key = nil)
       if !key
 	@headerItem
       else
-	@headerItem.find_all { | pair | pair[ 0 ].upcase == key.upcase }
+	@headerItem.find_all { |pair| pair[0].upcase == key.upcase }
       end
     end
 
-    def []=( key, value )
-      set( key, value )
+    def []=(key, value)
+      set(key, value)
     end
 
-    def []( key )
-      get( key ).collect { |item| item[ 1 ] }
+    def [](key)
+      get(key).collect { |item| item[1] }
     end
 
   private
@@ -196,48 +196,48 @@ class Message
 	    "http://#{ @requestUri.host }#{ @requestQueryUri }"
 	  end
 	end
-      dumpLine( "#{ @requestMethod } #{ path } #{ @httpVersion }" )
+      dumpLine("#{ @requestMethod } #{ path } #{ @httpVersion }")
     end
 
     def responseStatusLine
-      if defined?( Apache )
-	dumpLine( "#{ @httpVersion } #{ responseStatusCode } #{ @reasonPhrase }" )
+      if defined?(Apache)
+	dumpLine("#{ @httpVersion } #{ responseStatusCode } #{ @reasonPhrase }")
       else
-	dumpLine( "Status: #{ responseStatusCode } #{ @reasonPhrase }" )
+	dumpLine("Status: #{ responseStatusCode } #{ @reasonPhrase }")
       end
     end
 
     def setHeader
-      if defined?( Apache )
-	set( 'Date', HTTP.httpDate( Time.now ))
+      if defined?(Apache)
+	set('Date', HTTP.httpDate(Time.now))
       end
 
-      unless HTTP.keepAliveEnabled?( @httpVersion )
-	set( 'Connection', 'close' )
+      unless HTTP.keepAliveEnabled?(@httpVersion)
+	set('Connection', 'close')
       end
 
       if @chunked
-	set( 'Transfer-Encoding', 'chunked' )
+	set('Transfer-Encoding', 'chunked')
       else
-	set( 'Content-Length', @bodySize.to_s )
+	set('Content-Length', @bodySize.to_s)
       end
 
       if @bodyDate
-	set( 'Last-Modified', HTTP.httpDate( @bodyDate ))
+	set('Last-Modified', HTTP.httpDate(@bodyDate))
       end
 
       if @isRequest == true
-	set( 'Host', @requestUri.host )
+	set('Host', @requestUri.host)
       elsif @isRequest == false
-	set( 'Content-Type', "#{ @bodyType || 'text/html' }; charset=#{ CharsetMap[ @bodyCharset || $KCODE ] }" )
+	set('Content-Type', "#{ @bodyType || 'text/html' }; charset=#{ CharsetMap[@bodyCharset || $KCODE] }")
       end
     end
 
-    def dumpLine( str )
+    def dumpLine(str)
       str + CRLF
     end
 
-    def createQueryUri( uri, query )
+    def createQueryUri(uri, query)
       path = uri.path.dup
       path = '/' if path.empty?
       queryStr = nil
@@ -246,9 +246,9 @@ class Message
       end
       if query
 	if queryStr
-	  queryStr << '&' << createQueryPartStr( query )
+	  queryStr << '&' << Message.createQueryPartStr(query)
 	else
-	  queryStr = Message.createQueryPartStr( query )
+	  queryStr = Message.createQueryPartStr(query)
 	end
       end
       if queryStr
@@ -256,13 +256,12 @@ class Message
       end
       path
     end
-
   end
 
   class Body
     attr_accessor :type, :charset, :date, :chunkSize
 
-    def initialize( body = nil, date = nil, type = nil, charset = nil )
+    def initialize(body = nil, date = nil, type = nil, charset = nil)
       @body = body || ''
       @type = type
       @charset = charset
@@ -271,19 +270,19 @@ class Message
     end
 
     def size
-      if @body.is_a?( IO )
+      if @body.is_a?(IO)
 	nil
       else
 	@body.size
       end
     end
 
-    def dump( dev = '' )
+    def dump(dev = '')
       if size.nil?
 	begin
 	  while true
-	    chunk = @body.sysread( @chunkSize )
-	    dev << dumpChunk( chunk )
+	    chunk = @body.sysread(@chunkSize)
+	    dev << dumpChunk(chunk)
 	  end
 	rescue EOFError
 	ensure
@@ -299,22 +298,22 @@ class Message
       @body
     end
 
-    def set_content( body )
+    def set_content(body)
       @body = body
     end
 
   private
 
-    def dumpChunk( str )
-      dumpChunkSize( str.size ) << str << CRLF
+    def dumpChunk(str)
+      dumpChunkSize(str.size) << str << CRLF
     end
 
     def dumpLastChunk
-      dumpChunkSize( 0 )
+      dumpChunkSize(0)
     end
 
-    def dumpChunkSize( size )
-      sprintf( "%x", size ) << CRLF
+    def dumpChunkSize(size)
+      sprintf("%x", size) << CRLF
     end
   end
 
@@ -327,34 +326,34 @@ class Message
     undef new
   end
 
-  def self.newRequest( method, uri, query = nil, body = nil, proxy = nil )
+  def self.newRequest(method, uri, query = nil, body = nil, proxy = nil)
     m = self.__new
     m.header = Headers.new
-    m.header.initRequest( method, uri, query, proxy )
-    m.body = Body.new( body )
+    m.header.initRequest(method, uri, query, proxy)
+    m.body = Body.new(body)
     m
   end
 
-  def self.newResponse( body = '' )
+  def self.newResponse(body = '')
     m = self.__new
     m.header = Headers.new
-    m.header.initResponse( Status::OK )
-    m.body = Body.new( body )
+    m.header.initResponse(Status::OK)
+    m.body = Body.new(body)
     m
   end
 
-  def dump( dev = '' )
+  def dump(dev = '')
     syncHeader
-    dev = header.dump( dev )
+    dev = header.dump(dev)
     dev << CRLF
-    dev = body.dump( dev ) if body
+    dev = body.dump(dev) if body
     dev
   end
 
-  def load( str )
+  def load(str)
     buf = str.dup
-    unless self.header.load( buf )
-      self.body.load( buf )
+    unless self.header.load(buf)
+      self.body.load(buf)
     end
   end
 
@@ -362,7 +361,7 @@ class Message
     @header
   end
 
-  def header=( header )
+  def header=(header)
     @header = header
     syncBody
   end
@@ -375,7 +374,7 @@ class Message
     @body
   end
 
-  def body=( body )
+  def body=(body)
     @body = body
     syncHeader
   end
@@ -384,7 +383,7 @@ class Message
     @header.responseStatusCode
   end
 
-  def status=( status )
+  def status=(status)
     @header.responseStatusCode = status
   end
 
@@ -392,7 +391,7 @@ class Message
     @header.httpVersion
   end
 
-  def version=( version )
+  def version=(version)
     @header.httpVersion = version
   end
 
@@ -400,16 +399,15 @@ class Message
     @header.reasonPhrase
   end
 
-  def reason=( reason )
+  def reason=(reason)
     @header.reasonPhrase = reason
   end
 
   class << self
-  public
-    def createQueryPartStr( query )
+    def createQueryPartStr(query)
       return case query
 	when Array, Hash
-	  escape_query( query )
+	  escape_query(query)
 	when NilClass
 	  nil
 	else
@@ -417,11 +415,11 @@ class Message
 	end
     end
 
-    def escape_query( query )
+    def escape_query(query)
       data = ''
       query.each do |attr, value|
 	data << '&' if !data.empty?
-	data << URI.escape( attr.to_s ) << '=' << URI.escape( value.to_s )
+	data << URI.escape(attr.to_s) << '=' << URI.escape(value.to_s)
       end
       data
     end

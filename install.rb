@@ -11,8 +11,8 @@ RV = CONFIG["MAJOR"] + "." + CONFIG["MINOR"]
 DSTPATH = CONFIG["sitedir"] + "/" +  RV 
 
 begin
-  unless FileTest.directory?( "lib/http-access2" )
-    raise RuntimeError.new( "'lib/http-access2' not found." )
+  unless FileTest.directory?("lib/http-access2")
+    raise RuntimeError.new("'lib/http-access2' not found.")
   end
 
   File.mkpath DSTPATH + "/http-access2", true 

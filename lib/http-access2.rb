@@ -1,5 +1,5 @@
 # HTTPAccess2 - HTTP accessing library.
-# Copyright (C) 2000, 2001, 2002 NAKAMURA, Hiroshi.
+# Copyright (C) 2000, 2001, 2002, 2003 NAKAMURA, Hiroshi.
 # 
 # This module is copyrighted free software by NAKAMURA, Hiroshi.
 # You can redistribute it and/or modify it under the same term as Ruby.
@@ -25,12 +25,8 @@ module HTTPAccess2
 
 
 VERSION = '1.1'
-
-RUBY_VERSION_STRING =
-  "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-
-/: (\S+),v (\S+)/ =~
-  %q$Id: http-access2.rb,v 1.8 2003/02/25 13:17:00 nahi Exp $
+RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
+/: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.9 2003/03/26 14:23:08 nahi Exp $
 RCS_FILE, RCS_REVISION = $1, $2
 
 RS = "\r\n"
@@ -45,33 +41,30 @@ FS = "\r\n\t"
 #     clnt = HTTPAccess2::Client.new
 #
 #   2. Accessing resources through HTTP proxy.
-#     clnt = HTTPAccess2::Client.new( "http://myproxy:8080" )
+#     clnt = HTTPAccess2::Client.new("http://myproxy:8080")
 #
 #   3. Set User-Agent and From in HTTP request header.(nil means "No proxy")
-#     clnt = HTTPAccess2::Client.new( nil, "MyAgent", "nahi@keynauts.com" )
+#     clnt = HTTPAccess2::Client.new(nil, "MyAgent", "nahi@keynauts.com")
 #
 # How to retrieve web resources.
 #   1. Get content of specified URL.
-#     puts clnt.getContent( "http://www.ruby-lang.org/en/" )
+#     puts clnt.getContent("http://www.ruby-lang.org/en/")
 #
 #   2. Do HEAD request.
-#     res = clnt.head( uri )
+#     res = clnt.head(uri)
 #
 #   3. Do GET request with query.
-#     res = clnt.get( uri )
+#     res = clnt.get(uri)
 #
 #   4. Do POST request.
-#     res = clnt.post( uri )
-#     res = clnt.get|post|head( uri, proxy )
+#     res = clnt.post(uri)
+#     res = clnt.get|post|head(uri, proxy)
 #
 class Client
   attr_reader :agentName	# Name of this client.
   attr_reader :from		# Owner of this client.
-
-  attr_accessor :proxy		# Proxy
-
-  attr_reader :debugDev		# Device for dumping log for debugging.
-
+  attr_accessor :proxy		# HTTP Proxy URI.
+  attr_reader :debugDev		# Device for logging.
   attr_reader :sessionManager	# Session manager.
 
   class << self
@@ -85,7 +78,7 @@ class Client
   end
 
   # SYNOPSIS
-  #   Client.new( proxy = nil, agentName = nil, from = nil )
+  #   Client.new(proxy = nil, agentName = nil, from = nil)
   #
   # ARGS
   #   proxy	A String of HTTP proxy URL. ex. "http://proxy:8080"
@@ -95,21 +88,19 @@ class Client
   # DESCRIPTION
   #   Create an instance.
   #
-  def initialize( proxy = nil, agentName = nil, from = nil )
+  def initialize(proxy = nil, agentName = nil, from = nil)
     @proxy = proxy
     @agentName = agentName
     @from = from
     @basicAuth = BasicAuth.new
-
     @debugDev = nil
-
     @sessionManager = SessionManager.instance
     @sessionManager.agentName = @agentName
     @sessionManager.from = @from
   end
 
   # SYNOPSIS
-  #   Client#debugDev=( dev )
+  #   Client#debugDev=(dev)
   #
   # ARGS
   #   dev	Device for debugging.  nil for 'no debugging device'
@@ -120,95 +111,95 @@ class Client
   # DESCRIPTION
   #   Set debug device.  Messages for debugging is dumped to the device.
   #
-  def debugDev=( dev )
+  def debugDev=(dev)
     @debugDev = dev
     @sessionManager.debugDev = dev
   end
 
-  def setBasicAuth( uri, userId, passwd )
-    unless uri.is_a?( URI )
-      uri = URI.parse( uri )
+  def setBasicAuth(uri, userId, passwd)
+    unless uri.is_a?(URI)
+      uri = URI.parse(uri)
     end
-    @basicAuth.set( uri, userId, passwd )
+    @basicAuth.set(uri, userId, passwd)
   end
 
   # SYNOPSIS
-  #   Client#getContent( uri, query = nil, extraHeader = {}, &block = nil )
+  #   Client#getContent(uri, query = nil, extraHeader = {}, &block = nil)
   #
   # ARGS
   #   uri	anURI or aString of uri to connect.
   #   query	aHash or anArray of query part.  e.g. { "a" => "b" }.
   #   		Give an array to pass multiple value like
-  #   		[[ "a" => "b" ], [ "a" => "c" ]].
+  #   		[["a" => "b"], ["a" => "c"]].
   #   extraHeader
   #   		aHash of extra headers like { "SOAPAction" => "urn:foo" }.
   #   &block	Give a block to get chunked message-body of response like
-  #   		getContent( uri ) { | chunkedBody | ... }
+  #   		getContent(uri) { |chunkedBody| ... }
   #   		Size of each chunk may not be the same.
   #
   # DESCRIPTION
   #   Get aString of message-body of response.
   #
-  def getContent( uri, query = nil, extraHeader = {}, &block )
+  def getContent(uri, query = nil, extraHeader = {}, &block)
     retryNumber = 0
     while retryNumber < 10
-      res = get( uri, query, extraHeader, &block )
+      res = get(uri, query, extraHeader, &block)
       case res.status
       when HTTP::Status::OK
 	return res.content
       when HTTP::Status::MOVED_PERMANENTLY, HTTP::Status::MOVED_TEMPORARILY
-	uri = res.header[ 'location' ][ 0 ]
+	uri = res.header['location'][0]
 	query = nil
 	retryNumber += 1
 	puts "Redirect to: #{ uri }" if $DEBUG
       else
-	raise RuntimeError.new( "Unexpected response: #{ res.header.inspect }" )
+	raise RuntimeError.new("Unexpected response: #{ res.header.inspect }")
       end
     end
-    raise RuntimeError.new( "Retry count exceeded." )
+    raise RuntimeError.new("Retry count exceeded.")
   end
 
-  def head( uri, query = nil, extraHeader = {} )
-    request( 'HEAD', uri, query, nil, extraHeader )
+  def head(uri, query = nil, extraHeader = {})
+    request('HEAD', uri, query, nil, extraHeader)
   end
 
-  def get( uri, query = nil, extraHeader = {}, &block )
-    request( 'GET', uri, query, nil, extraHeader, &block )
+  def get(uri, query = nil, extraHeader = {}, &block)
+    request('GET', uri, query, nil, extraHeader, &block)
   end
 
-  def post( uri, body = nil, extraHeader = {}, &block )
-    request( 'POST', uri, nil, body, extraHeader, &block )
+  def post(uri, body = nil, extraHeader = {}, &block)
+    request('POST', uri, nil, body, extraHeader, &block)
   end
 
-  def put( uri, body = nil, extraHeader = {}, &block )
-    request( 'PUT', uri, nil, body, extraHeader, &block )
+  def put(uri, body = nil, extraHeader = {}, &block)
+    request('PUT', uri, nil, body, extraHeader, &block)
   end
 
-  def delete( uri, extraHeader = {}, &block )
-    request( 'DELETE', uri, nil, nil, extraHeader, &block )
+  def delete(uri, extraHeader = {}, &block)
+    request('DELETE', uri, nil, nil, extraHeader, &block)
   end
 
-  def options( uri, extraHeader = {}, &block )
-    request( 'OPTIONS', uri, nil, nil, extraHeader, &block )
+  def options(uri, extraHeader = {}, &block)
+    request('OPTIONS', uri, nil, nil, extraHeader, &block)
   end
 
-  def trace( uri, query = nil, body = nil, extraHeader = {}, &block )
-    request( 'TRACE', uri, query, body, extraHeader, &block )
+  def trace(uri, query = nil, body = nil, extraHeader = {}, &block)
+    request('TRACE', uri, query, body, extraHeader, &block)
   end
 
-  def request( method, uri, query = nil, body = nil, extraHeader = {}, &block )
+  def request(method, uri, query = nil, body = nil, extraHeader = {}, &block)
     @debugDev << "= Request\n\n" if @debugDev
-    req = createRequest( method, uri, query, body, extraHeader )
+    req = createRequest(method, uri, query, body, extraHeader)
     conn = Connection.new
-    sess = @sessionManager.query( req, @proxy )
+    sess = @sessionManager.query(req, @proxy)
     @debugDev << "\n\n= Response\n\n" if @debugDev
     begin
-      doGetBlock( sess, conn, &block )
+      doGetBlock(sess, conn, &block)
     rescue Session::KeepAliveDisconnected
       # Try again.
-      req = createRequest( method, uri, query, body, extraHeader )
-      sess = @sessionManager.query( req, @proxy )
-      doGetBlock( sess, conn, &block )
+      req = createRequest(method, uri, query, body, extraHeader)
+      sess = @sessionManager.query(req, @proxy)
+      doGetBlock(sess, conn, &block)
     end
     conn.pop
   end
@@ -216,48 +207,48 @@ class Client
   ##
   # Async interface.
 
-  def headAsync( uri, query = nil, extraHeader = {} )
-    requestAsync( 'HEAD', uri, query, nil, extraHeader )
+  def headAsync(uri, query = nil, extraHeader = {})
+    requestAsync('HEAD', uri, query, nil, extraHeader)
   end
 
-  def getAsync( uri, query = nil, extraHeader = {} )
-    requestAsync( 'GET', uri, query, nil, extraHeader )
+  def getAsync(uri, query = nil, extraHeader = {})
+    requestAsync('GET', uri, query, nil, extraHeader)
   end
 
-  def postAsync( uri, body = nil, extraHeader = {} )
-    requestAsync( 'POST', uri, nil, body, extraHeader )
+  def postAsync(uri, body = nil, extraHeader = {})
+    requestAsync('POST', uri, nil, body, extraHeader)
   end
 
-  def putAsync( uri, body = nil, extraHeader = {} )
-    requestAsync( 'PUT', uri, nil, body, extraHeader )
+  def putAsync(uri, body = nil, extraHeader = {})
+    requestAsync('PUT', uri, nil, body, extraHeader)
   end
 
-  def deleteAsync( uri, extraHeader = {} )
-    requestAsync( 'DELETE', uri, nil, nil, extraHeader )
+  def deleteAsync(uri, extraHeader = {})
+    requestAsync('DELETE', uri, nil, nil, extraHeader)
   end
 
-  def optionsAsync( uri, extraHeader = {} )
-    requestAsync( 'OPTIONS', uri, nil, nil, extraHeader )
+  def optionsAsync(uri, extraHeader = {})
+    requestAsync('OPTIONS', uri, nil, nil, extraHeader)
   end
 
-  def traceAsync( uri, query = nil, body = nil, extraHeader = {} )
-    requestAsync( 'TRACE', uri, query, body, extraHeader )
+  def traceAsync(uri, query = nil, body = nil, extraHeader = {})
+    requestAsync('TRACE', uri, query, body, extraHeader)
   end
 
-  def requestAsync( method, uri, query = nil, body = nil, extraHeader = {} )
+  def requestAsync(method, uri, query = nil, body = nil, extraHeader = {})
     @debugDev << "= Request\n\n" if @debugDev
-    req = createRequest( method, uri, query, body, extraHeader )
+    req = createRequest(method, uri, query, body, extraHeader)
     responseConn = Connection.new
-    t = Thread.new( responseConn ) { | conn |
-      sess = @sessionManager.query( req, @proxy )
+    t = Thread.new(responseConn) { |conn|
+      sess = @sessionManager.query(req, @proxy)
       @debugDev << "\n\n= Response\n\n" if @debugDev
       begin
-	doGetStream( sess, conn )
+	doGetStream(sess, conn)
       rescue Session::KeepAliveDisconnected
        	# Try again.
-	req = createRequest( method, uri, query, body, extraHeader )
-	sess = @sessionManager.query( req, @proxy )
-	doGetStream( sess, conn )
+	req = createRequest(method, uri, query, body, extraHeader)
+	sess = @sessionManager.query(req, @proxy)
+	doGetStream(sess, conn)
       end
     }
     responseConn.asyncThread = t
@@ -272,64 +263,63 @@ class Client
   ##
   # Management interface.
 
-  def reset( uri )
-    @sessionManager.reset( uri )
+  def reset(uri)
+    @sessionManager.reset(uri)
   end
 
 private
-  def createRequest( method, uri, query, body, extraHeader )
-    if extraHeader.is_a?( Hash )
-      extraHeader = extraHeader.collect { | key, value | [ key, value ] }
+  def createRequest(method, uri, query, body, extraHeader)
+    if extraHeader.is_a?(Hash)
+      extraHeader = extraHeader.to_a
     end
-    unless uri.is_a?( URI )
-      uri = URI.parse( uri )
+    unless uri.is_a?(URI)
+      uri = URI.parse(uri)
     end
-    cred = @basicAuth.get( uri )
+    cred = @basicAuth.get(uri)
     if cred
-      extraHeader << [ 'Authorization', "Basic " << cred ]
+      extraHeader << ['Authorization', "Basic " << cred]
     end
-    req = HTTP::Message.newRequest( method, uri, query, body, @proxy )
-    extraHeader.each do | key, value |
-      req.header.set( key, value )
+    req = HTTP::Message.newRequest(method, uri, query, body, @proxy)
+    extraHeader.each do |key, value|
+      req.header.set(key, value)
     end
     req
   end
 
   # !! CAUTION !!
   #   Method 'doGet*' runs under MT conditon. Be careful to change.
-  def doGetBlock( sess, conn, &block )
+  def doGetBlock(sess, conn, &block)
     content = ''
-    res = HTTP::Message.newResponse( content )
-    doGetHeader( sess, conn, res )
-    sess.getData() do | str |
-      block.call( str ) if block
+    res = HTTP::Message.newResponse(content)
+    doGetHeader(sess, conn, res)
+    sess.getData() do |str|
+      block.call(str) if block
       content << str
     end
-    @sessionManager.keep( sess ) unless sess.closed?
+    @sessionManager.keep(sess) unless sess.closed?
   end
 
-  def doGetStream( sess, conn )
+  def doGetStream(sess, conn)
     piper, pipew = IO.pipe
-    res = HTTP::Message.newResponse( piper )
-    doGetHeader( sess, conn, res )
-    sess.getData() do | str |
-      pipew.syswrite( str )
+    res = HTTP::Message.newResponse(piper)
+    doGetHeader(sess, conn, res)
+    sess.getData() do |str|
+      pipew.syswrite(str)
     end
     pipew.close
-    @sessionManager.keep( sess ) unless sess.closed?
+    @sessionManager.keep(sess) unless sess.closed?
   end
 
-  def doGetHeader( sess, conn, res )
+  def doGetHeader(sess, conn, res)
     res.version, res.status, res.reason = sess.getStatus
-    sess.getHeaders().each do | line |
+    sess.getHeaders().each do |line|
       unless /^([^:]+)\s*:\s*(.*)$/ =~ line
-	raise RuntimeError.new( "Unparsable header: '#{ line }'." ) if $DEBUG
+	raise RuntimeError.new("Unparsable header: '#{ line }'.") if $DEBUG
       end
-      res.header.set( $1, $2 )
+      res.header.set($1, $2)
     end
-    conn.push( res )
+    conn.push(res)
   end
-
 end
 
 
@@ -341,18 +331,18 @@ class BasicAuth	# :nodoc:
     @auth = {}
   end
 
-  def set( uri, userId, passwd )
+  def set(uri, userId, passwd)
     uri = uri.clone
-    uri.path = uri.path.sub( /\/[^\/]*$/, '/' )
-    @auth[ uri ] = [ "#{ userId }:#{ passwd }" ].pack( 'm' ).strip
+    uri.path = uri.path.sub(/\/[^\/]*$/, '/')
+    @auth[uri] = ["#{ userId }:#{ passwd }"].pack('m').strip
   end
 
-  def get( uri )
-    @auth.each do | realmUri, cred |
-      if (( realmUri.host == uri.host ) and
-	  ( realmUri.scheme == uri.scheme ) and
-	  ( realmUri.port == uri.port ) and
-	  uri.path.index( realmUri.path ) == 0)
+  def get(uri)
+    @auth.each do |realmUri, cred|
+      if ((realmUri.host == uri.host) and
+	  (realmUri.scheme == uri.scheme) and
+	  (realmUri.port == uri.port) and
+	  uri.path.index(realmUri.path) == 0)
 	return cred
       end
     end
@@ -362,13 +352,13 @@ end
 
 
 ###
-## HTTPAccess2::Site -- manage a site( host and port )
+## HTTPAccess2::Site -- manage a site(host and port)
 #
 class Site	# :nodoc:
   attr_accessor :host
   attr_reader :port
 
-  def initialize( host = 'localhost', port = 0 )
+  def initialize(host = 'localhost', port = 0)
     @host = host
     @port = port.to_i
   end
@@ -377,13 +367,13 @@ class Site	# :nodoc:
     "http://#{ @host }:#{ @port.to_s }"
   end
 
-  def port=( port )
+  def port=(port)
     @port = port.to_i
   end
 
-  def ==( rhs )
-    if rhs.is_a?( Site )
-      (( @host == rhs.host ) and ( @port == rhs.port ))
+  def ==(rhs)
+    if rhs.is_a?(Site)
+      ((@host == rhs.host) and (@port == rhs.port))
     else
       false
     end
@@ -396,7 +386,7 @@ end
 class Connection	# :nodoc:
   attr_accessor :asyncThread
 
-  def initialize( headersQueue = [], bodyQueue = [] )
+  def initialize(headersQueue = [], bodyQueue = [])
     @headers = headersQueue
     @body = bodyQueue
     @asyncThread = nil
@@ -421,8 +411,8 @@ class Connection	# :nodoc:
     @queue.pop
   end
 
-  def push( result )
-    @queue.push( result )
+  def push(result)
+    @queue.push(result)
   end
 
   def join
@@ -449,7 +439,7 @@ class SessionManager	# :nodoc:
   attr_accessor :chunkSize		# Chunk size for chunked request
   attr_accessor :debugDev		# Device for dumping log for debugging
 
-  # Those parameters are not used now...
+  # These parameters are not used now...
   attr_accessor :connectTimeout
   attr_accessor :connectRetry		# Maximum retry count.  0 for infinite.
   attr_accessor :sendTimeout
@@ -476,54 +466,54 @@ class SessionManager	# :nodoc:
     @sessPoolMutex = Mutex.new
   end
 
-  def proxy=( proxyStr )
+  def proxy=(proxyStr)
     unless proxyStr
       @proxy = nil 
       return
     end
-    uri = URI.parse( proxyStr )
-    @proxy = Site.new( uri.host, uri.port )
+    uri = URI.parse(proxyStr)
+    @proxy = Site.new(uri.host, uri.port)
   end
 
-  def query( req, proxyStr )
+  def query(req, proxyStr)
     req.body.chunkSize = @chunkSize
-    destSite = Site.new( req.header.requestUri.host, req.header.requestUri.port )
+    destSite = Site.new(req.header.requestUri.host, req.header.requestUri.port)
     proxySite = if proxyStr
-  	proxyUri = URI.parse( proxyStr )
-  	Site.new( proxyUri.host, proxyUri.port )
+  	proxyUri = URI.parse(proxyStr)
+  	Site.new(proxyUri.host, proxyUri.port)
       else
 	@proxy
       end
-    sess = open( destSite, proxySite )
+    sess = open(destSite, proxySite)
     begin
-      sess.query( req )
+      sess.query(req)
     rescue
-      close( destSite )
+      close(destSite)
       raise
     end
 
     sess
   end
 
-  def reset( uri )
-    unless uri.is_a?( URI )
-      uri = URI.parse( uri.to_s )
+  def reset(uri)
+    unless uri.is_a?(URI)
+      uri = URI.parse(uri.to_s)
     end
-    site = Site.new( uri.host, uri.port )
-    close( site )
+    site = Site.new(uri.host, uri.port)
+    close(site)
   end
 
-  def keep( sess )
-    addCachedSession( sess )
+  def keep(sess)
+    addCachedSession(sess)
   end
 
 private
-  def open( dest, proxy = nil )
+  def open(dest, proxy = nil)
     sess = nil
-    if ( cached = getCachedSession( dest ))
+    if (cached = getCachedSession(dest))
       sess = cached
     else
-      sess = Session.new( dest, @agentName, @from )
+      sess = Session.new(dest, @agentName, @from)
       sess.proxy = proxy
       sess.requestedVersion = @protocolVersion if @protocolVersion
       sess.connectTimeout = @connectTimeout
@@ -536,8 +526,8 @@ private
     sess
   end
 
-  def close( dest )
-    if ( cached = getCachedSession( dest ))
+  def close(dest)
+    if (cached = getCachedSession(dest))
       cached.close
       true
     else
@@ -545,11 +535,11 @@ private
     end
   end
 
-  def getCachedSession( dest )
+  def getCachedSession(dest)
     cached = nil
     @sessPoolMutex.synchronize do
       newPool = []
-      @sessPool.each do | s |
+      @sessPool.each do |s|
 	if s.dest == dest
 	  cached = s
 	else
@@ -561,7 +551,7 @@ private
     cached
   end
 
-  def addCachedSession( sess )
+  def addCachedSession(sess)
     @sessPoolMutex.synchronize do
       @sessPool << sess
     end
@@ -572,12 +562,11 @@ end
 ## HTTPAccess2::DebugSocket -- debugging support
 #
 class DebugSocket
-public
-  attr_accessor :debugDev     # Device for dumping log for debugging.
+  attr_accessor :debugDev     # Device for logging.
 
-  def initialize( host, port, debugDev )
+  def initialize(host, port, debugDev)
     @debugDev = debugDev
-    @socket = TCPSocket.new( host, port )
+    @socket = TCPSocket.new(host, port)
     @debugDev << '! CONNECTION ESTABLISHED' << "\n"
   end
 
@@ -598,24 +587,24 @@ public
     @socket.eof?
   end
 
-  def gets( *args )
-    str = @socket.gets( *args )
+  def gets(*args)
+    str = @socket.gets(*args)
     @debugDev << str
     str
   end
 
-  def read( *args )
-    str = @socket.read( *args )
+  def read(*args)
+    str = @socket.read(*args)
     @debugDev << str
     str
   end
 
-  def <<( str )
-    dump( str )
+  def <<(str)
+    dump(str)
   end
 
 private
-  def dump( str )
+  def dump(str)
     @socket << str
     @debugDev << str
   end
@@ -624,7 +613,7 @@ end
 
 ###
 ## HTTPAccess2::Session -- manage http session with one site.
-##   One ore more TCP sessions with the site may be created.
+##   One or more TCP sessions with the site may be created.
 #
 class Session	# :nodoc:
 
@@ -648,14 +637,14 @@ class Session	# :nodoc:
 
   attr_accessor :debugDev		# Device for dumping log for debugging
 
-  # Those session parameters are not used now...
+  # These session parameters are not used now...
   attr_accessor :connectTimeout
   attr_accessor :connectRetry
   attr_accessor :sendTimeout
   attr_accessor :receiveTimeout
   attr_accessor :readBlockSize
 
-  def initialize( dest, user_agent, from )
+  def initialize(dest, user_agent, from)
     @dest = dest
     @src = Site.new
     @proxy = nil
@@ -681,13 +670,13 @@ class Session	# :nodoc:
   end
 
   # Send a request to the server
-  def query( req )
+  def query(req)
     connect() if @state == :INIT
 
     begin
-      timeout( @sendTimeout ) do
-	setHeaders( req )
-	req.dump( @socket )
+      timeout(@sendTimeout) do
+	setHeaders(req)
+	req.dump(@socket)
       end
     rescue TimeoutError
       close
@@ -696,7 +685,7 @@ class Session	# :nodoc:
 
     @state = :META if @state == :WAIT
     @next_connection = nil
-    @requests.push( req )
+    @requests.push(req)
   end
 
   def close
@@ -714,7 +703,7 @@ class Session	# :nodoc:
     version = status = reason = nil
     begin
       if @state != :META
-	raise RuntimeError.new( "getStatus must be called at the beginning of a session." )
+	raise RuntimeError.new("getStatus must be called at the beginning of a session.")
       end
       version, status, reason = readHeaders()
     rescue
@@ -724,7 +713,7 @@ class Session	# :nodoc:
     return version, status, reason
   end
 
-  def getHeaders( &block )
+  def getHeaders(&block)
     begin
       readHeaders() if @state == :META
     rescue
@@ -732,8 +721,8 @@ class Session	# :nodoc:
       raise
     end
     if block
-      @headers.each do | line |
-	block.call( line )
+      @headers.each do |line|
+	block.call(line)
       end
     else
       @headers
@@ -750,29 +739,29 @@ class Session	# :nodoc:
     end
   end
 
-  def getData( &block )
+  def getData(&block)
     begin
       readHeaders() if @state == :META
       return nil if @state != :DATA
       unless @state == :DATA
-	raise InvalidState.new( 'state != DATA' )
+	raise InvalidState.new('state != DATA')
       end
       data = nil
       if block
 	until eof?
 	  begin
-	    timeout( @receiveTimeout ) do
+	    timeout(@receiveTimeout) do
 	      data = readBody()
 	    end
 	  rescue TimeoutError
 	    raise
 	  end
-	  block.call( data ) if data
+	  block.call(data) if data
 	end
 	data = nil	# Calling with block returns nil.
       else
 	begin
-	  timeout( @receiveTimeout ) do
+	  timeout(@receiveTimeout) do
 	    data = readBody()
 	  end
 	rescue TimeoutError
@@ -794,16 +783,16 @@ class Session	# :nodoc:
   end
 
 private
-  LibNames = "( #{ RCS_FILE }/#{ RCS_REVISION }, #{ RUBY_VERSION_STRING } )"
+  LibNames = "(#{ RCS_FILE }/#{ RCS_REVISION }, #{ RUBY_VERSION_STRING })"
 
-  def setHeaders( req )
+  def setHeaders(req)
     if @user_agent
-      req.header.set( 'User-Agent', "#{ @user_agent } #{ LibNames }" )
+      req.header.set('User-Agent', "#{ @user_agent } #{ LibNames }")
     end
     if @from
-      req.header.set( 'From', @from )
+      req.header.set('From', @from)
     end
-    req.header.set( 'Date', Time.now )
+    req.header.set('Date', Time.now)
   end
 
   # Connect to the server
@@ -811,11 +800,11 @@ private
     site = @proxy || @dest
     begin
       retryNumber = 0
-      timeout( @connectTimeout ) do
+      timeout(@connectTimeout) do
 	@socket = if @debugDev	
-	    DebugSocket.new( site.host, site.port, @debugDev )
+	    DebugSocket.new(site.host, site.port, @debugDev)
 	  else
-	    TCPSocket.new( site.host, site.port )
+	    TCPSocket.new(site.host, site.port)
 	  end
       end
     rescue TimeoutError
@@ -829,8 +818,8 @@ private
       raise
     end
 
-    @src.host = @socket.addr[ 3 ]
-    @src.port = @socket.addr[ 1 ]
+    @src.host = @socket.addr[3]
+    @src.port = @socket.addr[1]
     @state = :WAIT
     @readbuf = ''
   end
@@ -847,36 +836,36 @@ private
     end
 
     begin
-      timeout( @receiveTimeout ) do
+      timeout(@receiveTimeout) do
 	begin
-	  @status_line = @socket.gets( RS )
+	  @status_line = @socket.gets(RS)
 	  if @status_line.nil?
 	    raise KeepAliveDisconnected.new
 	  end
 	  StatusParseRegexp =~ @status_line
 	  unless $1
-	    raise BadResponse.new( @status_line )
+	    raise BadResponse.new(@status_line)
 	  end
 	  @version, @status, @reason = $1, $2.to_i, $3
-	  @next_connection = if keepAliveEnabled?( @version )
+	  @next_connection = if keepAliveEnabled?(@version)
 	      true
 	    else
 	      false
 	    end
 
 	  @headers = []
-	  until (( line = @socket.gets( RS )) == RS )
+	  until ((line = @socket.gets(RS)) == RS)
 	    unless line
-	      raise BadResponse.new( 'Unexpected EOF.' )
+	      raise BadResponse.new('Unexpected EOF.')
 	    end
-	    line.sub!( /#{ RS }\z/, '' )
-	    if line.sub!( /^\t/, '' )
+	    line.sub!(/#{ RS }\z/, '')
+	    if line.sub!(/^\t/, '')
       	      @headers[-1] << line
 	    else
-      	      @headers.push( line )
+      	      @headers.push(line)
       	    end
 	  end
-	end while ( @version == '1.1' && @status == 100 )
+	end while (@version == '1.1' && @status == 100)
       end
     rescue TimeoutError
       raise
@@ -884,7 +873,7 @@ private
 
     @content_length = nil
     @chunked = false
-    @headers.each do | line |
+    @headers.each do |line|
       case line
       when /^Content-Length:\s+(\d+)/i
 	@content_length = $1.to_i
@@ -892,7 +881,7 @@ private
 	@chunked = true
 	@content_length = true  # how?
 	@chunk_length = 0
-      when /^Connection:\s+([-\w]+)/i, /^Proxy-Connection:\s+([-\w]+)/i
+      when /^Connection:\s+([\-\w]+)/i, /^Proxy-Connection:\s+([\-\w]+)/i
 	case $1
 	when /^Keep-Alive$/i
 	  @next_connection = true
@@ -919,7 +908,7 @@ private
 
     @next_connection = false unless @content_length
 
-    return [ @version, @status, @reason ]
+    return [@version, @status, @reason]
   end
 
   def readBody
@@ -935,7 +924,7 @@ private
 	@readbuf = ''
 	return data
       else
-	data = @socket.read( @readBlockSize )
+	data = @socket.read(@readBlockSize)
 	data = nil if data.empty?	# Absorbing interface mismatch.
 	return data
       end
@@ -951,7 +940,7 @@ private
       return data
     end
     maxbytes = @content_length if maxbytes > @content_length
-    data = @socket.read( maxbytes )
+    data = @socket.read(maxbytes)
     if data
       @content_length -= data.length
     else
@@ -962,14 +951,14 @@ private
 
   def readBodyChunked
     if @chunk_length == 0
-      until ( i = @readbuf.index( RS ))
-	@readbuf << @socket.gets( RS )
+      until (i = @readbuf.index(RS))
+	@readbuf << @socket.gets(RS)
       end
       i += 2
       if @readbuf[0, i] == "0" << RS
 	@content_length = 0
-	unless ( @readbuf[0, 5] == "0" << RS << RS )
-	  @readbuf << @socket.gets( RS )
+	unless (@readbuf[0, 5] == "0" << RS << RS)
+	  @readbuf << @socket.gets(RS)
 	end
 	@readbuf[0, 5] = ''
 	return nil
@@ -978,7 +967,7 @@ private
       @readbuf[0, i] = ''
     end
     while @readbuf.length < @chunk_length + 2
-      @readbuf << @socket.read( @chunk_length + 2 - @readbuf.length )
+      @readbuf << @socket.read(@chunk_length + 2 - @readbuf.length)
     end
     data = @readbuf[0, @chunk_length]
     @readbuf[0, @chunk_length + 2] = ''
@@ -1000,14 +989,14 @@ private
     end
   end
 
-  ProtocolVersionRegexp = Regexp.new( '^(\d+)\.(\d+)$' )
+  ProtocolVersionRegexp = Regexp.new('^(\d+)\.(\d+)$')
 
   # Persistent connection is usable in 1.1 or later.
-  def keepAliveEnabled?( version )
+  def keepAliveEnabled?(version)
     ProtocolVersionRegexp =~ version
-    bEnabled = if ( $1 && ( $1.to_i > 1 ))
+    bEnabled = if ($1 && ($1.to_i > 1))
 	true
-      elsif ( $2 && ( $2.to_i >= 1 ))
+      elsif ($2 && ($2.to_i >= 1))
 	true
       else
 	false
