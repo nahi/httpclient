@@ -30,7 +30,7 @@ RUBY_VERSION_STRING =
   "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
 
 /: (\S+),v (\S+)/ =~
-  %q$Id: http-access2.rb,v 1.4 2003/01/28 15:17:29 nahi Exp $
+  %q$Id: http-access2.rb,v 1.5 2003/02/13 10:33:36 nahi Exp $
 RCS_FILE, RCS_REVISION = $1, $2
 
 RS = "\r\n"
@@ -148,7 +148,7 @@ class Client
       res = get( uri, query, extraHeader, &block )
       case res.status
       when HTTP::Status::OK
-	return res.body.content
+	return res.content.read
       when HTTP::Status::MOVED_PERMANENTLY, HTTP::Status::MOVED_TEMPORARILY
 	uri = res.header[ 'location' ][ 0 ]
 	query = nil
@@ -289,7 +289,8 @@ private
   # !! CAUTION !!
   #   Method 'doGet' runs under MT conditon. Be careful to change.
   def doGet( sess, conn, &block )
-    res = HTTP::Message.newResponse
+    piper, pipew = IO.pipe
+    res = HTTP::Message.newResponse( piper )
     res.version, res.status, res.reason = sess.getStatus
     sess.getHeaders().each do | line |
       unless /^([^:]+)\s*:\s*(.*)$/ =~ line
@@ -297,13 +298,14 @@ private
       end
       res.header.set( $1, $2 )
     end
+    conn.push( res )
     sess.getData() do | str |
       if block
 	block.call( str )
       end
-      res.body.load( str )
+      pipew << str
     end
-    conn.push( res )
+    pipew.close
     @sessionManager.keep( sess ) unless sess.closed?
   end
 end
