@@ -30,7 +30,7 @@ RUBY_VERSION_STRING =
   "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
 
 /: (\S+),v (\S+)/ =~
-  %q$Id: http-access2.rb,v 1.1 2002/10/21 04:12:34 nahi Exp $
+  %q$Id: http-access2.rb,v 1.3 2002/12/12 23:02:19 nahi Exp $
 RCS_FILE, RCS_REVISION = $1, $2
 
 RS = "\r\n"
@@ -232,11 +232,11 @@ class Client
     requestAsync( 'DELETE', uri, nil, nil, extraHeader, &block )
   end
 
-  def options( uri, extraHeader = {}, &block )
+  def optionsAsync( uri, extraHeader = {}, &block )
     requestAsync( 'OPTIONS', uri, nil, nil, extraHeader, &block )
   end
 
-  def trace( uri, query = nil, body = nil, extraHeader = {}, &block )
+  def traceAsync( uri, query = nil, body = nil, extraHeader = {}, &block )
     requestAsync( 'TRACE', uri, query, body, extraHeader, &block )
   end
 
@@ -847,7 +847,7 @@ private
 	    unless line
 	      raise BadResponse.new( 'Unexpected EOF.' )
 	    end
-	    line.sub!( "#{ RS }\\z", '' )
+	    line.sub!( /#{ RS }\z/, '' )
 	    if line.sub!( /^\t/, '' )
       	      @headers[-1] << line
 	    else
