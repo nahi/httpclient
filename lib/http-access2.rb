@@ -1281,8 +1281,13 @@ private
       retry_number = 0
       timeout(@connect_timeout) do
 	@socket = create_socket(site)
-	@src.host = @socket.addr[3]
-	@src.port = @socket.addr[1]
+        begin
+          @src.host = @socket.addr[3]
+          @src.port = @socket.addr[1]
+        rescue SocketError
+          # to avoid IPSocket#addr problem on MacOS X + ruby-1.8.1.
+          # cf. [ruby-talk:84909], [ruby-talk:95827]
+        end
 	if @dest.scheme == 'https'
 	  @socket = create_ssl_socket(@socket)
 	  connect_ssl_proxy(@socket) if @proxy
