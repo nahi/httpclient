@@ -141,6 +141,7 @@ class Message
       @reasonPhrase = StatusCodeMap[ @responseStatusCode ]
     end
 
+    # bodySize == nil means that the body is_a? IO
     def bodySize=( bodySize )
       @bodySize = bodySize
       if @bodySize
@@ -150,18 +151,17 @@ class Message
       end
     end
 
-    def dump
+    def dump( dev = '' )
       setHeader
-      str = ""
       if @isRequest
-	str << requestLine
+	dev << requestLine
       else
-	str << responseStatusLine
+	dev << responseStatusLine
       end
       @headerItem.each do | key, value |
-	str << dumpLine( "#{ key }: #{ value }" )
+	dev << dumpLine( "#{ key }: #{ value }" )
       end
-      str
+      dev
     end
 
     def set( key, value )
@@ -278,16 +278,43 @@ class Message
       end
     end
 
-    def dump
-      content
+    def dump( dev = '' )
+      if size.nil?
+	begin
+	  while true
+	    chunk = @body.sysread( @chunkSize )
+	    dev << dumpChunk( chunk )
+	  end
+	rescue EOFError
+	ensure
+	  dev << dumpLastChunk << CRLF
+	end
+      else
+	dev << @body
+      end
+      dev
+    end
+
+    def content
+      @body
     end
 
     def set_content( body )
       @body = body
     end
 
-    def content
-      @body
+  private
+
+    def dumpChunk( str )
+      dumpChunkSize( str.size ) << str << CRLF
+    end
+
+    def dumpLastChunk
+      dumpChunkSize( 0 )
+    end
+
+    def dumpChunkSize( size )
+      sprintf( "%x", size ) << CRLF
     end
   end
 
@@ -318,19 +345,9 @@ class Message
 
   def dump( dev = '' )
     syncHeader
-    dev << header.dump
-    dev << dumpEOH
-    if body
-      if header.chunked
-	while !body.content.eof
-	  chunk = body.content.read( body.chunkSize )
-	  dev << dumpChunk( chunk )
-	end
-	dev << dumpLastChunk << dumpEOH
-      else
-	dev << body.dump
-      end
-    end
+    dev = header.dump( dev )
+    dev << CRLF
+    dev = body.dump( dev ) if body
     dev
   end
 
@@ -428,22 +445,6 @@ private
       @body.size = @header.bodySize
       @body.date = @header.bodyDate
     end
-  end
-
-  def dumpEOH
-    CRLF
-  end
-
-  def dumpChunk( str )
-    dumpChunkSize( str.size ) << str << CRLF
-  end
-
-  def dumpLastChunk
-    dumpChunkSize( 0 )
-  end
-
-  def dumpChunkSize( size )
-    sprintf( "%x", size ) << CRLF
   end
 end
 
