@@ -4,6 +4,8 @@ require 'webrick'
 require 'webrick/httpproxy.rb'
 require 'logger'
 require 'stringio'
+require 'cgi'
+require 'webrick/httputils'
 
 
 module HTTPAccess2
@@ -231,33 +233,90 @@ class TestClient < Test::Unit::TestCase
 
   def test_head
     assert_equal("head", @client.head(@url + 'servlet').header["x-head"][0])
+    res = @client.head(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_get
     assert_equal("get", @client.get(@url + 'servlet').content)
+    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_post
     assert_equal("post", @client.post(@url + 'servlet').content)
+    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_put
     assert_equal("put", @client.put(@url + 'servlet').content)
+    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_delete
     assert_equal("delete", @client.delete(@url + 'servlet').content)
+    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_options
     assert_equal("options", @client.options(@url + 'servlet').content)
+    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_trace
     assert_equal("trace", @client.trace(@url + 'servlet').content)
+    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal('1=2&3=4', res.header["x-query"][0])
+  end
+
+  def test_get_query
+    assert_equal({'1'=>'2'}, check_query_get({1=>2}))
+    assert_equal({'a'=>'A', 'B'=>'b'}, check_query_get({"a"=>"A", "B"=>"b"}))
+    assert_equal({'&'=>'&'}, check_query_get({"&"=>"&"}))
+    assert_equal({'= '=>' =+'}, check_query_get({"= "=>" =+"}))
+    assert_equal(
+      ['=', '&'].sort,
+      check_query_get([["=", "="], ["=", "&"]])['='].to_ary.sort
+    )
+    assert_equal({'123'=>'45'}, check_query_get('123=45'))
+    assert_equal({'12 3'=>'45', ' '=>' '}, check_query_get('12+3=45&+=+'))
+  end
+
+  def test_post_body
+    assert_equal({'1'=>'2'}, check_query_post({1=>2}))
+    assert_equal({'a'=>'A', 'B'=>'b'}, check_query_post({"a"=>"A", "B"=>"b"}))
+    assert_equal({'&'=>'&'}, check_query_post({"&"=>"&"}))
+    assert_equal({'= '=>' =+'}, check_query_post({"= "=>" =+"}))
+    assert_equal(
+      ['=', '&'].sort,
+      check_query_post([["=", "="], ["=", "&"]])['='].to_ary.sort
+    )
+    assert_equal({'123'=>'45'}, check_query_post('123=45'))
+    assert_equal({'12 3'=>'45', ' '=>' '}, check_query_post('12+3=45&+=+'))
+    raise NotImplementedError.new
+  end
+
+  def test_extra_headers
+    raise NotImplementedError.new
   end
 
 private
+
+  def check_query_get(query)
+    WEBrick::HTTPUtils.parse_query(
+      @client.get(@url + 'servlet', query).header["x-query"][0]
+    )
+  end
+
+  def check_query_post(query)
+    WEBrick::HTTPUtils.parse_query(
+      @client.post(@url + 'servlet', query).header["x-query"][0]
+    )
+  end
 
   def setup_server
     @server = WEBrick::HTTPServer.new(
@@ -304,7 +363,7 @@ private
   end
 
   def teardown_client
-    @client.reset(@url)
+    @client.reset_all
   end
 
   def start_server_thread(server)
@@ -357,15 +416,18 @@ private
     end
 
     def do_HEAD(req, res)
-      res["x-head"] = 'head'	# illegal.  test purpose.
+      res["x-head"] = 'head'	# use this for test purpose only.
+      res["x-query"] = query_response(req)
     end
 
     def do_GET(req, res)
       res.body = 'get'
+      res["x-query"] = query_response(req)
     end
 
     def do_POST(req, res)
       res.body = 'post'
+      res["x-query"] = body_response(req)
     end
 
     def do_PUT(req, res)
@@ -377,11 +439,35 @@ private
     end
 
     def do_OPTIONS(req, res)
+      # check RFC for legal response.
       res.body = 'options'
     end
 
     def do_TRACE(req, res)
+      # client SHOULD reflect the message received back to the client as the
+      # entity-body of a 200 (OK) response. [RFC2616]
       res.body = 'trace'
+      res["x-query"] = query_response(req)
+    end
+
+  private
+
+    def query_response(req)
+      query_escape(WEBrick::HTTPUtils.parse_query(req.query_string))
+    end
+
+    def body_response(req)
+      query_escape(WEBrick::HTTPUtils.parse_query(req.body))
+    end
+
+    def query_escape(query)
+      escaped = []
+      query.collect do |k, v|
+	v.to_ary.each do |ve|
+	  escaped << CGI.escape(k) + '=' + CGI.escape(ve)
+	end
+      end
+      escaped.join('&')
     end
   end
 end
