@@ -141,12 +141,12 @@ class Message
       @reason_phrase = StatusCodeMap[@response_status_code]
     end
 
-    def content_type
+    def contenttype
       self['content-type'][0]
     end
 
-    def content_type=(content_type)
-      self['content-type'] = content_type
+    def contenttype=(contenttype)
+      self['content-type'] = contenttype
     end
 
     # body_size == nil means that the body is_a? IO
@@ -411,12 +411,12 @@ class Message
     @header.reason_phrase = reason
   end
 
-  def content_type
-    @header.content_type
+  def contenttype
+    @header.contenttype
   end
 
-  def content_type=(content_type)
-    @header.content_type = content_type
+  def contenttype=(contenttype)
+    @header.contenttype = contenttype
   end
 
   class << self
