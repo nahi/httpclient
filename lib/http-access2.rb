@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.30 2003/12/13 03:36:22 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.31 2003/12/13 03:44:00 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -1028,7 +1028,7 @@ class Session	# :nodoc:
       close
       raise KeepAliveDisconnected.new
     rescue
-      if SSLEnabled and $!.is_a?(OpenSSL::SSL::Error)
+      if SSLEnabled and $!.is_a?(OpenSSL::SSL::SSLError)
 	raise KeepAliveDisconnected.new
       elsif $!.is_a?(TimeoutError)
 	close
