@@ -17,5 +17,4 @@ while urlstr = ARGV.shift
     print data
   }
   p response.header[ 'content-type' ]
-  p response.body.size
 end

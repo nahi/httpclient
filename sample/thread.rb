@@ -20,12 +20,8 @@ g.each do | th |
   th.join
 end
 
-res.map! do |item|
-  item.content.read
-end
-
 for i in 0..(count - 1)
-  raise unless ( res[ i ] == res[ i + 1 ] )
+  raise unless ( res[ i ].content == res[ i + 1 ].content )
 end
 
 puts 'ok'
