@@ -17,7 +17,7 @@ class TestClient < Test::Unit::TestCase
 
   def setup
     @logger = Logger.new(STDERR)
-    @logger.level = Logger::Severity::ERROR
+    @logger.level = Logger::Severity::FATAL
     @proxyio = StringIO.new
     @proxylogger = Logger.new(@proxyio)
     @proxylogger.level = Logger::Severity::DEBUG
