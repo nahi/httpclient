@@ -23,8 +23,8 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.14 2003/06/01 03:33:41 nahi Exp $
-  RCS_FILE, RCS_REVISION = $1, $2
+  s = %w$Id: http-access2.rb,v 1.15 2003/06/01 10:07:36 nahi Exp $
+  RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
   FS = "\r\n\t"
