@@ -30,7 +30,7 @@ RUBY_VERSION_STRING =
   "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
 
 /: (\S+),v (\S+)/ =~
-  %q$Id: http-access2.rb,v 1.7 2003/02/14 15:21:38 nahi Exp $
+  %q$Id: http-access2.rb,v 1.8 2003/02/25 13:17:00 nahi Exp $
 RCS_FILE, RCS_REVISION = $1, $2
 
 RS = "\r\n"
@@ -73,6 +73,16 @@ class Client
   attr_reader :debugDev		# Device for dumping log for debugging.
 
   attr_reader :sessionManager	# Session manager.
+
+  class << self
+    %w(getContent head get post put delete options trace).each do |name|
+      eval <<-EOD
+        def #{name}(*arg)
+          new.#{name}(*arg)
+        end
+      EOD
+    end
+  end
 
   # SYNOPSIS
   #   Client.new( proxy = nil, agentName = nil, from = nil )
