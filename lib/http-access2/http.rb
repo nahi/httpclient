@@ -248,7 +248,9 @@ class Message
       end
 
       if @is_request == true
-	set('Host', @request_uri.host) if @http_version >= 'HTTP/1.1'
+	if @http_version >= 'HTTP/1.1'
+	  set('Host', "#{@request_uri.host}:#{@request_uri.port}")
+	end
       elsif @is_request == false
 	set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ CharsetMap[@body_charset || $KCODE] }")
       end
