@@ -191,9 +191,9 @@ class Message
 	  @requestQueryUri
 	else
 	  if @requestUri.port
-	    "http://#{ @requestUri.host }:#{ @requestUri.port }#{ @requestQueryUri }"
+	    "#{ @requestUri.scheme }://#{ @requestUri.host }:#{ @requestUri.port }#{ @requestQueryUri }"
 	  else
-	    "http://#{ @requestUri.host }#{ @requestQueryUri }"
+	    "#{ @requestUri.scheme }://#{ @requestUri.host }#{ @requestQueryUri }"
 	  end
 	end
       dumpLine("#{ @requestMethod } #{ path } #{ @httpVersion }")
