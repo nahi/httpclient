@@ -33,6 +33,232 @@ class TestClient < Test::Unit::TestCase
     teardown_server
   end
 
+  def test_initialize
+    setup_proxyserver
+    escape_noproxy do
+      @proxyio.string = ""
+      @client = HTTPAccess2::Client.new(@proxyurl)
+      assert_equal(URI.parse(@proxyurl), @client.proxy)
+      assert_equal(200, @client.head(@url).status)
+      assert(!@proxyio.string.empty?)
+    end
+  end
+
+  def test_agent_name
+    @client = HTTPAccess2::Client.new(nil, "agent_name_foo")
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url)
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_match(/^User-Agent: agent_name_foo/, lines[3])
+  end
+
+  def test_from
+    @client = HTTPAccess2::Client.new(nil, nil, "from_bar")
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url)
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_match(/^From: from_bar/, lines[3])
+  end
+
+  def test_debug_dev
+    str = ""
+    @client.debug_dev = str
+    assert(str.empty?)
+    @client.get(@url)
+    assert(!str.empty?)
+  end
+
+  def test_protocol_version_http10
+    @client.protocol_version = 'HTTP/1.0'
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url)
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_equal("! CONNECTION ESTABLISHED", lines[1])
+    assert_equal("GET / HTTP/1.0", lines[2])
+  end
+
+  def test_protocol_version_http11
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url)
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_equal("! CONNECTION ESTABLISHED", lines[1])
+    assert_equal("GET / HTTP/1.1", lines[2])
+    @client.protocol_version = 'HTTP/1.1'
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url)
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_equal("! CONNECTION ESTABLISHED", lines[1])
+    assert_equal("GET / HTTP/1.1", lines[2])
+    @client.protocol_version = 'HTTP/1.0'
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url)
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_equal("! CONNECTION ESTABLISHED", lines[1])
+    assert_equal("GET / HTTP/1.0", lines[2])
+  end
+
+  def test_proxy
+    setup_proxyserver
+    escape_noproxy do
+      assert_raises(URI::InvalidURIError) do
+       	@client.proxy = "http://"
+      end
+      assert_raises(ArgumentError) do
+	@client.proxy = ""
+      end
+      @client.proxy = "http://foo:1234"
+      assert_equal(URI.parse("http://foo:1234"), @client.proxy)
+      uri = URI.parse("http://bar:2345")
+      @client.proxy = uri
+      assert_equal(uri, @client.proxy)
+      #
+      @proxyio.string = ""
+      @client.proxy = nil
+      assert_equal(200, @client.head(@url).status)
+      assert(@proxyio.string.empty?)
+      #
+      @proxyio.string = ""
+      @client.proxy = @proxyurl
+      assert_equal(200, @client.head(@url).status)
+      assert(!@proxyio.string.empty?)
+    end
+  end
+
+  def test_noproxy_for_localhost
+    @proxyio.string = ""
+    @client.proxy = @proxyurl
+    assert_equal(200, @client.head(@url).status)
+    assert(@proxyio.string.empty?)
+  end
+
+  def test_no_proxy
+    setup_proxyserver
+    escape_noproxy do
+      # proxy is not set.
+      @client.no_proxy = 'localhost'
+      @proxyio.string = ""
+      @client.proxy = nil
+      assert_equal(200, @client.head(@url).status)
+      assert(@proxyio.string.empty?)
+      #
+      @proxyio.string = ""
+      @client.proxy = @proxyurl
+      assert_equal(200, @client.head(@url).status)
+      assert(@proxyio.string.empty?)
+      #
+      @client.no_proxy = 'foobar'
+      @proxyio.string = ""
+      @client.proxy = @proxyurl
+      assert_equal(200, @client.head(@url).status)
+      assert(!@proxyio.string.empty?)
+      #
+      @client.no_proxy = 'foobar,localhost:baz'
+      @proxyio.string = ""
+      @client.proxy = @proxyurl
+      assert_equal(200, @client.head(@url).status)
+      assert(@proxyio.string.empty?)
+      #
+      @client.no_proxy = 'foobar,localhost:443'
+      @proxyio.string = ""
+      @client.proxy = @proxyurl
+      assert_equal(200, @client.head(@url).status)
+      assert(!@proxyio.string.empty?)
+      #
+      @client.no_proxy = 'foobar,localhost:443:localhost:17171,baz'
+      @proxyio.string = ""
+      @client.proxy = @proxyurl
+      assert_equal(200, @client.head(@url).status)
+      assert(@proxyio.string.empty?)
+    end
+  end
+
+  def test_basic_auth
+    str = ""
+    @client.debug_dev = str
+    @client.set_basic_auth("http://notlocalhost/foo/", "foo", "bar")
+    @client.head(@url)
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_match(/^Date/, lines[3])
+    #
+    @client.set_basic_auth(@url + "bar/", "foo", "bar")
+    str = ""
+    @client.debug_dev = str
+    @client.head(@url + "foo/")
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_match(/^Date/, lines[3])
+    #
+    @client.set_basic_auth(@url + "foo/bar", "foo", "bar")
+    str = ""
+    @client.debug_dev = str
+    @client.head(@url + "foo/")
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_equal("Authorization: Basic Zm9vOmJhcg==", lines[3])
+    #
+    str = ""
+    @client.debug_dev = str
+    @client.head(@url + "foo/baz/baz.txt")
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_equal("Authorization: Basic Zm9vOmJhcg==", lines[3])
+  end
+
+  def test_get_content
+    assert_equal('hello', @client.get_content(@url + 'hello'))
+    assert_equal('hello', @client.get_content(@url + 'redirect1'))
+    assert_equal('hello', @client.get_content(@url + 'redirect2'))
+    assert_raises(RuntimeError) do
+      @client.get_content(@url + 'notfound')
+    end
+    assert_raises(RuntimeError) do
+      @client.get_content(@url + 'redirect_self')
+    end
+  end
+
+  def test_head
+    assert_equal("head", @client.head(@url + 'servlet').header["x-head"][0])
+  end
+
+  def test_get
+    assert_equal("get", @client.get(@url + 'servlet').content)
+  end
+
+  def test_post
+    assert_equal("post", @client.post(@url + 'servlet').content)
+  end
+
+  def test_put
+    assert_equal("put", @client.put(@url + 'servlet').content)
+  end
+
+  def test_delete
+    assert_equal("delete", @client.delete(@url + 'servlet').content)
+  end
+
+  def test_options
+    assert_equal("options", @client.options(@url + 'servlet').content)
+  end
+
+  def test_trace
+    assert_equal("trace", @client.trace(@url + 'servlet').content)
+  end
+
+private
+
   def setup_server
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "0.0.0.0",
@@ -41,6 +267,13 @@ class TestClient < Test::Unit::TestCase
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
+    [:hello, :redirect1, :redirect2, :redirect3, :redirect_self].each do |sym|
+      @server.mount(
+	"/#{sym}",
+	WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
+      )
+    end
+    @server.mount('/servlet', TestServlet.new(@server))
     @server_thread = start_server_thread(@server)
   end
 
@@ -89,64 +322,67 @@ class TestClient < Test::Unit::TestCase
     t
   end
 
-  def test_initialize
-    setup_proxyserver
+  def escape_noproxy
     backup = HTTPAccess2::Client::NO_PROXY_HOSTS.dup
     HTTPAccess2::Client::NO_PROXY_HOSTS.clear
-    #
-    @proxyio.string = ""
-    @client = HTTPAccess2::Client.new(@proxyurl)
-    assert_equal(200, @client.head(@url).status)
-    assert(!@proxyio.string.empty?)
-    #
-    @proxyio.string = ""
-    @client.proxy = nil
-    assert_equal(200, @client.head(@url).status)
-    assert(@proxyio.string.empty?)
-    #
-    @proxyio.string = ""
-    @client.proxy = @proxyurl
-    assert_equal(200, @client.head(@url).status)
-    assert(!@proxyio.string.empty?)
+    yield
   ensure
     HTTPAccess2::Client::NO_PROXY_HOSTS.replace(backup)
   end
 
-  def test_http10
-    @client.protocol_version = 'HTTP/1.0'
-    str = ""
-    @client.debug_dev = str
-    @client.get(@url)
-    lines = str.split(/(?:\r?\n)+/)
-    assert_equal("= Request", lines[0])
-    assert_equal("! CONNECTION ESTABLISHED", lines[1])
-    assert_equal("GET / HTTP/1.0", lines[2])
+  def do_hello(req, res)
+    res['content-type'] = 'text/html'
+    res.body = "hello"
   end
 
-  def test_http11
-    str = ""
-    @client.debug_dev = str
-    @client.get(@url)
-    lines = str.split(/(?:\r?\n)+/)
-    assert_equal("= Request", lines[0])
-    assert_equal("! CONNECTION ESTABLISHED", lines[1])
-    assert_equal("GET / HTTP/1.1", lines[2])
-    @client.protocol_version = 'HTTP/1.1'
-    str = ""
-    @client.debug_dev = str
-    @client.get(@url)
-    lines = str.split(/(?:\r?\n)+/)
-    assert_equal("= Request", lines[0])
-    assert_equal("! CONNECTION ESTABLISHED", lines[1])
-    assert_equal("GET / HTTP/1.1", lines[2])
-    @client.protocol_version = 'HTTP/1.0'
-    str = ""
-    @client.debug_dev = str
-    @client.get(@url)
-    lines = str.split(/(?:\r?\n)+/)
-    assert_equal("= Request", lines[0])
-    assert_equal("! CONNECTION ESTABLISHED", lines[1])
-    assert_equal("GET / HTTP/1.0", lines[2])
+  def do_redirect1(req, res)
+    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, @url + "hello") 
+  end
+
+  def do_redirect2(req, res)
+    res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, @url + "redirect3")
+  end
+
+  def do_redirect3(req, res)
+    res.set_redirect(WEBrick::HTTPStatus::Found, @url + "hello") 
+  end
+
+  def do_redirect_self(req, res)
+    res.set_redirect(WEBrick::HTTPStatus::Found, @url + "redirect_self") 
+  end
+
+  class TestServlet < WEBrick::HTTPServlet::AbstractServlet
+    def get_instance(*arg)
+      self
+    end
+
+    def do_HEAD(req, res)
+      res["x-head"] = 'head'	# illegal.  test purpose.
+    end
+
+    def do_GET(req, res)
+      res.body = 'get'
+    end
+
+    def do_POST(req, res)
+      res.body = 'post'
+    end
+
+    def do_PUT(req, res)
+      res.body = 'put'
+    end
+
+    def do_DELETE(req, res)
+      res.body = 'delete'
+    end
+
+    def do_OPTIONS(req, res)
+      res.body = 'options'
+    end
+
+    def do_TRACE(req, res)
+      res.body = 'trace'
+    end
   end
 end
 
