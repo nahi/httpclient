@@ -86,6 +86,8 @@ class Message
     StatusCodeMap = {
       Status::OK => 'OK',
       Status::MOVED_PERMANENTLY => 'Moved Permanently',
+      Status::FOUND => 'Found',
+      Status::SEE_OTHER => 'See Other',
       Status::TEMPORARY_REDIRECT => 'Temporary Redirect',
       Status::MOVED_TEMPORARILY => 'Temporary Redirect',
       Status::BAD_REQUEST => 'Bad Request',
@@ -290,7 +292,7 @@ class Message
     end
 
     def size
-      if @body.is_a?(IO)
+      if @body.respond_to?(:read)
 	nil
       else
 	@body.size
@@ -298,16 +300,16 @@ class Message
     end
 
     def dump(dev = '')
-      if size.nil?
+      if @body.respond_to?(:read)
 	begin
 	  while true
-	    chunk = @body.sysread(@chunk_size)
+	    chunk = @body.read(@chunk_size)
+	    break if chunk.nil?
 	    dev << dump_chunk(chunk)
 	  end
 	rescue EOFError
-	ensure
-	  dev << (dump_last_chunk + CRLF)
 	end
+	dev << (dump_last_chunk + CRLF)
       else
 	dev << @body
       end
@@ -319,13 +321,10 @@ class Message
     end
 
     def set_content(body)
-      case body
-      when IO
+      if body.respond_to?(:read)
 	@body = body
-      when Array, Hash
-	@body = Message.create_query_part_str(body)
       else
-	@body = body
+	@body = Message.create_query_part_str(body)
       end
     end
 
@@ -440,14 +439,11 @@ class Message
 
   class << self
     def create_query_part_str(query)
-      return case query
-	when Array, Hash
-	  escape_query(query)
-	when NilClass
-	  nil
-	else
-	  query.to_s
-	end
+      if query.is_a?(Array) or query.is_a?(Hash)
+	escape_query(query)
+      else
+	query.to_s
+      end
     end
 
     def escape_query(query)

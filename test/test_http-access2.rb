@@ -287,6 +287,7 @@ class TestClient < Test::Unit::TestCase
     )
     assert_equal({'123'=>'45'}, check_query_get('123=45'))
     assert_equal({'12 3'=>'45', ' '=>' '}, check_query_get('12+3=45&+=+'))
+    assert_equal({}, check_query_get(''))
   end
 
   def test_post_body
@@ -300,11 +301,30 @@ class TestClient < Test::Unit::TestCase
     )
     assert_equal({'123'=>'45'}, check_query_post('123=45'))
     assert_equal({'12 3'=>'45', ' '=>' '}, check_query_post('12+3=45&+=+'))
-    raise NotImplementedError.new
+    assert_equal({}, check_query_post(''))
+    #
+    post_body = StringIO.new("foo=bar&foo=baz")
+    assert_equal(
+      ["bar", "baz"],
+      check_query_post(post_body)["foo"].to_ary.sort
+    )
   end
 
   def test_extra_headers
-    raise NotImplementedError.new
+    str = ""
+    @client.debug_dev = str
+    @client.head(@url, nil, {"ABC" => "DEF"})
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_match("ABC: DEF", lines[3])
+    #
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url, nil, [["ABC", "DEF"], ["ABC", "DEF"]])
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_match("ABC: DEF", lines[3])
+    assert_match("ABC: DEF", lines[4])
   end
 
 private
@@ -351,6 +371,7 @@ private
 
   def setup_client
     @client = HTTPAccess2::Client.new
+    @client.debug_dev = STDOUT if $DEBUG
   end
 
   def teardown_server
