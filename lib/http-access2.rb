@@ -23,7 +23,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.13 2003/05/31 14:58:54 nahi Exp $
+  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.14 2003/06/01 03:33:41 nahi Exp $
   RCS_FILE, RCS_REVISION = $1, $2
 
   RS = "\r\n"
@@ -385,7 +385,7 @@ class SSLConfig	# :nodoc:
     ctx.ca_path = @trust_ca_path
     ctx.verify_mode = @verify_mode
     ctx.verify_depth = @verify_depth
-    ctx.verify_callback = @verify_callback || method(:verify_callback)
+    ctx.verify_callback = @verify_callback || method(:default_verify_callback)
     ctx.timeout = @timeout
   end
 
@@ -397,9 +397,10 @@ protected
 
 private
 
+  # Does not check CRL/ARL.
   # Does not check keyUsage.
   # Does not check criticality of extentions.
-  def verify_callback(ok, store)
+  def default_verify_callback(ok, store)
     unless ok
       code = store.verify_status
       msg = store.verify_message
