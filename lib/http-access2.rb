@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.32 2003/12/14 15:28:45 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.33 2004/01/23 07:06:23 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -72,6 +72,7 @@ class Client
   attr_reader :agent_name	# Name of this client.
   attr_reader :from		# Owner of this client.
   attr_reader :ssl_config	# SSL configuration (if enabled).
+  attr_reader :test_loopback_response	# Loopback test response store.
 
   class << self
     %w(get_content head get post put delete options trace).each do |name|
@@ -102,6 +103,7 @@ class Client
     @basic_auth = BasicAuth.new
     @debug_dev = nil
     @ssl_config = SSLConfig.new
+    @test_loopback_response = []
     @session_manager = SessionManager.new
     @session_manager.agent_name = @agent_name
     @session_manager.from = @from
@@ -175,14 +177,14 @@ class Client
   end
 
   # SYNOPSIS
-  #   Client#get_content(uri, query = nil, extra_header = {}, &block = nil)
+  #   Client#get_content(uri, query = nil, extheader = {}, &block = nil)
   #
   # ARGS
   #   uri	an_URI or a_string of uri to connect.
   #   query	a_hash or an_array of query part.  e.g. { "a" => "b" }.
   #   		Give an array to pass multiple value like
   #   		[["a" => "b"], ["a" => "c"]].
-  #   extra_header
+  #   extheader
   #   		a_hash of extra headers like { "SOAPAction" => "urn:foo" }.
   #   &block	Give a block to get chunked message-body of response like
   #   		get_content(uri) { |chunked_body| ... }
@@ -191,10 +193,10 @@ class Client
   # DESCRIPTION
   #   Get a_sring of message-body of response.
   #
-  def get_content(uri, query = nil, extra_header = {}, &block)
+  def get_content(uri, query = nil, extheader = {}, &block)
     retry_number = 0
     while retry_number < 10
-      res = get(uri, query, extra_header, &block)
+      res = get(uri, query, extheader, &block)
       if res.status == HTTP::Status::OK
 	return res.content
       elsif HTTP::Status.redirect?(res.status)
@@ -209,108 +211,77 @@ class Client
     raise RuntimeError.new("Retry count exceeded.")
   end
 
-  def head(uri, query = nil, extra_header = {})
-    request('HEAD', uri, query, nil, extra_header)
+  def head(uri, query = nil, extheader = {})
+    request('HEAD', uri, query, nil, extheader)
   end
 
-  def get(uri, query = nil, extra_header = {}, &block)
-    request('GET', uri, query, nil, extra_header, &block)
+  def get(uri, query = nil, extheader = {}, &block)
+    request('GET', uri, query, nil, extheader, &block)
   end
 
-  def post(uri, body = nil, extra_header = {}, &block)
-    request('POST', uri, nil, body, extra_header, &block)
+  def post(uri, body = nil, extheader = {}, &block)
+    request('POST', uri, nil, body, extheader, &block)
   end
 
-  def put(uri, body = nil, extra_header = {}, &block)
-    request('PUT', uri, nil, body, extra_header, &block)
+  def put(uri, body = nil, extheader = {}, &block)
+    request('PUT', uri, nil, body, extheader, &block)
   end
 
-  def delete(uri, extra_header = {}, &block)
-    request('DELETE', uri, nil, nil, extra_header, &block)
+  def delete(uri, extheader = {}, &block)
+    request('DELETE', uri, nil, nil, extheader, &block)
   end
 
-  def options(uri, extra_header = {}, &block)
-    request('OPTIONS', uri, nil, nil, extra_header, &block)
+  def options(uri, extheader = {}, &block)
+    request('OPTIONS', uri, nil, nil, extheader, &block)
   end
 
-  def trace(uri, query = nil, body = nil, extra_header = {}, &block)
-    request('TRACE', uri, query, body, extra_header, &block)
+  def trace(uri, query = nil, body = nil, extheader = {}, &block)
+    request('TRACE', uri, query, body, extheader, &block)
   end
 
-  def request(method, uri, query = nil, body = nil, extra_header = {}, &block)
-    @debug_dev << "= Request\n\n" if @debug_dev
-    unless uri.is_a?(URI)
-      uri = URI.parse(uri)
-    end
-    proxy = no_proxy?(uri) ? nil : @proxy
+  def request(method, uri, query = nil, body = nil, extheader = {}, &block)
     conn = Connection.new
-    begin
-      req = create_request(method, uri, query, body, extra_header, !proxy.nil?)
-      sess = @session_manager.query(req, proxy)
-      @debug_dev << "\n\n= Response\n\n" if @debug_dev
-      do_get_block(req, sess, conn, &block)
-    rescue Session::KeepAliveDisconnected
-      # Try again.
-      req = create_request(method, uri, query, body, extra_header, !proxy.nil?)
-      sess = @session_manager.query(req, proxy)
-      @debug_dev << "\n\n= Response\n\n" if @debug_dev
-      do_get_block(req, sess, conn, &block)
-    end
+    conn_request(conn, method, uri, query, body, extheader, &block)
     conn.pop
   end
 
   # Async interface.
 
-  def head_async(uri, query = nil, extra_header = {})
-    request_async('HEAD', uri, query, nil, extra_header)
+  def head_async(uri, query = nil, extheader = {})
+    request_async('HEAD', uri, query, nil, extheader)
   end
 
-  def get_async(uri, query = nil, extra_header = {})
-    request_async('GET', uri, query, nil, extra_header)
+  def get_async(uri, query = nil, extheader = {})
+    request_async('GET', uri, query, nil, extheader)
   end
 
-  def post_async(uri, body = nil, extra_header = {})
-    request_async('POST', uri, nil, body, extra_header)
+  def post_async(uri, body = nil, extheader = {})
+    request_async('POST', uri, nil, body, extheader)
   end
 
-  def put_async(uri, body = nil, extra_header = {})
-    request_async('PUT', uri, nil, body, extra_header)
+  def put_async(uri, body = nil, extheader = {})
+    request_async('PUT', uri, nil, body, extheader)
   end
 
-  def delete_async(uri, extra_header = {})
-    request_async('DELETE', uri, nil, nil, extra_header)
+  def delete_async(uri, extheader = {})
+    request_async('DELETE', uri, nil, nil, extheader)
   end
 
-  def options_async(uri, extra_header = {})
-    request_async('OPTIONS', uri, nil, nil, extra_header)
+  def options_async(uri, extheader = {})
+    request_async('OPTIONS', uri, nil, nil, extheader)
   end
 
-  def trace_async(uri, query = nil, body = nil, extra_header = {})
-    request_async('TRACE', uri, query, body, extra_header)
+  def trace_async(uri, query = nil, body = nil, extheader = {})
+    request_async('TRACE', uri, query, body, extheader)
   end
 
-  def request_async(method, uri, query = nil, body = nil, extra_header = {})
-    @debug_dev << "= Request\n\n" if @debug_dev
-    unless uri.is_a?(URI)
-      uri = URI.parse(uri)
-    end
-    proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method, uri, query, body, extra_header, !proxy.nil?)
-    response_conn = Connection.new
-    t = Thread.new(response_conn) { |conn|
-      sess = @session_manager.query(req, proxy)
-      @debug_dev << "\n\n= Response\n\n" if @debug_dev
-      begin
-	do_get_stream(req, sess, conn)
-      rescue Session::KeepAliveDisconnected
-       	# Try again.
-	req = create_request(method, uri, query, body, extra_header, !proxy.nil?)
-	sess = @session_manager.query(req, proxy)
-	do_get_stream(req, sess, conn)
-      end
+  def request_async(method, uri, query = nil, body = nil, extheader = {})
+    conn = Connection.new
+    t = Thread.new(conn) { |tconn|
+      conn_request(tconn, method, uri, query, body, extheader)
     }
-    response_conn.async_thread = t
-    response_conn
+    conn.async_thread = t
+    conn
   end
 
   ##
@@ -331,21 +302,35 @@ class Client
 
 private
 
-  def create_request(method, uri, query, body, extra_header, proxy)
-    if extra_header.is_a?(Hash)
-      extra_header = extra_header.to_a
+  def conn_request(conn, method, uri, query, body, extheader, &block)
+    unless uri.is_a?(URI)
+      uri = URI.parse(uri)
+    end
+    proxy = no_proxy?(uri) ? nil : @proxy
+    begin
+      req = create_request(method, uri, query, body, extheader, !proxy.nil?)
+      do_get_block(req, proxy, conn, &block)
+    rescue Session::KeepAliveDisconnected
+      req = create_request(method, uri, query, body, extheader, !proxy.nil?)
+      do_get_block(req, proxy, conn, &block)
+    end
+  end
+
+  def create_request(method, uri, query, body, extheader, proxy)
+    if extheader.is_a?(Hash)
+      extheader = extheader.to_a
     end
     cred = @basic_auth.get(uri)
     if cred
-      extra_header << ['Authorization', "Basic " << cred]
+      extheader << ['Authorization', "Basic " << cred]
     end
     if @cookie_manager
       if (cookies = @cookie_manager.find(uri))
-	extra_header << ['Cookie', cookies]
+	extheader << ['Cookie', cookies]
       end
     end
     req = HTTP::Message.new_request(method, uri, query, body, proxy)
-    extra_header.each do |key, value|
+    extheader.each do |key, value|
       req.header.set(key, value)
     end
     req
@@ -371,10 +356,19 @@ private
 
   # !! CAUTION !!
   #   Method 'do_get*' runs under MT conditon. Be careful to change.
-  def do_get_block(req, sess, conn, &block)
+  def do_get_block(req, proxy, conn, &block)
+    if str = @test_loopback_response.shift
+      dump_dummy_request_response(req.body.dump, str) if @debug_dev
+      conn.push(HTTP::Message.new_response(str))
+      return
+    end
     content = ''
     res = HTTP::Message.new_response(content)
-    do_get_header(req, res, sess, conn)
+    @debug_dev << "= Request\n\n" if @debug_dev
+    sess = @session_manager.query(req, proxy)
+    @debug_dev << "\n\n= Response\n\n" if @debug_dev
+    do_get_header(req, res, sess)
+    conn.push(res)
     sess.get_data() do |str|
       block.call(str) if block
       content << str
@@ -382,10 +376,19 @@ private
     @session_manager.keep(sess) unless sess.closed?
   end
 
-  def do_get_stream(req, sess, conn)
+  def do_get_stream(req, proxy, conn)
+    if str = @test_loopback_response.shift
+      dump_dummy_request_response(req.body.dump, str) if @debug_dev
+      conn.push(HTTP::Message.new_response(str))
+      return
+    end
     piper, pipew = IO.pipe
     res = HTTP::Message.new_response(piper)
-    do_get_header(req, res, sess, conn)
+    @debug_dev << "= Request\n\n" if @debug_dev
+    sess = @session_manager.query(req, proxy)
+    @debug_dev << "\n\n= Response\n\n" if @debug_dev
+    do_get_header(req, res, sess)
+    conn.push(res)
     sess.get_data() do |str|
       pipew.syswrite(str)
     end
@@ -393,7 +396,7 @@ private
     @session_manager.keep(sess) unless sess.closed?
   end
 
-  def do_get_header(req, res, sess, conn)
+  def do_get_header(req, res, sess)
     res.version, res.status, res.reason = sess.get_status
     sess.get_header().each do |line|
       unless /^([^:]+)\s*:\s*(.*)$/ =~ line
@@ -406,7 +409,13 @@ private
 	@cookie_manager.parse(cookie, req.header.request_uri)
       end
     end
-    conn.push(res)
+  end
+
+  def dump_dummy_request_response(req, res)
+    @debug_dev << "= Dummy Request\n\n"
+    @debug_dev << req
+    @debug_dev << "\n\n= Dummy Response\n\n"
+    @debug_dev << res
   end
 end
 
@@ -752,7 +761,6 @@ class SessionManager	# :nodoc:
       close(dest_site)
       raise
     end
-
     sess
   end
 
