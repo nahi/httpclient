@@ -1,13 +1,13 @@
 # HTTPAccess2 - HTTP accessing library.
-# Copyright (C) 2000, 2001, 2002, 2003 NAKAMURA, Hiroshi.
-# 
-# This module is copyrighted free software by NAKAMURA, Hiroshi.
-# You can redistribute it and/or modify it under the same term as Ruby.
-# 
+# Copyright (C) 2000, 2001, 2002, 2003 NAKAMURA, Hiroshi <nahi@ruby-lang.org>.
+
+# This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
+# redistribute it and/or modify it under the same terms of Ruby's license;
+# either the dual license version in 2003, or any later version.
+
 # http-access2.rb is based on http-access.rb in http-access/0.0.4.  Some part
 # of code in http-access.rb was recycled in http-access2.rb.  Those part is
-# copyrighted by Maehashi-san who made and distribute http-access/0.0.4. Many
-# thanks to Maehashi-san.
+# copyrighted by Maehashi-san.
 
 
 # Ruby standard library
@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.27 2003/10/17 17:41:56 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.28 2003/11/26 11:52:42 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -73,8 +73,7 @@ class Client
   attr_reader :from		# Owner of this client.
   attr_accessor :proxy		# HTTP Proxy URI.
   attr_accessor :no_proxy	# host:port list which should not be proxyed.
-  attr_reader :debug_dev	# Device for logging.
-  attr_reader :session_manager	# Session manager.
+  				# Expects a String concatenated with ','.
   attr_reader :ssl_config	# SSL configuration (if enabled).
 
   class << self
@@ -91,17 +90,16 @@ class Client
   #   Client.new(proxy = nil, agent_name = nil, from = nil)
   #
   # ARGS
-  #   proxy		A String of HTTP proxy URL. ex. "http://proxy:8080"
+  #   proxy		A String of HTTP proxy URL. ex. "http://proxy:8080".
   #   agent_name	A String for "User-Agent" HTTP request header.
   #   from		A String for "From" HTTP request header.
   #
   # DESCRIPTION
   #   Create an instance.
   #
-  def initialize(proxy = ENV['http_proxy'] || ENV['HTTP_PROXY'], agent_name = nil, from = nil)
+  def initialize(proxy = nil, agent_name = nil, from = nil)
     @proxy = proxy
-    name = 'no_proxy'
-    @no_proxy = ENV[name] || ENV[name.upcase]
+    @no_proxy = nil
     @agent_name = agent_name
     @from = from
     @basic_auth = BasicAuth.new
@@ -114,21 +112,23 @@ class Client
     @cookie_manager = nil
   end
 
-  # SYNOPSIS
-  #   Client#debug_dev=(dev)
-  #
-  # ARGS
-  #   dev	Device for debugging.  nil for 'no debugging device'
-  #
-  # DEBT
-  #   dev must respond to '<<' method.
-  #
-  # DESCRIPTION
-  #   Set debug device.  Messages for debugging is dumped to the device.
-  #
+  def debug_dev
+    @debug_dev
+  end
+
   def debug_dev=(dev)
     @debug_dev = dev
+    @session_manager.reset_all
     @session_manager.debug_dev = dev
+  end
+
+  def protocol_version
+    @session_manager.protocol_version
+  end
+
+  def protocol_version=(protocol_version)
+    @session_manager.reset_all
+    @session_manager.protocol_version = protocol_version
   end
 
   def set_basic_auth(uri, user_id, passwd)
@@ -297,6 +297,10 @@ class Client
 
   def reset(uri)
     @session_manager.reset(uri)
+  end
+
+  def reset_all
+    @session_manager.reset_all
   end
 
 private
@@ -733,6 +737,10 @@ class SessionManager	# :nodoc:
     close(site)
   end
 
+  def reset_all
+    close_all
+  end
+
   def keep(sess)
     add_cached_session(sess)
   end
@@ -756,6 +764,13 @@ private
       sess.debug_dev = @debug_dev
     end
     sess
+  end
+
+  def close_all
+    each_sess do |sess|
+      sess.close
+    end
+    @sess_pool.clear
   end
 
   def close(dest)
@@ -786,6 +801,14 @@ private
   def add_cached_session(sess)
     @sess_pool_mutex.synchronize do
       @sess_pool << sess
+    end
+  end
+
+  def each_sess
+    @sess_pool_mutex.synchronize do
+      @sess_pool.each do |sess|
+	yield(sess)
+      end
     end
   end
 end
@@ -949,7 +972,7 @@ class Session	# :nodoc:
     @dest = dest
     @src = Site.new
     @proxy = nil
-    @requested_version = VERSION
+    @requested_version = nil
 
     @debug_dev = nil
 
@@ -1101,6 +1124,7 @@ private
   LibNames = "(#{ RCS_FILE }/#{ RCS_REVISION }, #{ RUBY_VERSION_STRING })"
 
   def set_header(req)
+    req.version = @requested_version if @requested_version
     if @user_agent
       req.header.set('User-Agent', "#{ @user_agent } #{ LibNames }")
     end
