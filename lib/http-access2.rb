@@ -23,7 +23,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.20 2003/06/11 15:05:02 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.21 2003/06/14 09:06:18 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -405,38 +405,37 @@ class SSLConfig	# :nodoc:
 
   def set_trust_ca(trust_ca_file_or_hashed_dir)
     if FileTest.directory?(trust_ca_file_or_hashed_dir)
-      @trust_ca_file = nil
       @trust_ca_path = trust_ca_file_or_hashed_dir
+      @cert_store.add_path(@trust_ca_path)
     else
       @trust_ca_file = trust_ca_file_or_hashed_dir
-      @trust_ca_path = nil
+      @cert_store.add_file(@trust_ca_file)
     end
   end
 
   def set_crl(crl_file)
     @crl = OpenSSL::X509::CRL.new(File.open(crl_file).read)
-    if @trust_ca_file
-      ca = OpenSSL::X509::Certificate.new(File.open(@trust_ca_file).read)
-      @cert_store.add_trusted(ca)
-    end
     @cert_store.add_crl(@crl)
+    @cert_store.flags = OpenSSL::X509::V_FLAG::CRL_CHECK |
+      OpenSSL::X509::V_FLAG::CRL_CHECK_ALL
   end
 
   def set_context(ctx)
+    # Verification: Use Store#verify_callback instead of SSLContext#verify*?
     ctx.cert_store = @cert_store
-    ctx.cert = @client_cert
-    ctx.key = @client_key
-    ctx.ca_file = @trust_ca_file
-    ctx.ca_path = @trust_ca_path
     ctx.verify_mode = @verify_mode
     ctx.verify_depth = @verify_depth
     ctx.verify_callback = @verify_callback || method(:default_verify_callback)
+    # SSL config
+    ctx.cert = @client_cert
+    ctx.key = @client_key
     ctx.timeout = @timeout
     ctx.options = @options
     ctx.ciphers = @ciphers
   end
 
   def post_connection_check(cert, sess)
+    # Check if the cert is for the host it connects.
     unless cert
       return false
     end
@@ -449,30 +448,30 @@ class SSLConfig	# :nodoc:
   end
 
   # Default callback for verification: only dumps error.
-  def default_verify_callback(ok, store)
+  def default_verify_callback(ok, ctx)
     if $DEBUG
-      puts "#{ ok ? 'ok' : 'ng' }: #{ store.cert.subject }"
+      puts "#{ ok ? 'ok' : 'ng' }: #{ ctx.current_cert.subject }"
     end
     if !ok
-      depth = store.verify_depth
-      code = store.verify_status
-      msg = store.verify_message
+      depth = ctx.error_depth
+      code = ctx.error
+      msg = ctx.error_string
       STDERR.puts "at depth #{ depth } - #{ code }: #{ msg }"
     end
     ok
   end
 
   # Sample callback method:  CAUTION: does not check CRL/ARL.
-  def sample_verify_callback(ok, store)
+  def sample_verify_callback(ok, ctx)
     unless ok
-      code = store.verify_status
-      msg = store.verify_message
-      depth = store.verify_depth
+      depth = ctx.error_depth
+      code = ctx.error
+      msg = ctx.error_string
       STDERR.puts "at depth #{ depth } - #{ code }: #{ msg }" if $DEBUG
       return false
     end
 
-    cert = store.cert
+    cert = ctx.current_cert
     self_signed = false
     ca = false
     pathlen = nil
@@ -540,8 +539,6 @@ end
 # HTTPAccess2::BasicAuth -- BasicAuth repository.
 #
 class BasicAuth	# :nodoc:
-  include URISupport
-
   def initialize
     @auth = {}
   end
