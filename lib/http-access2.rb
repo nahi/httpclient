@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.34 2004/01/23 14:51:47 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.35 2004/01/28 15:08:17 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -427,8 +427,9 @@ end
 # HTTPAccess2::SSLConfig -- SSL configuration of a client.
 #
 class SSLConfig	# :nodoc:
-  attr_reader :client_cert
-  attr_reader :client_key
+  attr_accessor :client_cert
+  attr_accessor :client_key
+  attr_accessor :client_ca
   attr_reader :trust_ca_file
   attr_reader :trust_ca_path
   attr_reader :crl
@@ -441,10 +442,12 @@ class SSLConfig	# :nodoc:
   attr_accessor :options
   attr_accessor :ciphers
 
+  attr_accessor :cert_store	# don't use if you don't know what it is.
+
   def initialize
     return unless SSLEnabled
     @cert_store = OpenSSL::X509::Store.new
-    @client_cert = @client_key = nil
+    @client_cert = @client_key = @client_ca = nil
     @trust_ca_file = @trust_ca_path = nil
     @crl = nil
     @verify_mode = OpenSSL::SSL::VERIFY_PEER |
@@ -489,6 +492,7 @@ class SSLConfig	# :nodoc:
     # SSL config
     ctx.cert = @client_cert
     ctx.key = @client_key
+    ctx.client_ca = @client_ca
     ctx.timeout = @timeout
     ctx.options = @options
     ctx.ciphers = @ciphers
