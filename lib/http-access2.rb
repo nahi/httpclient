@@ -24,7 +24,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.10 2003/05/25 13:48:05 nahi Exp $
+  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.11 2003/05/25 14:07:15 nahi Exp $
   RCS_FILE, RCS_REVISION = $1, $2
 
   RS = "\r\n"
@@ -198,16 +198,17 @@ class Client
 
   def request(method, uri, query = nil, body = nil, extraHeader = {}, &block)
     @debugDev << "= Request\n\n" if @debugDev
-    req = createRequest(method, uri, query, body, extraHeader)
     conn = Connection.new
-    sess = @sessionManager.query(req, @proxy)
-    @debugDev << "\n\n= Response\n\n" if @debugDev
     begin
+      req = createRequest(method, uri, query, body, extraHeader)
+      sess = @sessionManager.query(req, @proxy)
+      @debugDev << "\n\n= Response\n\n" if @debugDev
       doGetBlock(sess, conn, &block)
     rescue Session::KeepAliveDisconnected
       # Try again.
       req = createRequest(method, uri, query, body, extraHeader)
       sess = @sessionManager.query(req, @proxy)
+      @debugDev << "\n\n= Response\n\n" if @debugDev
       doGetBlock(sess, conn, &block)
     end
     conn.pop
@@ -788,9 +789,18 @@ class Session	# :nodoc:
 	setHeaders(req)
 	req.dump(@socket)
       end
-    rescue TimeoutError
+    rescue Errno::ECONNABORTED
       close
-      raise
+      raise KeepAliveDisconnected.new
+    rescue
+      if SSLEnabled and $!.is_a?(OpenSSL::SSL::Error)
+	raise KeepAliveDisconnected.new
+      elsif $!.is_a?(TimeoutError)
+	close
+	raise
+      else
+	raise
+      end
     end
 
     @state = :META if @state == :WAIT
