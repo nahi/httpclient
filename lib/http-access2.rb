@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.40 2004/12/09 23:10:45 nahi Exp $
+  s = %w$Id$
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -118,6 +118,8 @@ class Client
     @debug_dev
   end
 
+  attr_reader :debug_dev
+
   def debug_dev=(dev)
     @debug_dev = dev
     reset_all
@@ -131,6 +133,33 @@ class Client
   def protocol_version=(protocol_version)
     reset_all
     @session_manager.protocol_version = protocol_version
+  end
+
+  def connect_timeout
+    @session_manager.connect_timeout
+  end
+
+  def connect_timeout=(connect_timeout)
+    reset_all
+    @session_manager.connect_timeout = connect_timeout
+  end
+
+  def send_timeout
+    @session_manager.send_timeout
+  end
+
+  def send_timeout=(send_timeout)
+    reset_all
+    @session_manager.send_timeout = send_timeout
+  end
+
+  def receive_timeout
+    @session_manager.receive_timeout
+  end
+
+  def receive_timeout=(receive_timeout)
+    reset_all
+    @session_manager.receive_timeout = receive_timeout
   end
 
   def proxy
@@ -805,8 +834,8 @@ class SessionManager	# :nodoc:
     @connect_timeout = 60
     @connect_retry = 1
     @send_timeout = 120
-    @receive_timeout = 60	# For each read_block_size bytes...
-    @read_block_size = 4096
+    @receive_timeout = 60	# For each read_block_size bytes
+    @read_block_size = 8192
 
     @ssl_config = nil
 

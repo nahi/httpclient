@@ -335,6 +335,32 @@ class TestClient < Test::Unit::TestCase
     assert_match("ABC: DEF", lines[4])
   end
 
+  def test_timeout
+    assert_equal(60, @client.connect_timeout)
+    assert_equal(120, @client.send_timeout)
+    assert_equal(60, @client.receive_timeout)
+  end
+
+  def test_connect_timeout
+    # ToDo
+  end
+
+  def test_send_timeout
+    # ToDo
+  end
+
+  def test_receive_timeout
+    # this test takes 2 sec
+    assert_equal('hello', @client.get_content(@url + 'sleep?sec=2'))
+    @client.receive_timeout = 1
+    assert_equal('hello', @client.get_content(@url + 'sleep?sec=0'))
+    assert_raise(Timeout::Error) do
+      @client.get_content(@url + 'sleep?sec=2')
+    end
+    @client.receive_timeout = 3
+    assert_equal('hello', @client.get_content(@url + 'sleep?sec=2'))
+  end
+
 private
 
   def check_query_get(query)
@@ -357,7 +383,7 @@ private
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
-    [:hello, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect].each do |sym|
+    [:hello, :sleep, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect].each do |sym|
       @server.mount(
 	"/#{sym}",
 	WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
@@ -422,6 +448,13 @@ private
   end
 
   def do_hello(req, res)
+    res['content-type'] = 'text/html'
+    res.body = "hello"
+  end
+
+  def do_sleep(req, res)
+    sec = req.query['sec'].to_i
+    sleep sec
     res['content-type'] = 'text/html'
     res.body = "hello"
   end
