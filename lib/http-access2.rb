@@ -22,15 +22,20 @@ require 'http-access2/http'
 
 
 module HTTPAccess2
+  VERSION = '1.1'
+  RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
+  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.10 2003/05/25 13:48:05 nahi Exp $
+  RCS_FILE, RCS_REVISION = $1, $2
 
+  RS = "\r\n"
+  FS = "\r\n\t"
 
-VERSION = '1.1'
-RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-/: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.9 2003/03/26 14:23:08 nahi Exp $
-RCS_FILE, RCS_REVISION = $1, $2
-
-RS = "\r\n"
-FS = "\r\n\t"
+  SSLEnabled = begin
+      require 'openssl'
+      true
+    rescue LoadError
+      false
+    end
 
 
 # DESCRIPTION
@@ -97,6 +102,10 @@ class Client
     @sessionManager = SessionManager.instance
     @sessionManager.agentName = @agentName
     @sessionManager.from = @from
+  end
+
+  def sslConfig
+    @sessionManager.sslConfig
   end
 
   # SYNOPSIS
@@ -355,16 +364,24 @@ end
 ## HTTPAccess2::Site -- manage a site(host and port)
 #
 class Site	# :nodoc:
+  attr_accessor :scheme
   attr_accessor :host
   attr_reader :port
 
-  def initialize(host = 'localhost', port = 0)
-    @host = host
-    @port = port.to_i
+  def initialize(uri = nil)
+    if uri
+      @scheme = uri.scheme
+      @host = uri.host
+      @port = uri.port.to_i
+    else
+      @scheme = 'tcp'
+      @host = '0.0.0.0'
+      @port = 0
+    end
   end
 
   def addr
-    "http://#{ @host }:#{ @port.to_s }"
+    "#{ @scheme }://#{ @host }:#{ @port.to_s }"
   end
 
   def port=(port)
@@ -373,7 +390,7 @@ class Site	# :nodoc:
 
   def ==(rhs)
     if rhs.is_a?(Site)
-      ((@host == rhs.host) and (@port == rhs.port))
+      ((@scheme == rhs.scheme) and (@host == rhs.host) and (@port == rhs.port))
     else
       false
     end
@@ -446,6 +463,8 @@ class SessionManager	# :nodoc:
   attr_accessor :receiveTimeout
   attr_accessor :readBlockSize
 
+  attr_reader :sslConfig
+
   def initialize
     @proxy = nil
 
@@ -462,6 +481,9 @@ class SessionManager	# :nodoc:
     @receiveTimeout = 60	# For each readBlockSize bytes...
     @readBlockSize = 4096
 
+    @sslConfig = {}
+    initSSLConfig if SSLEnabled
+
     @sessPool = []
     @sessPoolMutex = Mutex.new
   end
@@ -472,15 +494,15 @@ class SessionManager	# :nodoc:
       return
     end
     uri = URI.parse(proxyStr)
-    @proxy = Site.new(uri.host, uri.port)
+    @proxy = Site.new(uri)
   end
 
   def query(req, proxyStr)
     req.body.chunkSize = @chunkSize
-    destSite = Site.new(req.header.requestUri.host, req.header.requestUri.port)
+    destSite = Site.new(req.header.requestUri)
     proxySite = if proxyStr
   	proxyUri = URI.parse(proxyStr)
-  	Site.new(proxyUri.host, proxyUri.port)
+  	Site.new(proxyUri)
       else
 	@proxy
       end
@@ -499,7 +521,7 @@ class SessionManager	# :nodoc:
     unless uri.is_a?(URI)
       uri = URI.parse(uri.to_s)
     end
-    site = Site.new(uri.host, uri.port)
+    site = Site.new(uri)
     close(site)
   end
 
@@ -521,6 +543,7 @@ private
       sess.sendTimeout = @sendTimeout
       sess.receiveTimeout = @receiveTimeout
       sess.readBlockSize = @readBlockSize
+      sess.sslConfig.update(@sslConfig)
       sess.debugDev = @debugDev
     end
     sess
@@ -556,18 +579,28 @@ private
       @sessPool << sess
     end
   end
+
+  def initSSLConfig
+    @sslConfig[:verify_mode] = OpenSSL::SSL::VERIFY_PEER
+  end
 end
 
-###
-## HTTPAccess2::DebugSocket -- debugging support
-#
-class DebugSocket
-  attr_accessor :debugDev     # Device for logging.
 
-  def initialize(host, port, debugDev)
-    @debugDev = debugDev
-    @socket = TCPSocket.new(host, port)
-    @debugDev << '! CONNECTION ESTABLISHED' << "\n"
+###
+## HTTPAccess2::SSLSocketWrap
+#
+class SSLSocketWrap
+  def initialize(socket, config = {})
+    unless SSLEnabled
+      raise RuntimeError.new("Ruby/OpenSSL module is required for https access.")
+    end
+    @config = config
+    @socket = socket
+    @sslSocket = createSSLSocket(@socket)
+  end
+
+  def peer_cert
+    @sslSocket.peer_cert
   end
 
   def addr
@@ -575,7 +608,7 @@ class DebugSocket
   end
 
   def close
-    @debugDev << '! CONNECTION CLOSED' << "\n"
+    @sslSocket.close
     @socket.close
   end
 
@@ -584,28 +617,98 @@ class DebugSocket
   end
 
   def eof?
-    @socket.eof?
+    @sslSocket.eof?
   end
 
   def gets(*args)
-    str = @socket.gets(*args)
+    @sslSocket.gets(*args)
+  end
+
+  def read(*args)
+    @sslSocket.read(*args)
+  end
+
+  def <<(str)
+    @sslSocket.write(str)
+  end
+
+private
+
+  def createSSLSocket(socket)
+    if OpenSSL::SSL.const_defined?("SSLContext")
+      ctx = OpenSSL::SSL::SSLContext.new
+      setSSLContext(ctx, @config)
+      sslSocket = OpenSSL::SSL::SSLSocket.new(socket, ctx)
+    else
+      sslSocket = OpenSSL::SSL::SSLSocket.new(socket)
+      setSSLContext(sslSocket, @config)
+    end
+    sslSocket.connect
+    sslSocket
+  end
+
+  def setSSLContext(ctx, config)
+    ctx.key = config[:key]
+    # deprecated
+    # ctx.key_file = config[:key_file]
+    ctx.cert = config[:cert]
+    # deprecated
+    # ctx.cert_file = config[:cert_file]
+    ctx.ca_file = config[:ca_file]
+    ctx.ca_path = config[:ca_path]
+    ctx.verify_mode = config[:verify_mode]
+    ctx.verify_callback = config[:verify_callback]
+    ctx.verify_depth = config[:verify_depth]
+    ctx.timeout = config[:timeout]
+  end
+end
+
+
+###
+## HTTPAccess2::DebugSocket -- debugging support
+#
+class DebugSocket < TCPSocket
+  attr_accessor :debugDev     # Device for logging.
+
+  class << self
+    def createDebugSocket(host, port, debugDev)
+      socket = new(host, port)
+      socket.debugDev = debugDev
+      socket.connectLog
+      socket
+    end
+
+    private :new
+  end
+  
+  def initialize(*args)
+    super
+    @debugDev = nil
+  end
+
+  def connectLog
+    @debugDev << '! CONNECTION ESTABLISHED' << "\n"
+  end
+
+  def close
+    super
+    @debugDev << '! CONNECTION CLOSED' << "\n"
+  end
+
+  def gets(*args)
+    str = super
     @debugDev << str
     str
   end
 
   def read(*args)
-    str = @socket.read(*args)
+    str = super
     @debugDev << str
     str
   end
 
   def <<(str)
-    dump(str)
-  end
-
-private
-  def dump(str)
-    @socket << str
+    super
     @debugDev << str
   end
 end
@@ -614,6 +717,7 @@ end
 ###
 ## HTTPAccess2::Session -- manage http session with one site.
 ##   One or more TCP sessions with the site may be created.
+##   Only 1 TCP session is live at the same time.
 #
 class Session	# :nodoc:
 
@@ -644,6 +748,8 @@ class Session	# :nodoc:
   attr_accessor :receiveTimeout
   attr_accessor :readBlockSize
 
+  attr_reader :sslConfig
+
   def initialize(dest, user_agent, from)
     @dest = dest
     @src = Site.new
@@ -658,6 +764,8 @@ class Session	# :nodoc:
     @receiveTimeout = nil
     @readBlockSize = nil
 
+    @sslConfig = {}
+
     @user_agent = user_agent
     @from = from
     @state = :INIT
@@ -667,6 +775,8 @@ class Session	# :nodoc:
     @status = nil
     @reason = nil
     @headers = []
+
+    @socket = @rawSocket = nil
   end
 
   # Send a request to the server
@@ -802,10 +912,16 @@ private
       retryNumber = 0
       timeout(@connectTimeout) do
 	@socket = if @debugDev	
-	    DebugSocket.new(site.host, site.port, @debugDev)
+	    DebugSocket.createDebugSocket(site.host, site.port, @debugDev)
 	  else
 	    TCPSocket.new(site.host, site.port)
 	  end
+	@src.host = @socket.addr[3]
+	@src.port = @socket.addr[1]
+	if @dest.scheme == 'https'
+	  # wrap socket with OpenSSL.
+	  @socket = SSLSocketWrap.new(@socket, @sslConfig)
+	end
       end
     rescue TimeoutError
       if @connectRetry == 0
@@ -818,8 +934,6 @@ private
       raise
     end
 
-    @src.host = @socket.addr[3]
-    @src.port = @socket.addr[1]
     @state = :WAIT
     @readbuf = ''
   end
