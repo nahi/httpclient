@@ -24,18 +24,18 @@ class DAV
       end
   end
 
-  def setBasicAuth(userId, passwd)
-    @client.setBasicAuth(@uri, userId, passwd)
+  def set_basic_auth(user_id, passwd)
+    @client.set_basic_auth(@uri, user_id, passwd)
   end
 
   def get(target, local = nil)
     local ||= target
-    targetUri = @uri + target
+    target_uri = @uri + target
     if FileTest.exist?(local)
       raise RuntimeError.new("File #{ local } exists.")
     end
     f = File.open(local, "wb")
-    res = @client.get(targetUri, nil, @headers) do |data|
+    res = @client.get(target_uri, nil, @headers) do |data|
       f << data
     end
     f.close
@@ -44,9 +44,9 @@ class DAV
 
   def put(local, target = nil)
     target ||= local
-    targetUri = @uri + target
+    target_uri = @uri + target
     out.puts("Sending file #{ local }.")
-    res = @client.put(targetUri, File.open(local, "rb"), @headers)
+    res = @client.put(target_uri, File.open(local, "rb"), @headers)
     out.puts res.content.read
   end
 end
