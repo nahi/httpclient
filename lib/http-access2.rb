@@ -30,7 +30,7 @@ RUBY_VERSION_STRING =
   "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
 
 /: (\S+),v (\S+)/ =~
-  %q$Id: http-access2.rb,v 1.1 2002/10/21 04:12:34 nahi Exp $
+  %q$Id: http-access2.rb,v 1.2 2002/11/02 15:19:50 nahi Exp $
 RCS_FILE, RCS_REVISION = $1, $2
 
 RS = "\r\n"
@@ -847,7 +847,7 @@ private
 	    unless line
 	      raise BadResponse.new( 'Unexpected EOF.' )
 	    end
-	    line.sub!( "#{ RS }\\z", '' )
+	    line.sub!( /#{ RS }\z/, '' )
 	    if line.sub!( /^\t/, '' )
       	      @headers[-1] << line
 	    else
