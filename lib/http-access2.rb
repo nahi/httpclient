@@ -24,7 +24,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.11 2003/05/25 14:07:15 nahi Exp $
+  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.12 2003/05/30 14:28:08 nahi Exp $
   RCS_FILE, RCS_REVISION = $1, $2
 
   RS = "\r\n"
@@ -278,6 +278,7 @@ class Client
   end
 
 private
+
   def createRequest(method, uri, query, body, extraHeader)
     if extraHeader.is_a?(Hash)
       extraHeader = extraHeader.to_a
@@ -494,16 +495,14 @@ class SessionManager	# :nodoc:
       @proxy = nil 
       return
     end
-    uri = URI.parse(proxyStr)
-    @proxy = Site.new(uri)
+    @proxy = Site.new(URI.parse(proxyStr))
   end
 
   def query(req, proxyStr)
     req.body.chunkSize = @chunkSize
     destSite = Site.new(req.header.requestUri)
     proxySite = if proxyStr
-  	proxyUri = URI.parse(proxyStr)
-  	Site.new(proxyUri)
+  	Site.new(URI.parse(proxyStr))
       else
 	@proxy
       end
@@ -1073,15 +1072,17 @@ private
     return data
   end
 
+  ChunkDelimiter = "0#{ RS }"
+  ChunkTrailer = "0#{ RS }#{ RS }"
   def readBodyChunked
     if @chunk_length == 0
       until (i = @readbuf.index(RS))
 	@readbuf << @socket.gets(RS)
       end
       i += 2
-      if @readbuf[0, i] == "0" << RS
+      if @readbuf[0, i] == ChunkDelimiter
 	@content_length = 0
-	unless (@readbuf[0, 5] == "0" << RS << RS)
+	unless @readbuf[0, 5] == ChunkTrailer
 	  @readbuf << @socket.gets(RS)
 	end
 	@readbuf[0, 5] = ''
