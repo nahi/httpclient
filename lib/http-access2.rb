@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.36 2004/02/02 12:55:19 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.37 2004/02/06 14:45:07 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -69,10 +69,10 @@ module HTTPAccess2
 #     res = clnt.get|post|head(uri, proxy)
 #
 class Client
-  attr_reader :agent_name	# Name of this client.
-  attr_reader :from		# Owner of this client.
-  attr_reader :ssl_config	# SSL configuration (if enabled).
-  attr_reader :test_loopback_response	# Loopback test response store.
+  attr_reader :agent_name
+  attr_reader :from
+  attr_reader :ssl_config
+  attr_reader :test_loopback_response
 
   class << self
     %w(get_content head get post put delete options trace).each do |name|
@@ -104,6 +104,7 @@ class Client
     @basic_auth = BasicAuth.new(self)
     @debug_dev = nil
     @ssl_config = SSLConfig.new(self)
+    @redirect_uri_callback = method(:default_redirect_uri_callback)
     @test_loopback_response = []
     @session_manager = SessionManager.new
     @session_manager.agent_name = @agent_name
@@ -181,6 +182,10 @@ class Client
     @cookie_manager.save_cookies
   end
 
+  def redirect_uri_callback=(redirect_uri_callback)
+    @redirect_uri_callback = redirect_uri_callback
+  end
+
   # SYNOPSIS
   #   Client#get_content(uri, query = nil, extheader = {}, &block = nil)
   #
@@ -205,15 +210,20 @@ class Client
       if res.status == HTTP::Status::OK
 	return res.content
       elsif HTTP::Status.redirect?(res.status)
-	uri = res.header['location'][0]
+	uri = @redirect_uri_callback.call(res)
 	query = nil
 	retry_number += 1
-	puts "Redirect to: #{ uri }" if $DEBUG
       else
 	raise RuntimeError.new("Unexpected response: #{ res.header.inspect }")
       end
     end
     raise RuntimeError.new("Retry count exceeded.")
+  end
+
+  def default_redirect_uri_callback(res)
+    uri = res.header['location'][0]
+    puts "Redirect to: #{uri}" if $DEBUG
+    uri
   end
 
   def head(uri, query = nil, extheader = {})
@@ -465,7 +475,7 @@ class SSLConfig	# :nodoc:
 
   def set_client_cert_file(cert_file, key_file)
     @client_cert = OpenSSL::X509::Certificate.new(File.open(cert_file).read)
-    @client_key = OpenSSL::X509::PKey.new(File.open(key_file).read)
+    @client_key = OpenSSL::PKey::RSA.new(File.open(key_file).read)
     change_notify
   end
 
