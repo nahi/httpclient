@@ -1,5 +1,5 @@
 # HTTP - HTTP container.
-# Copyright (C) 2001, 2002 NAKAMURA, Hiroshi.
+# Copyright (C) 2001, 2002, 2003 NAKAMURA, Hiroshi.
 #
 # This module is copyrighted free software by NAKAMURA, Hiroshi.
 # You can redistribute it and/or modify it under the same term as Ruby.
@@ -113,10 +113,10 @@ class Message
       @request_method = nil
       @request_uri = nil
       @request_query = nil
-      @request_via_proxy = false
+      @request_via_proxy = nil
     end
 
-    def init_request(method, uri, query = nil, via_proxy = false)
+    def init_request(method, uri, query = nil, via_proxy = nil)
       @is_request = true
       @request_method = method
       @request_uri = if uri.is_a?(URI)
@@ -195,15 +195,15 @@ class Message
   private
 
     def request_line
-      path = unless @request_via_proxy
-	  @request_query
+      path = if @request_via_proxy
+	if @request_uri.port
+	  "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port }#{ @request_query }"
 	else
-	  if @request_uri.port
-	    "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port }#{ @request_query }"
-	  else
-	    "#{ @request_uri.scheme }://#{ @request_uri.host }#{ @request_query }"
-	  end
+	  "#{ @request_uri.scheme }://#{ @request_uri.host }#{ @request_query }"
 	end
+      else
+	@request_query
+      end
       dump_line("#{ @request_method } #{ path } #{ @http_version }")
     end
 
@@ -270,7 +270,8 @@ class Message
     attr_accessor :type, :charset, :date, :chunk_size
 
     def initialize(body = nil, date = nil, type = nil, charset = nil)
-      @body = body || ''
+      @body = nil
+      set_content(body || '')
       @type = type
       @charset = charset
       @date = date
@@ -307,7 +308,14 @@ class Message
     end
 
     def set_content(body)
-      @body = body
+      case body
+      when IO
+	@body = body
+      when Array, Hash
+	@body = Message.create_query_part_str(body)
+      else
+	@body = body
+      end
     end
 
   private
@@ -432,12 +440,16 @@ class Message
     end
 
     def escape_query(query)
-      data = ''
-      query.each do |attr, value|
-	data << '&' if !data.empty?
-	data << URI.escape(attr.to_s) << '=' << URI.escape(value.to_s)
-      end
-      data
+      query.collect { |attr, value|
+	escape(attr.to_s) << '=' << escape(value.to_s)
+      }.join('&')
+    end
+
+    # from CGI.escape
+    def escape(str)
+      str.gsub(/([^ a-zA-Z0-9_.-]+)/n) {
+  	'%' + $1.unpack('H2' * $1.size).join('%').upcase
+      }.tr(' ', '+')
     end
   end
 
