@@ -30,7 +30,7 @@ RUBY_VERSION_STRING =
   "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
 
 /: (\S+),v (\S+)/ =~
-  %q$Id: http-access2.rb,v 1.3 2002/12/12 23:02:19 nahi Exp $
+  %q$Id: http-access2.rb,v 1.4 2003/01/28 15:17:29 nahi Exp $
 RCS_FILE, RCS_REVISION = $1, $2
 
 RS = "\r\n"
@@ -199,6 +199,7 @@ class Client
       doGet( sess, conn, &block )
     rescue Session::KeepAliveDisconnected
       # Try again.
+      req = createRequest( method, uri, query, body, extraHeader )
       sess = @sessionManager.query( req, @proxy )
       doGet( sess, conn, &block )
     end
@@ -252,6 +253,7 @@ class Client
 	doGet( sess, conn, &block )
       rescue Session::KeepAliveDisconnected
        	# Try again.
+	req = createRequest( method, uri, query, body, extraHeader )
 	sess = @sessionManager.query( req, @proxy )
 	doGet( sess, conn, &block )
       end
@@ -425,7 +427,7 @@ class SessionManager	# :nodoc:
 
   # Those parameters are not used now...
   attr_accessor :connectTimeout
-  attr_accessor :connectRetry
+  attr_accessor :connectRetry		# Maximum retry count.  0 for infinite.
   attr_accessor :sendTimeout
   attr_accessor :receiveTimeout
   attr_accessor :readBlockSize
@@ -471,10 +473,10 @@ class SessionManager	# :nodoc:
     begin
       sess.query( req )
     rescue
-      # Retry...
       close( destSite )
-      sess = open( destSite, proxySite )
-      sess.query( req )
+      raise
+      #sess = open( destSite, proxySite )
+      #sess.query( req )
     end
 
     sess
