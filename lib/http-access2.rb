@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.33 2004/01/23 07:06:23 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.34 2004/01/23 14:51:47 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -168,8 +168,12 @@ class Client
   end
 
   def set_cookie_store(filename)
-    @cookie_manager = WebAgent::CookieManager.new(filename)
-    @cookie_manager.load_cookies
+    if filename
+      @cookie_manager = WebAgent::CookieManager.new(filename)
+      @cookie_manager.load_cookies
+    else
+      @cookie_manager = nil
+    end
   end
 
   def save_cookie_store
