@@ -23,7 +23,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.21 2003/06/14 09:06:18 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.22 2003/07/31 15:58:28 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -416,8 +416,8 @@ class SSLConfig	# :nodoc:
   def set_crl(crl_file)
     @crl = OpenSSL::X509::CRL.new(File.open(crl_file).read)
     @cert_store.add_crl(@crl)
-    @cert_store.flags = OpenSSL::X509::V_FLAG::CRL_CHECK |
-      OpenSSL::X509::V_FLAG::CRL_CHECK_ALL
+    @cert_store.flags = OpenSSL::X509::V_FLAG_CRL_CHECK |
+      OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
   end
 
   def set_context(ctx)
@@ -487,9 +487,6 @@ class SSLConfig	# :nodoc:
 	pathlen = $2.to_i
       when 'keyUsage'
 	usage = ex.value.split(/\s*,\s*/)
-	if usage.include?('Certificate Sign')
-	  ca = true
-	end
 	ca = usage.include?('Certificate Sign')
 	server_auth = usage.include?('Key Encipherment')
       when 'extendedKeyUsage'

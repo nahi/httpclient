@@ -5,6 +5,7 @@ require 'http-access2'
 
 proxy = ENV['HTTP_PROXY']
 clnt = HTTPAccess2::Client.new(proxy)
+clnt.set_cookie_store("cookie.dat")
 target = ARGV.shift || "http://localhost/foo.cgi"
 
 puts
@@ -48,3 +49,5 @@ puts clnt.get(target, nil, [["Accept", "text/plain"], ["Accept", "text/html"]]).
 
 clnt.debug_dev = nil
 clnt.reset(target)
+
+clnt.save_cookie_store
