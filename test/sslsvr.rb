@@ -18,6 +18,7 @@ def key(filename)
 end
 
 def do_hello(req, res)
+  p req.client_cert
   res['content-type'] = 'text/html'
   res.body = "hello"
 end
@@ -48,7 +49,6 @@ end
 
 trap(:INT) do
   server.shutdown
-  # DRb.stop_service
 end
 
 STDOUT.sync = true
