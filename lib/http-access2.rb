@@ -18,12 +18,13 @@ require 'thread'
 
 # Extra library
 require 'http-access2/http'
+require 'http-access2/cookie'
 
 
 module HTTPAccess2
-  VERSION = '1.1'
+  VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.22 2003/07/31 15:58:28 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.23 2003/09/10 11:13:27 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -34,14 +35,6 @@ module HTTPAccess2
   # RubyPKI requires Ruby/1.8 or later.
   SSLEnabled = begin
       require 'openssl'
-      true
-    rescue LoadError
-      false
-    end
-
-  # You need to install webagent: http://www.rubycolor.org/arc/
-  CookieEnabled = begin
-      require 'webagent/cookie'
       true
     rescue LoadError
       false
@@ -143,9 +136,6 @@ class Client
   end
 
   def set_cookie_store(filename)
-    unless CookieEnabled
-      raise RuntimeError.new('Not supported.')
-    end
     @cookie_manager = WebAgent::CookieManager.new(filename)
     @cookie_manager.load_cookies
   end
