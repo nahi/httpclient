@@ -1,8 +1,9 @@
 http-access2 - HTTP accessing library.
-Copyright (C) 2000, 2001, 2002, 2003  NAKAMURA, Hiroshi.
+Copyright (C) 2000-2004  NAKAMURA, Hiroshi  <nakahiro@sarion.co.jp>.
 
-This module is copyrighted free software by NAKAMURA, Hiroshi.
-You can redistribute it and/or modify it under the same term as Ruby.
+This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
+redistribute it and/or modify it under the same terms of Ruby's license;
+either the dual license version in 2003, or any later version.
 
 http-access2.rb is based on http-access.rb in http-access/0.0.4.  Some part
 of code in http-access.rb was recycled in http-access2.rb.  Those part is
@@ -57,6 +58,22 @@ thanks to Maehashi-san.
 
 
 - History
+
+  February 11, 2004 - version 2.0.4
+    - add Client#redirect_uri_callback interface.
+    - refactorings and bug fixes found during negative test.
+    - add SSL test.
+
+  December 16, 2003 - version 2.0.3
+    - no_proxy was broken in 2.0.2.
+    - do not dump 'Host' header under protocol_version == 'HTTP/1.0'
+
+  December ?, 2003 - version 2.0.2
+    - do not trust HTTP_PROXY environment variable. set proxy server manually.
+      http://ftp.ics.uci.edu/pub/websoft/libwww-perl/archive/2001h1/0072.html
+      http://ftp.ics.uci.edu/pub/websoft/libwww-perl/archive/2001h1/0241.html
+      http://curl.haxx.se/mail/archive-2001-12/0034.html
+    - follow ossl2 change.
 
   October 4, 2003 - version 2.0.1
     Query was not escaped when query was given as an Array or a Hash.  Fixed.

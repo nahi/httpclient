@@ -1,5 +1,5 @@
 # HTTPAccess2 - HTTP accessing library.
-# Copyright (C) 2000, 2001, 2002, 2003 NAKAMURA, Hiroshi <nahi@ruby-lang.org>.
+# Copyright (C) 2000-2004  NAKAMURA, Hiroshi  <nakahiro@sarion.co.jp>.
 
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;
@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.38 2004/02/10 03:00:24 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.39 2004/02/11 01:03:36 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
