@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.29 2003/12/06 05:06:54 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.30 2003/12/13 03:36:22 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -97,7 +97,6 @@ class Client
   #   Create an instance.
   #
   def initialize(proxy = nil, agent_name = nil, from = nil)
-    self.proxy = proxy
     @no_proxy = nil
     @agent_name = agent_name
     @from = from
@@ -109,6 +108,7 @@ class Client
     @session_manager.from = @from
     @session_manager.ssl_config = @ssl_config
     @cookie_manager = nil
+    self.proxy = proxy
   end
 
   def debug_dev
@@ -117,7 +117,7 @@ class Client
 
   def debug_dev=(dev)
     @debug_dev = dev
-    @session_manager.reset_all
+    reset_all
     @session_manager.debug_dev = dev
   end
 
@@ -126,7 +126,7 @@ class Client
   end
 
   def protocol_version=(protocol_version)
-    @session_manager.reset_all
+    reset_all
     @session_manager.protocol_version = protocol_version
   end
 
@@ -143,8 +143,9 @@ class Client
 	  @proxy.host == nil or @proxy.port == nil
 	raise ArgumentError.new("unsupported proxy `#{proxy_str}'")
       end
-      @proxy
     end
+    reset_all
+    @proxy
   end
 
   def set_basic_auth(uri, user_id, passwd)
@@ -312,11 +313,11 @@ class Client
   # Management interface.
 
   def reset(uri)
-    @session_manager.reset(uri)
+    @session_manager.reset(uri) if @session_manager
   end
 
   def reset_all
-    @session_manager.reset_all
+    @session_manager.reset_all if @session_manager
   end
 
 private
@@ -430,7 +431,8 @@ class SSLConfig	# :nodoc:
     @verify_callback = nil
     @dest = nil
     @timeout = nil
-    @options = OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2
+    @options = defined?(OpenSSL::SSL::OP_ALL) ?
+      OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2 : nil
     @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"
   end
 
