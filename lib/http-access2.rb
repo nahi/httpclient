@@ -11,7 +11,6 @@
 
 
 # Ruby standard library
-require 'singleton'
 require 'timeout'
 require 'uri'
 require 'socket'
@@ -24,7 +23,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.12 2003/05/30 14:28:08 nahi Exp $
+  /: (\S+),v (\S+)/ =~ %q$Id: http-access2.rb,v 1.13 2003/05/31 14:58:54 nahi Exp $
   RCS_FILE, RCS_REVISION = $1, $2
 
   RS = "\r\n"
@@ -53,7 +52,7 @@ module HTTPAccess2
 #
 # How to retrieve web resources.
 #   1. Get content of specified URL.
-#     puts clnt.getContent("http://www.ruby-lang.org/en/")
+#     puts clnt.get_content("http://www.ruby-lang.org/en/")
 #
 #   2. Do HEAD request.
 #     res = clnt.head(uri)
@@ -66,14 +65,15 @@ module HTTPAccess2
 #     res = clnt.get|post|head(uri, proxy)
 #
 class Client
-  attr_reader :agentName	# Name of this client.
+  attr_reader :agent_name	# Name of this client.
   attr_reader :from		# Owner of this client.
   attr_accessor :proxy		# HTTP Proxy URI.
-  attr_reader :debugDev		# Device for logging.
-  attr_reader :sessionManager	# Session manager.
+  attr_reader :debug_dev	# Device for logging.
+  attr_reader :session_manager	# Session manager.
+  attr_reader :ssl_config	# SSL configuration (if enabled).
 
   class << self
-    %w(getContent head get post put delete options trace).each do |name|
+    %w(get_content head get post put delete options trace).each do |name|
       eval <<-EOD
         def #{name}(*arg)
           new.#{name}(*arg)
@@ -83,33 +83,31 @@ class Client
   end
 
   # SYNOPSIS
-  #   Client.new(proxy = nil, agentName = nil, from = nil)
+  #   Client.new(proxy = nil, agent_name = nil, from = nil)
   #
   # ARGS
-  #   proxy	A String of HTTP proxy URL. ex. "http://proxy:8080"
-  #   agentName	A String for "User-Agent" HTTP request header.
-  #   from	A String for "From" HTTP request header.
+  #   proxy		A String of HTTP proxy URL. ex. "http://proxy:8080"
+  #   agent_name	A String for "User-Agent" HTTP request header.
+  #   from		A String for "From" HTTP request header.
   #
   # DESCRIPTION
   #   Create an instance.
   #
-  def initialize(proxy = nil, agentName = nil, from = nil)
+  def initialize(proxy = nil, agent_name = nil, from = nil)
     @proxy = proxy
-    @agentName = agentName
+    @agent_name = agent_name
     @from = from
-    @basicAuth = BasicAuth.new
-    @debugDev = nil
-    @sessionManager = SessionManager.instance
-    @sessionManager.agentName = @agentName
-    @sessionManager.from = @from
-  end
-
-  def sslConfig
-    @sessionManager.sslConfig
+    @basic_auth = BasicAuth.new
+    @debug_dev = nil
+    @ssl_config = SSLConfig.new
+    @session_manager = SessionManager.new
+    @session_manager.agent_name = @agent_name
+    @session_manager.from = @from
+    @session_manager.ssl_config = @ssl_config
   end
 
   # SYNOPSIS
-  #   Client#debugDev=(dev)
+  #   Client#debug_dev=(dev)
   #
   # ARGS
   #   dev	Device for debugging.  nil for 'no debugging device'
@@ -120,46 +118,46 @@ class Client
   # DESCRIPTION
   #   Set debug device.  Messages for debugging is dumped to the device.
   #
-  def debugDev=(dev)
-    @debugDev = dev
-    @sessionManager.debugDev = dev
+  def debug_dev=(dev)
+    @debug_dev = dev
+    @session_manager.debug_dev = dev
   end
 
-  def setBasicAuth(uri, userId, passwd)
+  def set_basic_auth(uri, user_id, passwd)
     unless uri.is_a?(URI)
       uri = URI.parse(uri)
     end
-    @basicAuth.set(uri, userId, passwd)
+    @basic_auth.set(uri, user_id, passwd)
   end
 
   # SYNOPSIS
-  #   Client#getContent(uri, query = nil, extraHeader = {}, &block = nil)
+  #   Client#get_content(uri, query = nil, extra_header = {}, &block = nil)
   #
   # ARGS
-  #   uri	anURI or aString of uri to connect.
-  #   query	aHash or anArray of query part.  e.g. { "a" => "b" }.
+  #   uri	an_URI or a_string of uri to connect.
+  #   query	a_hash or an_array of query part.  e.g. { "a" => "b" }.
   #   		Give an array to pass multiple value like
   #   		[["a" => "b"], ["a" => "c"]].
-  #   extraHeader
-  #   		aHash of extra headers like { "SOAPAction" => "urn:foo" }.
+  #   extra_header
+  #   		a_hash of extra headers like { "SOAPAction" => "urn:foo" }.
   #   &block	Give a block to get chunked message-body of response like
-  #   		getContent(uri) { |chunkedBody| ... }
+  #   		get_content(uri) { |chunked_body| ... }
   #   		Size of each chunk may not be the same.
   #
   # DESCRIPTION
-  #   Get aString of message-body of response.
+  #   Get a_sring of message-body of response.
   #
-  def getContent(uri, query = nil, extraHeader = {}, &block)
-    retryNumber = 0
-    while retryNumber < 10
-      res = get(uri, query, extraHeader, &block)
+  def get_content(uri, query = nil, extra_header = {}, &block)
+    retry_number = 0
+    while retry_number < 10
+      res = get(uri, query, extra_header, &block)
       case res.status
       when HTTP::Status::OK
 	return res.content
       when HTTP::Status::MOVED_PERMANENTLY, HTTP::Status::MOVED_TEMPORARILY
 	uri = res.header['location'][0]
 	query = nil
-	retryNumber += 1
+	retry_number += 1
 	puts "Redirect to: #{ uri }" if $DEBUG
       else
 	raise RuntimeError.new("Unexpected response: #{ res.header.inspect }")
@@ -168,101 +166,100 @@ class Client
     raise RuntimeError.new("Retry count exceeded.")
   end
 
-  def head(uri, query = nil, extraHeader = {})
-    request('HEAD', uri, query, nil, extraHeader)
+  def head(uri, query = nil, extra_header = {})
+    request('HEAD', uri, query, nil, extra_header)
   end
 
-  def get(uri, query = nil, extraHeader = {}, &block)
-    request('GET', uri, query, nil, extraHeader, &block)
+  def get(uri, query = nil, extra_header = {}, &block)
+    request('GET', uri, query, nil, extra_header, &block)
   end
 
-  def post(uri, body = nil, extraHeader = {}, &block)
-    request('POST', uri, nil, body, extraHeader, &block)
+  def post(uri, body = nil, extra_header = {}, &block)
+    request('POST', uri, nil, body, extra_header, &block)
   end
 
-  def put(uri, body = nil, extraHeader = {}, &block)
-    request('PUT', uri, nil, body, extraHeader, &block)
+  def put(uri, body = nil, extra_header = {}, &block)
+    request('PUT', uri, nil, body, extra_header, &block)
   end
 
-  def delete(uri, extraHeader = {}, &block)
-    request('DELETE', uri, nil, nil, extraHeader, &block)
+  def delete(uri, extra_header = {}, &block)
+    request('DELETE', uri, nil, nil, extra_header, &block)
   end
 
-  def options(uri, extraHeader = {}, &block)
-    request('OPTIONS', uri, nil, nil, extraHeader, &block)
+  def options(uri, extra_header = {}, &block)
+    request('OPTIONS', uri, nil, nil, extra_header, &block)
   end
 
-  def trace(uri, query = nil, body = nil, extraHeader = {}, &block)
-    request('TRACE', uri, query, body, extraHeader, &block)
+  def trace(uri, query = nil, body = nil, extra_header = {}, &block)
+    request('TRACE', uri, query, body, extra_header, &block)
   end
 
-  def request(method, uri, query = nil, body = nil, extraHeader = {}, &block)
-    @debugDev << "= Request\n\n" if @debugDev
+  def request(method, uri, query = nil, body = nil, extra_header = {}, &block)
+    @debug_dev << "= Request\n\n" if @debug_dev
     conn = Connection.new
     begin
-      req = createRequest(method, uri, query, body, extraHeader)
-      sess = @sessionManager.query(req, @proxy)
-      @debugDev << "\n\n= Response\n\n" if @debugDev
-      doGetBlock(sess, conn, &block)
+      req = create_request(method, uri, query, body, extra_header)
+      sess = @session_manager.query(req, @proxy)
+      @debug_dev << "\n\n= Response\n\n" if @debug_dev
+      do_get_block(sess, conn, &block)
     rescue Session::KeepAliveDisconnected
       # Try again.
-      req = createRequest(method, uri, query, body, extraHeader)
-      sess = @sessionManager.query(req, @proxy)
-      @debugDev << "\n\n= Response\n\n" if @debugDev
-      doGetBlock(sess, conn, &block)
+      req = create_request(method, uri, query, body, extra_header)
+      sess = @session_manager.query(req, @proxy)
+      @debug_dev << "\n\n= Response\n\n" if @debug_dev
+      do_get_block(sess, conn, &block)
     end
     conn.pop
   end
 
-  ##
   # Async interface.
 
-  def headAsync(uri, query = nil, extraHeader = {})
-    requestAsync('HEAD', uri, query, nil, extraHeader)
+  def head_async(uri, query = nil, extra_header = {})
+    request_async('HEAD', uri, query, nil, extra_header)
   end
 
-  def getAsync(uri, query = nil, extraHeader = {})
-    requestAsync('GET', uri, query, nil, extraHeader)
+  def get_async(uri, query = nil, extra_header = {})
+    request_async('GET', uri, query, nil, extra_header)
   end
 
-  def postAsync(uri, body = nil, extraHeader = {})
-    requestAsync('POST', uri, nil, body, extraHeader)
+  def post_async(uri, body = nil, extra_header = {})
+    request_async('POST', uri, nil, body, extra_header)
   end
 
-  def putAsync(uri, body = nil, extraHeader = {})
-    requestAsync('PUT', uri, nil, body, extraHeader)
+  def put_async(uri, body = nil, extra_header = {})
+    request_async('PUT', uri, nil, body, extra_header)
   end
 
-  def deleteAsync(uri, extraHeader = {})
-    requestAsync('DELETE', uri, nil, nil, extraHeader)
+  def delete_async(uri, extra_header = {})
+    request_async('DELETE', uri, nil, nil, extra_header)
   end
 
-  def optionsAsync(uri, extraHeader = {})
-    requestAsync('OPTIONS', uri, nil, nil, extraHeader)
+  def options_async(uri, extra_header = {})
+    request_async('OPTIONS', uri, nil, nil, extra_header)
   end
 
-  def traceAsync(uri, query = nil, body = nil, extraHeader = {})
-    requestAsync('TRACE', uri, query, body, extraHeader)
+  def trace_async(uri, query = nil, body = nil, extra_header = {})
+    request_async('TRACE', uri, query, body, extra_header)
   end
 
-  def requestAsync(method, uri, query = nil, body = nil, extraHeader = {})
-    @debugDev << "= Request\n\n" if @debugDev
-    req = createRequest(method, uri, query, body, extraHeader)
-    responseConn = Connection.new
-    t = Thread.new(responseConn) { |conn|
-      sess = @sessionManager.query(req, @proxy)
-      @debugDev << "\n\n= Response\n\n" if @debugDev
+  def request_async(method, uri, query = nil, body = nil, extra_header = {})
+    @debug_dev << "= Request\n\n" if @debug_dev
+    req = create_request(method, uri, query, body, extra_header)
+    response_conn = Connection.new
+    t = Thread.new(response_conn) { |conn|
+      sess = @session_manager.query(req, @proxy)
+      @debug_dev << "\n\n= Response\n\n" if @debug_dev
       begin
-	doGetStream(sess, conn)
+	do_get_stream(sess, conn)
       rescue Session::KeepAliveDisconnected
        	# Try again.
-	req = createRequest(method, uri, query, body, extraHeader)
-	sess = @sessionManager.query(req, @proxy)
-	doGetStream(sess, conn)
+	req = create_request(method, uri, query, body, extra_header)
+	sess = @session_manager.query(req, @proxy)
+	do_get_stream(sess, conn)
       end
     }
-    responseConn.asyncThread = t
-    responseConn
+    response_conn.async_thread = t
+    response_conn
   end
 
   ##
@@ -274,56 +271,56 @@ class Client
   # Management interface.
 
   def reset(uri)
-    @sessionManager.reset(uri)
+    @session_manager.reset(uri)
   end
 
 private
 
-  def createRequest(method, uri, query, body, extraHeader)
-    if extraHeader.is_a?(Hash)
-      extraHeader = extraHeader.to_a
+  def create_request(method, uri, query, body, extra_header)
+    if extra_header.is_a?(Hash)
+      extra_header = extra_header.to_a
     end
     unless uri.is_a?(URI)
       uri = URI.parse(uri)
     end
-    cred = @basicAuth.get(uri)
+    cred = @basic_auth.get(uri)
     if cred
-      extraHeader << ['Authorization', "Basic " << cred]
+      extra_header << ['Authorization', "Basic " << cred]
     end
-    req = HTTP::Message.newRequest(method, uri, query, body, @proxy)
-    extraHeader.each do |key, value|
+    req = HTTP::Message.new_request(method, uri, query, body, @proxy)
+    extra_header.each do |key, value|
       req.header.set(key, value)
     end
     req
   end
 
   # !! CAUTION !!
-  #   Method 'doGet*' runs under MT conditon. Be careful to change.
-  def doGetBlock(sess, conn, &block)
+  #   Method 'do_get*' runs under MT conditon. Be careful to change.
+  def do_get_block(sess, conn, &block)
     content = ''
-    res = HTTP::Message.newResponse(content)
-    doGetHeader(sess, conn, res)
-    sess.getData() do |str|
+    res = HTTP::Message.new_response(content)
+    do_get_header(sess, conn, res)
+    sess.get_data() do |str|
       block.call(str) if block
       content << str
     end
-    @sessionManager.keep(sess) unless sess.closed?
+    @session_manager.keep(sess) unless sess.closed?
   end
 
-  def doGetStream(sess, conn)
+  def do_get_stream(sess, conn)
     piper, pipew = IO.pipe
-    res = HTTP::Message.newResponse(piper)
-    doGetHeader(sess, conn, res)
-    sess.getData() do |str|
+    res = HTTP::Message.new_response(piper)
+    do_get_header(sess, conn, res)
+    sess.get_data() do |str|
       pipew.syswrite(str)
     end
     pipew.close
-    @sessionManager.keep(sess) unless sess.closed?
+    @session_manager.keep(sess) unless sess.closed?
   end
 
-  def doGetHeader(sess, conn, res)
-    res.version, res.status, res.reason = sess.getStatus
-    sess.getHeaders().each do |line|
+  def do_get_header(sess, conn, res)
+    res.version, res.status, res.reason = sess.get_status
+    sess.get_header().each do |line|
       unless /^([^:]+)\s*:\s*(.*)$/ =~ line
 	raise RuntimeError.new("Unparsable header: '#{ line }'.") if $DEBUG
       end
@@ -334,26 +331,128 @@ private
 end
 
 
-###
-## HTTPAccess2::BasicAuth -- BasicAuth repository
+# HTTPAccess2::SSLConfig -- SSL configuration of a client.
+#
+class SSLConfig	# :nodoc:
+  attr_reader :client_cert
+  attr_reader :client_key
+  attr_reader :trust_ca_file
+  attr_reader :trust_ca_path
+
+  attr_accessor :verify_mode
+  attr_accessor :verify_depth
+  attr_accessor :verify_callback
+
+  attr_accessor :timeout
+
+  def initialize
+    return unless SSLEnabled
+    @client_cert = @client_key = nil
+    @trust_ca_file = @trust_ca_path = nil
+    @verify_mode = OpenSSL::SSL::VERIFY_PEER |
+      OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
+    @verify_depth = 3
+    @verify_callback = nil
+    @dest = nil
+    @timeout = nil
+  end
+
+  def create_context(dest)
+    duped = self.dup
+    duped.dest = dest
+    duped
+  end
+
+  def set_client_cert_file(cert_file, key_file)
+    @client_cert = OpenSSL::X509::Certificate.new(File.open(cert_file).read)
+    @client_key = OpenSSL::X509::PKey.new(File.open(key_file).read)
+  end
+
+  def set_trust_ca(trust_ca_file_or_hashed_dir)
+    if FileTest.directory?(trust_ca_file_or_hashed_dir)
+      @trust_ca_file = nil
+      @trust_ca_path = trust_ca_file_or_hashed_dir
+    else
+      @trust_ca_file = trust_ca_file_or_hashed_dir
+      @trust_ca_path = nil
+    end
+  end
+
+  def set_context(ctx)
+    ctx.cert = @client_cert
+    ctx.key = @client_key
+    ctx.ca_file = @trust_ca_file
+    ctx.ca_path = @trust_ca_path
+    ctx.verify_mode = @verify_mode
+    ctx.verify_depth = @verify_depth
+    ctx.verify_callback = @verify_callback || method(:verify_callback)
+    ctx.timeout = @timeout
+  end
+
+protected
+
+  def dest=(dest)
+    @dest = dest
+  end
+
+private
+
+  # Does not check keyUsage.
+  # Does not check criticality of extentions.
+  def verify_callback(ok, store)
+    unless ok
+      code = store.verify_status
+      msg = store.verify_message
+      depth = store.verify_depth
+      STDERR.puts "at depth #{ depth } - #{ code }: #{ msg }" if $DEBUG
+      return false
+    end
+
+    cert = store.cert
+    if (cert.subject.cmp(cert.issuer) == 0)
+      STDERR.puts 'self signing CA' if $DEBUG
+      return true
+    end
+
+    basic_constraints = cert.extensions.find { |ext|
+	ext.oid == 'basicConstraints'
+      }
+    if basic_constraints && /CA:TRUE/ =~ basic_constraints.value
+      STDERR.puts 'middle level CA' if $DEBUG
+      return true
+    end
+
+    # End Entity(CA:FALSE)
+    cn = cert.subject.to_a.find { |rdn| rdn[0] == 'CN' }
+    unless cn[1] == @dest.host
+      STDERR.puts "CN does not match.  cert:#{ cn[1] }, connected:#{ @dest.host }" if $DEBUG
+      return false
+    end
+
+    true
+  end
+end
+
+
+# HTTPAccess2::BasicAuth -- BasicAuth repository.
 #
 class BasicAuth	# :nodoc:
   def initialize
     @auth = {}
   end
 
-  def set(uri, userId, passwd)
+  def set(uri, user_id, passwd)
     uri = uri.clone
     uri.path = uri.path.sub(/\/[^\/]*$/, '/')
-    @auth[uri] = ["#{ userId }:#{ passwd }"].pack('m').strip
+    @auth[uri] = ["#{ user_id }:#{ passwd }"].pack('m').strip
   end
 
   def get(uri)
-    @auth.each do |realmUri, cred|
-      if ((realmUri.host == uri.host) and
-	  (realmUri.scheme == uri.scheme) and
-	  (realmUri.port == uri.port) and
-	  uri.path.index(realmUri.path) == 0)
+    @auth.each do |realm_uri, cred|
+      if ((realm_uri.host == uri.host) and
+	  (realm_uri.scheme == uri.scheme) and
+	  (realm_uri.port == uri.port) and
+	  uri.path.index(realm_uri.path) == 0)
 	return cred
       end
     end
@@ -362,8 +461,7 @@ class BasicAuth	# :nodoc:
 end
 
 
-###
-## HTTPAccess2::Site -- manage a site(host and port)
+# HTTPAccess2::Site -- manage a site(host and port)
 #
 class Site	# :nodoc:
   attr_accessor :scheme
@@ -399,29 +497,29 @@ class Site	# :nodoc:
   end
 end
 
-###
-## HTTPAccess2::Connection -- magage a connection(one request and response to it).
+
+# HTTPAccess2::Connection -- magage a connection(one request and response to it).
 #
 class Connection	# :nodoc:
-  attr_accessor :asyncThread
+  attr_accessor :async_thread
 
-  def initialize(headersQueue = [], bodyQueue = [])
-    @headers = headersQueue
-    @body = bodyQueue
-    @asyncThread = nil
+  def initialize(header_queue = [], body_queue = [])
+    @headers = header_queue
+    @body = body_queue
+    @async_thread = nil
     @queue = Queue.new
   end
 
   def finished?
-    if !@asyncThread
+    if !@async_thread
       # Not in async mode.
       true
-    elsif @asyncThread.alive?
+    elsif @async_thread.alive?
       # Working...
       false
     else
       # Async thread have been finished.
-      @asyncThread.join
+      @async_thread.join
       true
     end
   end
@@ -435,82 +533,77 @@ class Connection	# :nodoc:
   end
 
   def join
-    unless @asyncThread
+    unless @async_thread
       false
     else
-      @asyncThread.join
+      @async_thread.join
     end
   end
 end
 
-private
 
-###
-## HTTPAccess2::SessionManager -- singleton class to manage several sessions.
+# HTTPAccess2::SessionManager -- manage several sessions.
 #
 class SessionManager	# :nodoc:
-  include Singleton
-
-  attr_accessor :agentName	# Name of this client.
+  attr_accessor :agent_name	# Name of this client.
   attr_accessor :from		# Owner of this client.
 
-  attr_accessor :protocolVersion	# Requested protocol version
-  attr_accessor :chunkSize		# Chunk size for chunked request
-  attr_accessor :debugDev		# Device for dumping log for debugging
+  attr_accessor :protocol_version	# Requested protocol version
+  attr_accessor :chunk_size		# Chunk size for chunked request
+  attr_accessor :debug_dev		# Device for dumping log for debugging
 
   # These parameters are not used now...
-  attr_accessor :connectTimeout
-  attr_accessor :connectRetry		# Maximum retry count.  0 for infinite.
-  attr_accessor :sendTimeout
-  attr_accessor :receiveTimeout
-  attr_accessor :readBlockSize
+  attr_accessor :connect_timeout
+  attr_accessor :connect_retry		# Maximum retry count.  0 for infinite.
+  attr_accessor :send_timeout
+  attr_accessor :receive_timeout
+  attr_accessor :read_block_size
 
-  attr_reader :sslConfig
+  attr_accessor :ssl_config
 
   def initialize
     @proxy = nil
 
-    @agentName = nil
+    @agent_name = nil
     @from = nil
 
-    @protocolVersion = nil
-    @debugDev = nil
-    @chunkSize = 4096
+    @protocol_version = nil
+    @debug_dev = nil
+    @chunk_size = 4096
 
-    @connectTimeout = 60
-    @connectRetry = 1
-    @sendTimeout = 120
-    @receiveTimeout = 60	# For each readBlockSize bytes...
-    @readBlockSize = 4096
+    @connect_timeout = 60
+    @connect_retry = 1
+    @send_timeout = 120
+    @receive_timeout = 60	# For each read_block_size bytes...
+    @read_block_size = 4096
 
-    @sslConfig = {}
-    initSSLConfig if SSLEnabled
+    @ssl_config = nil
 
-    @sessPool = []
-    @sessPoolMutex = Mutex.new
+    @sess_pool = []
+    @sess_pool_mutex = Mutex.new
   end
 
-  def proxy=(proxyStr)
-    unless proxyStr
+  def proxy=(proxy_str)
+    unless proxy_str
       @proxy = nil 
       return
     end
-    @proxy = Site.new(URI.parse(proxyStr))
+    @proxy = Site.new(URI.parse(proxy_str))
   end
 
-  def query(req, proxyStr)
-    req.body.chunkSize = @chunkSize
-    destSite = Site.new(req.header.requestUri)
-    proxySite = if proxyStr
-  	Site.new(URI.parse(proxyStr))
+  def query(req, proxy_str)
+    req.body.chunk_size = @chunk_size
+    dest_site = Site.new(req.header.request_uri)
+    proxy_site = if proxy_str
+  	Site.new(URI.parse(proxy_str))
       else
 	@proxy
       end
-    sess = open(destSite, proxySite)
+    sess = open(dest_site, proxy_site)
     begin
       sess.query(req)
     rescue
-      close(destSite)
+      close(dest_site)
       raise
     end
 
@@ -526,31 +619,32 @@ class SessionManager	# :nodoc:
   end
 
   def keep(sess)
-    addCachedSession(sess)
+    add_cached_session(sess)
   end
 
 private
+
   def open(dest, proxy = nil)
     sess = nil
-    if (cached = getCachedSession(dest))
+    if (cached = get_cached_session(dest))
       sess = cached
     else
-      sess = Session.new(dest, @agentName, @from)
+      sess = Session.new(dest, @agent_name, @from)
       sess.proxy = proxy
-      sess.requestedVersion = @protocolVersion if @protocolVersion
-      sess.connectTimeout = @connectTimeout
-      sess.connectRetry = @connectRetry
-      sess.sendTimeout = @sendTimeout
-      sess.receiveTimeout = @receiveTimeout
-      sess.readBlockSize = @readBlockSize
-      sess.sslConfig.update(@sslConfig)
-      sess.debugDev = @debugDev
+      sess.requested_version = @protocol_version if @protocol_version
+      sess.connect_timeout = @connect_timeout
+      sess.connect_retry = @connect_retry
+      sess.send_timeout = @send_timeout
+      sess.receive_timeout = @receive_timeout
+      sess.read_block_size = @read_block_size
+      sess.ssl_config = @ssl_config
+      sess.debug_dev = @debug_dev
     end
     sess
   end
 
   def close(dest)
-    if (cached = getCachedSession(dest))
+    if (cached = get_cached_session(dest))
       cached.close
       true
     else
@@ -558,49 +652,44 @@ private
     end
   end
 
-  def getCachedSession(dest)
+  def get_cached_session(dest)
     cached = nil
-    @sessPoolMutex.synchronize do
-      newPool = []
-      @sessPool.each do |s|
+    @sess_pool_mutex.synchronize do
+      new_pool = []
+      @sess_pool.each do |s|
 	if s.dest == dest
 	  cached = s
 	else
-	  newPool << s
+	  new_pool << s
 	end
       end
-      @sessPool = newPool
+      @sess_pool = new_pool
     end
     cached
   end
 
-  def addCachedSession(sess)
-    @sessPoolMutex.synchronize do
-      @sessPool << sess
+  def add_cached_session(sess)
+    @sess_pool_mutex.synchronize do
+      @sess_pool << sess
     end
-  end
-
-  def initSSLConfig
-    @sslConfig[:verify_mode] = OpenSSL::SSL::VERIFY_PEER
   end
 end
 
 
-###
-## HTTPAccess2::SSLSocketWrap
+# HTTPAccess2::SSLSocketWrap
 #
 class SSLSocketWrap
-  def initialize(socket, config = {})
+  def initialize(socket, context)
     unless SSLEnabled
       raise RuntimeError.new("Ruby/OpenSSL module is required for https access.")
     end
-    @config = config
+    @context = context
     @socket = socket
-    @sslSocket = createSSLSocket(@socket)
+    @ssl_socket = create_ssl_socket(@socket)
   end
 
   def peer_cert
-    @sslSocket.peer_cert
+    @ssl_socket.peer_cert
   end
 
   def addr
@@ -608,7 +697,7 @@ class SSLSocketWrap
   end
 
   def close
-    @sslSocket.close
+    @ssl_socket.close
     @socket.close
   end
 
@@ -617,64 +706,49 @@ class SSLSocketWrap
   end
 
   def eof?
-    @sslSocket.eof?
+    @ssl_socket.eof?
   end
 
   def gets(*args)
-    @sslSocket.gets(*args)
+    @ssl_socket.gets(*args)
   end
 
   def read(*args)
-    @sslSocket.read(*args)
+    @ssl_socket.read(*args)
   end
 
   def <<(str)
-    @sslSocket.write(str)
+    @ssl_socket.write(str)
   end
 
 private
 
-  def createSSLSocket(socket)
+  def create_ssl_socket(socket)
+    ssl_socket = nil
     if OpenSSL::SSL.const_defined?("SSLContext")
       ctx = OpenSSL::SSL::SSLContext.new
-      setSSLContext(ctx, @config)
-      sslSocket = OpenSSL::SSL::SSLSocket.new(socket, ctx)
+      @context.set_context(ctx)
+      ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ctx)
     else
-      sslSocket = OpenSSL::SSL::SSLSocket.new(socket)
-      setSSLContext(sslSocket, @config)
+      ssl_socket = OpenSSL::SSL::SSLSocket.new(socket)
+      @context.set_context(ctx)
     end
-    sslSocket.connect
-    sslSocket
-  end
-
-  def setSSLContext(ctx, config)
-    ctx.key = config[:key]
-    # deprecated
-    # ctx.key_file = config[:key_file]
-    ctx.cert = config[:cert]
-    # deprecated
-    # ctx.cert_file = config[:cert_file]
-    ctx.ca_file = config[:ca_file]
-    ctx.ca_path = config[:ca_path]
-    ctx.verify_mode = config[:verify_mode]
-    ctx.verify_callback = config[:verify_callback]
-    ctx.verify_depth = config[:verify_depth]
-    ctx.timeout = config[:timeout]
+    ssl_socket.connect
+    ssl_socket
   end
 end
 
 
-###
-## HTTPAccess2::DebugSocket -- debugging support
+# HTTPAccess2::DebugSocket -- debugging support
 #
 class DebugSocket < TCPSocket
-  attr_accessor :debugDev     # Device for logging.
+  attr_accessor :debug_dev     # Device for logging.
 
   class << self
-    def createDebugSocket(host, port, debugDev)
+    def create_socket(host, port, debug_dev)
       socket = new(host, port)
-      socket.debugDev = debugDev
-      socket.connectLog
+      socket.debug_dev = debug_dev
+      socket.log_connect
       socket
     end
 
@@ -683,41 +757,40 @@ class DebugSocket < TCPSocket
   
   def initialize(*args)
     super
-    @debugDev = nil
+    @debug_dev = nil
   end
 
-  def connectLog
-    @debugDev << '! CONNECTION ESTABLISHED' << "\n"
+  def log_connect
+    @debug_dev << '! CONNECTION ESTABLISHED' << "\n"
   end
 
   def close
     super
-    @debugDev << '! CONNECTION CLOSED' << "\n"
+    @debug_dev << '! CONNECTION CLOSED' << "\n"
   end
 
   def gets(*args)
     str = super
-    @debugDev << str
+    @debug_dev << str
     str
   end
 
   def read(*args)
     str = super
-    @debugDev << str
+    @debug_dev << str
     str
   end
 
   def <<(str)
     super
-    @debugDev << str
+    @debug_dev << str
   end
 end
 
 
-###
-## HTTPAccess2::Session -- manage http session with one site.
-##   One or more TCP sessions with the site may be created.
-##   Only 1 TCP session is live at the same time.
+# HTTPAccess2::Session -- manage http session with one site.
+#   One or more TCP sessions with the site may be created.
+#   Only 1 TCP session is live at the same time.
 #
 class Session	# :nodoc:
 
@@ -737,34 +810,34 @@ class Session	# :nodoc:
   attr_reader :src			# Source site
   attr_accessor :proxy			# Proxy site
 
-  attr_accessor :requestedVersion	# Requested protocol version
+  attr_accessor :requested_version	# Requested protocol version
 
-  attr_accessor :debugDev		# Device for dumping log for debugging
+  attr_accessor :debug_dev		# Device for dumping log for debugging
 
   # These session parameters are not used now...
-  attr_accessor :connectTimeout
-  attr_accessor :connectRetry
-  attr_accessor :sendTimeout
-  attr_accessor :receiveTimeout
-  attr_accessor :readBlockSize
+  attr_accessor :connect_timeout
+  attr_accessor :connect_retry
+  attr_accessor :send_timeout
+  attr_accessor :receive_timeout
+  attr_accessor :read_block_size
 
-  attr_reader :sslConfig
+  attr_accessor :ssl_config
 
   def initialize(dest, user_agent, from)
     @dest = dest
     @src = Site.new
     @proxy = nil
-    @requestedVersion = VERSION
+    @requested_version = VERSION
 
-    @debugDev = nil
+    @debug_dev = nil
 
-    @connectTimeout = nil
-    @connectRetry = 1
-    @sendTimeout = nil
-    @receiveTimeout = nil
-    @readBlockSize = nil
+    @connect_timeout = nil
+    @connect_retry = 1
+    @send_timeout = nil
+    @receive_timeout = nil
+    @read_block_size = nil
 
-    @sslConfig = {}
+    @ssl_config = nil
 
     @user_agent = user_agent
     @from = from
@@ -776,7 +849,7 @@ class Session	# :nodoc:
     @reason = nil
     @headers = []
 
-    @socket = @rawSocket = nil
+    @socket = nil
   end
 
   # Send a request to the server
@@ -784,8 +857,8 @@ class Session	# :nodoc:
     connect() if @state == :INIT
 
     begin
-      timeout(@sendTimeout) do
-	setHeaders(req)
+      timeout(@send_timeout) do
+	set_header(req)
 	req.dump(@socket)
       end
     rescue Errno::ECONNABORTED
@@ -818,13 +891,13 @@ class Session	# :nodoc:
     @state == :INIT
   end
 
-  def getStatus
+  def get_status
     version = status = reason = nil
     begin
       if @state != :META
-	raise RuntimeError.new("getStatus must be called at the beginning of a session.")
+	raise RuntimeError.new("get_status must be called at the beginning of a session.")
       end
-      version, status, reason = readHeaders()
+      version, status, reason = read_header()
     rescue
       close
       raise
@@ -832,9 +905,9 @@ class Session	# :nodoc:
     return version, status, reason
   end
 
-  def getHeaders(&block)
+  def get_header(&block)
     begin
-      readHeaders() if @state == :META
+      read_header() if @state == :META
     rescue
       close
       raise
@@ -858,9 +931,9 @@ class Session	# :nodoc:
     end
   end
 
-  def getData(&block)
+  def get_data(&block)
     begin
-      readHeaders() if @state == :META
+      read_header() if @state == :META
       return nil if @state != :DATA
       unless @state == :DATA
 	raise InvalidState.new('state != DATA')
@@ -869,8 +942,8 @@ class Session	# :nodoc:
       if block
 	until eof?
 	  begin
-	    timeout(@receiveTimeout) do
-	      data = readBody()
+	    timeout(@receive_timeout) do
+	      data = read_body()
 	    end
 	  rescue TimeoutError
 	    raise
@@ -880,8 +953,8 @@ class Session	# :nodoc:
 	data = nil	# Calling with block returns nil.
       else
 	begin
-	  timeout(@receiveTimeout) do
-	    data = readBody()
+	  timeout(@receive_timeout) do
+	    data = read_body()
 	  end
 	rescue TimeoutError
 	  raise
@@ -902,9 +975,10 @@ class Session	# :nodoc:
   end
 
 private
+
   LibNames = "(#{ RCS_FILE }/#{ RCS_REVISION }, #{ RUBY_VERSION_STRING })"
 
-  def setHeaders(req)
+  def set_header(req)
     if @user_agent
       req.header.set('User-Agent', "#{ @user_agent } #{ LibNames }")
     end
@@ -918,10 +992,10 @@ private
   def connect
     site = @proxy || @dest
     begin
-      retryNumber = 0
-      timeout(@connectTimeout) do
-	@socket = if @debugDev	
-	    DebugSocket.createDebugSocket(site.host, site.port, @debugDev)
+      retry_number = 0
+      timeout(@connect_timeout) do
+	@socket = if @debug_dev	
+	    DebugSocket.create_socket(site.host, site.port, @debug_dev)
 	  else
 	    TCPSocket.new(site.host, site.port)
 	  end
@@ -929,15 +1003,16 @@ private
 	@src.port = @socket.addr[1]
 	if @dest.scheme == 'https'
 	  # wrap socket with OpenSSL.
-	  @socket = SSLSocketWrap.new(@socket, @sslConfig)
+	  context = @ssl_config.create_context(@dest)
+	  @socket = SSLSocketWrap.new(@socket, context)
 	end
       end
     rescue TimeoutError
-      if @connectRetry == 0
+      if @connect_retry == 0
 	retry
       else
-	retryNumber += 1
-	retry if retryNumber < @connectRetry
+	retry_number += 1
+	retry if retry_number < @connect_retry
       end
       close
       raise
@@ -949,7 +1024,7 @@ private
 
   # Read status block.
   StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d+)(?:\s+(.*))?#{ RS }\z)
-  def readHeaders
+  def read_header
     if @state == :DATA
       get_data {}
       check_state()
@@ -959,7 +1034,7 @@ private
     end
 
     begin
-      timeout(@receiveTimeout) do
+      timeout(@receive_timeout) do
 	begin
 	  @status_line = @socket.gets(RS)
 	  if @status_line.nil?
@@ -970,7 +1045,7 @@ private
 	    raise BadResponse.new(@status_line)
 	  end
 	  @version, @status, @reason = $1, $2.to_i, $3
-	  @next_connection = if keepAliveEnabled?(@version)
+	  @next_connection = if HTTP.keep_alive_enabled?(@version)
 	      true
 	    else
 	      false
@@ -1020,7 +1095,7 @@ private
     @state = :DATA
     req = @requests.shift
 
-    if req.header.requestMethod == 'HEAD'
+    if req.header.request_method == 'HEAD'
       @content_length = 0
       if @next_connection
         @state = :WAIT 
@@ -1034,28 +1109,28 @@ private
     return [@version, @status, @reason]
   end
 
-  def readBody
+  def read_body
     if @chunked
-      return readBodyChunked()
+      return read_body_chunked()
     elsif @content_length == 0
       return nil
     elsif @content_length
-      return readBodyLength()
+      return read_body_length()
     else
       if @readbuf.length > 0
 	data = @readbuf
 	@readbuf = ''
 	return data
       else
-	data = @socket.read(@readBlockSize)
+	data = @socket.read(@read_block_size)
 	data = nil if data.empty?	# Absorbing interface mismatch.
 	return data
       end
     end
   end
 
-  def readBodyLength
-    maxbytes = @readBlockSize
+  def read_body_length
+    maxbytes = @read_block_size
     if @readbuf.length > 0
       data = @readbuf[0, @content_length]
       @readbuf[0, @content_length] = ''
@@ -1074,7 +1149,7 @@ private
 
   ChunkDelimiter = "0#{ RS }"
   ChunkTrailer = "0#{ RS }#{ RS }"
-  def readBodyChunked
+  def read_body_chunked
     if @chunk_length == 0
       until (i = @readbuf.index(RS))
 	@readbuf << @socket.gets(RS)
@@ -1112,21 +1187,6 @@ private
 	end
       end
     end
-  end
-
-  ProtocolVersionRegexp = Regexp.new('^(\d+)\.(\d+)$')
-
-  # Persistent connection is usable in 1.1 or later.
-  def keepAliveEnabled?(version)
-    ProtocolVersionRegexp =~ version
-    bEnabled = if ($1 && ($1.to_i > 1))
-	true
-      elsif ($2 && ($2.to_i >= 1))
-	true
-      else
-	false
-      end
-    return bEnabled
   end
 end
 
