@@ -30,7 +30,7 @@ RUBY_VERSION_STRING =
   "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
 
 /: (\S+),v (\S+)/ =~
-  %q$Id: http-access2.rb,v 1.6 2003/02/13 15:25:10 nahi Exp $
+  %q$Id: http-access2.rb,v 1.7 2003/02/14 15:21:38 nahi Exp $
 RCS_FILE, RCS_REVISION = $1, $2
 
 RS = "\r\n"
@@ -134,13 +134,10 @@ class Client
   #   		aHash of extra headers like { "SOAPAction" => "urn:foo" }.
   #   &block	Give a block to get chunked message-body of response like
   #   		getContent( uri ) { | chunkedBody | ... }
-  #   		Size of each chunk might not be the same.
+  #   		Size of each chunk may not be the same.
   #
   # DESCRIPTION
   #   Get aString of message-body of response.
-  #
-  # BUGS
-  #   getContent should handle 302, etc.  Not yet.
   #
   def getContent( uri, query = nil, extraHeader = {}, &block )
     retryNumber = 0
@@ -190,21 +187,20 @@ class Client
   end
 
   def request( method, uri, query = nil, body = nil, extraHeader = {}, &block )
-    res = nil
-    if block
-      conn = requestAsync( method, uri, query, body, extraHeader, &block )
-      conn.join
-      res = conn.pop
-    else
-      readBuf = ''
-      conn = requestAsync( method, uri, query, body, extraHeader ) do |str|
-	readBuf << str
-      end
-      conn.join
-      res = conn.pop
-      res.body.set_content( readBuf )
+    @debugDev << "= Request\n\n" if @debugDev
+    req = createRequest( method, uri, query, body, extraHeader )
+    conn = Connection.new
+    sess = @sessionManager.query( req, @proxy )
+    @debugDev << "\n\n= Response\n\n" if @debugDev
+    begin
+      doGetBlock( sess, conn, &block )
+    rescue Session::KeepAliveDisconnected
+      # Try again.
+      req = createRequest( method, uri, query, body, extraHeader )
+      sess = @sessionManager.query( req, @proxy )
+      doGetBlock( sess, conn, &block )
     end
-    res
+    conn.pop
   end
 
   ##
@@ -214,44 +210,44 @@ class Client
     requestAsync( 'HEAD', uri, query, nil, extraHeader )
   end
 
-  def getAsync( uri, query = nil, extraHeader = {}, &block )
-    requestAsync( 'GET', uri, query, nil, extraHeader, &block )
+  def getAsync( uri, query = nil, extraHeader = {} )
+    requestAsync( 'GET', uri, query, nil, extraHeader )
   end
 
-  def postAsync( uri, body = nil, extraHeader = {}, &block )
-    requestAsync( 'POST', uri, nil, body, extraHeader, &block )
+  def postAsync( uri, body = nil, extraHeader = {} )
+    requestAsync( 'POST', uri, nil, body, extraHeader )
   end
 
-  def putAsync( uri, body = nil, extraHeader = {}, &block )
-    requestAsync( 'PUT', uri, nil, body, extraHeader, &block )
+  def putAsync( uri, body = nil, extraHeader = {} )
+    requestAsync( 'PUT', uri, nil, body, extraHeader )
   end
 
-  def deleteAsync( uri, extraHeader = {}, &block )
-    requestAsync( 'DELETE', uri, nil, nil, extraHeader, &block )
+  def deleteAsync( uri, extraHeader = {} )
+    requestAsync( 'DELETE', uri, nil, nil, extraHeader )
   end
 
-  def optionsAsync( uri, extraHeader = {}, &block )
-    requestAsync( 'OPTIONS', uri, nil, nil, extraHeader, &block )
+  def optionsAsync( uri, extraHeader = {} )
+    requestAsync( 'OPTIONS', uri, nil, nil, extraHeader )
   end
 
-  def traceAsync( uri, query = nil, body = nil, extraHeader = {}, &block )
-    requestAsync( 'TRACE', uri, query, body, extraHeader, &block )
+  def traceAsync( uri, query = nil, body = nil, extraHeader = {} )
+    requestAsync( 'TRACE', uri, query, body, extraHeader )
   end
 
-  def requestAsync( method, uri, query = nil, body = nil, extraHeader = {}, &block )
+  def requestAsync( method, uri, query = nil, body = nil, extraHeader = {} )
     @debugDev << "= Request\n\n" if @debugDev
     req = createRequest( method, uri, query, body, extraHeader )
-    sess = @sessionManager.query( req, @proxy )
-    @debugDev << "\n\n= Response\n\n" if @debugDev
     responseConn = Connection.new
     t = Thread.new( responseConn ) { | conn |
+      sess = @sessionManager.query( req, @proxy )
+      @debugDev << "\n\n= Response\n\n" if @debugDev
       begin
-	doGet( sess, conn, &block )
+	doGetStream( sess, conn )
       rescue Session::KeepAliveDisconnected
        	# Try again.
 	req = createRequest( method, uri, query, body, extraHeader )
 	sess = @sessionManager.query( req, @proxy )
-	doGet( sess, conn, &block )
+	doGetStream( sess, conn )
       end
     }
     responseConn.asyncThread = t
@@ -290,10 +286,30 @@ private
   end
 
   # !! CAUTION !!
-  #   Method 'doGet' runs under MT conditon. Be careful to change.
-  def doGet( sess, conn, &block )
+  #   Method 'doGet*' runs under MT conditon. Be careful to change.
+  def doGetBlock( sess, conn, &block )
+    content = ''
+    res = HTTP::Message.newResponse( content )
+    doGetHeader( sess, conn, res )
+    sess.getData() do | str |
+      block.call( str ) if block
+      content << str
+    end
+    @sessionManager.keep( sess ) unless sess.closed?
+  end
+
+  def doGetStream( sess, conn )
     piper, pipew = IO.pipe
     res = HTTP::Message.newResponse( piper )
+    doGetHeader( sess, conn, res )
+    sess.getData() do | str |
+      pipew.syswrite( str )
+    end
+    pipew.close
+    @sessionManager.keep( sess ) unless sess.closed?
+  end
+
+  def doGetHeader( sess, conn, res )
     res.version, res.status, res.reason = sess.getStatus
     sess.getHeaders().each do | line |
       unless /^([^:]+)\s*:\s*(.*)$/ =~ line
@@ -302,16 +318,8 @@ private
       res.header.set( $1, $2 )
     end
     conn.push( res )
-    sess.getData() do | str |
-      if block
-	block.call( str )
-      else
-	pipew.syswrite( str )
-      end
-    end
-    pipew.close
-    @sessionManager.keep( sess ) unless sess.closed?
   end
+
 end
 
 
