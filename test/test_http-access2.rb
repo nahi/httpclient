@@ -95,7 +95,7 @@ class TestClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[1])
     assert_equal("GET / HTTP/1.1", lines[2])
-    assert_equal("Host: localhost", lines[5])
+    assert_equal("Host: localhost:#{Port}", lines[5])
     @client.protocol_version = 'HTTP/1.1'
     str = ""
     @client.debug_dev = str
@@ -232,6 +232,14 @@ class TestClient < Test::Unit::TestCase
     assert_raises(RuntimeError) do
       @client.get_content(@url + 'redirect_self')
     end
+    called = false
+    @client.redirect_uri_callback = lambda { |res|
+      uri = res.header['location'][0]
+      called = true
+      URI.parse(@url).merge(uri).to_s
+    }
+    assert_equal('hello', @client.get_content(@url + 'relative_redirect'))
+    assert(called)
   end
 
   def test_head
@@ -349,7 +357,7 @@ private
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
-    [:hello, :redirect1, :redirect2, :redirect3, :redirect_self].each do |sym|
+    [:hello, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect].each do |sym|
       @server.mount(
 	"/#{sym}",
 	WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
@@ -432,6 +440,10 @@ private
 
   def do_redirect_self(req, res)
     res.set_redirect(WEBrick::HTTPStatus::Found, @url + "redirect_self") 
+  end
+
+  def do_relative_redirect(req, res)
+    res.set_redirect(WEBrick::HTTPStatus::Found, "hello") 
   end
 
   class TestServlet < WEBrick::HTTPServlet::AbstractServlet
