@@ -3,6 +3,7 @@ require 'http-access2'
 require 'webrick'
 require 'webrick/httpproxy.rb'
 require 'logger'
+require 'stringio'
 
 
 module HTTPAccess2
@@ -15,6 +16,9 @@ class TestClient < Test::Unit::TestCase
   def setup
     @logger = Logger.new(STDERR)
     @logger.level = Logger::Severity::ERROR
+    @proxyio = StringIO.new
+    @proxylogger = Logger.new(@proxyio)
+    @proxylogger.level = Logger::Severity::DEBUG
     @url = "http://localhost:#{Port}/"
     @proxyurl = "http://localhost:#{ProxyPort}/"
     @server = @proxyserver = @client = nil
@@ -43,7 +47,7 @@ class TestClient < Test::Unit::TestCase
   def setup_proxyserver
     @proxyserver = WEBrick::HTTPProxyServer.new(
       :BindAddress => "0.0.0.0",
-      :Logger => @logger,
+      :Logger => @proxylogger,
       :Port => ProxyPort,
       :AccessLog => []
     )
@@ -89,14 +93,21 @@ class TestClient < Test::Unit::TestCase
     setup_proxyserver
     backup = HTTPAccess2::Client::NO_PROXY_HOSTS.dup
     HTTPAccess2::Client::NO_PROXY_HOSTS.clear
+    #
+    @proxyio.string = ""
     @client = HTTPAccess2::Client.new(@proxyurl)
-    @client.get(@url)
+    assert_equal(200, @client.head(@url).status)
+    assert(!@proxyio.string.empty?)
+    #
+    @proxyio.string = ""
     @client.proxy = nil
-    @client.get(@url)
+    assert_equal(200, @client.head(@url).status)
+    assert(@proxyio.string.empty?)
+    #
+    @proxyio.string = ""
     @client.proxy = @proxyurl
-    @client.get(@url)
-    @client.get(@url)
-    #??
+    assert_equal(200, @client.head(@url).status)
+    assert(!@proxyio.string.empty?)
   ensure
     HTTPAccess2::Client::NO_PROXY_HOSTS.replace(backup)
   end
