@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.39 2004/02/11 01:03:36 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.40 2004/12/09 23:10:45 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -140,10 +140,12 @@ class Client
   def proxy=(proxy)
     if proxy.nil?
       @proxy = nil
-    elsif proxy.is_a?(URI)
-      @proxy = proxy
     else
-      @proxy = URI.parse(proxy)
+      if proxy.is_a?(URI)
+        @proxy = proxy
+      else
+        @proxy = URI.parse(proxy)
+      end
       if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
 	  @proxy.host == nil or @proxy.port == nil
 	raise ArgumentError.new("unsupported proxy `#{proxy}'")
