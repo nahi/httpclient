@@ -13,9 +13,18 @@ module HTTP
 module Status
   OK = 200
   MOVED_PERMANENTLY = 301
-  MOVED_TEMPORARILY = 302
+  FOUND = 302
+  SEE_OTHER = 303
+  TEMPORARY_REDIRECT = MOVED_TEMPORARILY = 307
   BAD_REQUEST = 400
   INTERNAL = 500
+
+  def self.redirect?(status)
+    [
+      MOVED_PERMANENTLY, FOUND, SEE_OTHER,
+      TEMPORARY_REDIRECT, MOVED_TEMPORARILY
+    ].include?(status)
+  end
 end
 
 
@@ -76,8 +85,9 @@ class Message
 
     StatusCodeMap = {
       Status::OK => 'OK',
-      Status::MOVED_PERMANENTLY => 'Object moved',
-      Status::MOVED_TEMPORARILY => 'Object moved',
+      Status::MOVED_PERMANENTLY => 'Moved Permanently',
+      Status::TEMPORARY_REDIRECT => 'Temporary Redirect',
+      Status::MOVED_TEMPORARILY => 'Temporary Redirect',
       Status::BAD_REQUEST => 'Bad Request',
       Status::INTERNAL => 'Internal Server Error',
     }
