@@ -16,7 +16,7 @@ result = clnt.get(target)
 puts '== Header object'
 p result.header
 puts "== Content-type"
-p result.header['content-type'][0]
+p result.contentType
 puts '== Body object'
 p result.body
 puts '== Content'

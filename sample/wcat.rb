@@ -16,5 +16,5 @@ while urlstr = ARGV.shift
   response = h.get(urlstr){ |data|
     print data
   }
-  p response.header['content-type']
+  p response.contentType
 end
