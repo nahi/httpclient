@@ -20,26 +20,30 @@ puts "== Content-type"
 p result.header[ 'content-type' ][ 0 ]
 puts '== Body object'
 p result.body
+puts '== Content(IO)'
+p result.content
 puts '== Content'
-print result.body.content
+print result.content.read
 
 puts
 puts '= GET with query'
-puts clnt.get( target, { "foo" => "bar", "baz" => "quz" } ).body.content
+puts clnt.get( target, { "foo" => "bar", "baz" => "quz" } ).content.read
 
 puts
 puts '= GET with query 2'
-puts clnt.get( target, [[ "foo", "bar1" ], [ "foo", "bar2" ]] ).body.content
+puts clnt.get( target, [[ "foo", "bar1" ], [ "foo", "bar2" ]] ).content.read
 
-
+# Client must be reset here to set debugDev.
+# Setting debugDev to keep-alive session is ignored.
+clnt.reset( target )
 clnt.debugDev = STDERR
 puts
 puts '= GET with extraHeader'
-puts clnt.get( target, nil, { "SOAPAction" => "HelloWorld" } ).body.content
+puts clnt.get( target, nil, { "SOAPAction" => "HelloWorld" } ).content.read
 
 puts
 puts '= GET with extraHeader 2'
-puts clnt.get( target, nil, [[ "Accept", "text/plain" ], [ "Accept", "text/html" ]] ).body.content
+puts clnt.get( target, nil, [[ "Accept", "text/plain" ], [ "Accept", "text/html" ]] ).content.read
 
 clnt.debugDev = STDERR
 clnt.debugDev = nil

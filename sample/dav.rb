@@ -47,6 +47,6 @@ class DAV
     targetUri = @uri + target
     out.puts( "Sending file #{ local }." )
     res = @client.put( targetUri, File.open( local, "rb" ), @headers )
-    out.puts res.body.content
+    out.puts res.content.read
   end
 end
