@@ -141,6 +141,14 @@ class Message
       @reasonPhrase = StatusCodeMap[@responseStatusCode]
     end
 
+    def contentType
+      self['content-type'][0]
+    end
+
+    def contentType=(contentType)
+      self['content-type'] = contentType
+    end
+
     # bodySize == nil means that the body is_a? IO
     def bodySize=(bodySize)
       @bodySize = bodySize
@@ -158,9 +166,9 @@ class Message
       else
 	dev << responseStatusLine
       end
-      @headerItem.each do |key, value|
-	dev << dumpLine("#{ key }: #{ value }")
-      end
+      dev << @headerItem.collect { |key, value|
+	  dumpLine("#{ key }: #{ value }")
+	}.join
       dev
     end
 
@@ -286,7 +294,7 @@ class Message
 	  end
 	rescue EOFError
 	ensure
-	  dev << dumpLastChunk << CRLF
+	  dev << (dumpLastChunk + CRLF)
 	end
       else
 	dev << @body
@@ -305,7 +313,7 @@ class Message
   private
 
     def dumpChunk(str)
-      dumpChunkSize(str.size) << str << CRLF
+      dumpChunkSize(str.size) << (str + CRLF)
     end
 
     def dumpLastChunk
@@ -401,6 +409,14 @@ class Message
 
   def reason=(reason)
     @header.reasonPhrase = reason
+  end
+
+  def contentType
+    @header.contentType
+  end
+
+  def contentType=(contentType)
+    @header.contentType = contentType
   end
 
   class << self
