@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.26 2003/10/04 09:29:11 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.27 2003/10/17 17:41:56 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -406,7 +406,7 @@ class SSLConfig	# :nodoc:
     @crl = nil
     @verify_mode = OpenSSL::SSL::VERIFY_PEER |
       OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
-    @verify_depth = 3
+    @verify_depth = nil
     @verify_callback = nil
     @dest = nil
     @timeout = nil
@@ -440,7 +440,7 @@ class SSLConfig	# :nodoc:
     # Verification: Use Store#verify_callback instead of SSLContext#verify*?
     ctx.cert_store = @cert_store
     ctx.verify_mode = @verify_mode
-    ctx.verify_depth = @verify_depth
+    ctx.verify_depth = @verify_depth if @verify_depth
     ctx.verify_callback = @verify_callback || method(:default_verify_callback)
     # SSL config
     ctx.cert = @client_cert
