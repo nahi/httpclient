@@ -58,6 +58,16 @@ thanks to Maehashi-san.
 
 - History
 
+  October 4, 2003 - version 2.0.1
+    Query was not escaped when query was given as an Array or a Hash.  Fixed.
+    Do not use http_proxy defined by ENV['http_proxy'] or ENV['HTTP_PROXY'] if
+      the destination host is 'localhost'.
+    Hosts which matches ENV['no_proxy'] or ENV['NO_PROXY'] won't be proxyed.
+      [,:] separated. ("ruby-lang.org:rubyist.net")
+      No regexp. (give "ruby-lang.org", not "*.ruby-lang.org")
+      If you want specify hot by IP address, give full address.
+	("192.168.1.1, 192.168.1.2")
+
   September 10, 2003 - version 2.0
     CamelCase to non_camel_case.
     SSL support (requires Ruby/OpenSSL).
