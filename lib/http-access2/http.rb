@@ -260,13 +260,14 @@ class Message
   end
 
   class Body
-    attr_accessor :type, :charset, :date
+    attr_accessor :type, :charset, :date, :chunkSize
 
     def initialize( body = nil, date = nil, type = nil, charset = nil )
       @body = body || ''
       @type = type
       @charset = charset
       @date = date
+      @chunkSize = 4096
     end
 
     def size
@@ -278,11 +279,11 @@ class Message
     end
 
     def dump
-      @body
+      content
     end
 
-    def load( str )
-      @body << str
+    def set_content( body )
+      @body = body
     end
 
     def content
@@ -292,7 +293,6 @@ class Message
 
   def initialize
     @body = @header = nil
-    @chunkSize = 102400
   end
 
   class << self
@@ -323,7 +323,7 @@ class Message
     if body
       if header.chunked
 	while !body.content.eof
-	  chunk = body.content.read( @chunkSize )
+	  chunk = body.content.read( body.chunkSize )
 	  dev << dumpChunk( chunk )
 	end
 	dev << dumpLastChunk << dumpEOH
