@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.23 2003/09/10 11:13:27 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.24 2003/10/04 06:22:18 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -97,7 +97,7 @@ class Client
   # DESCRIPTION
   #   Create an instance.
   #
-  def initialize(proxy = nil, agent_name = nil, from = nil)
+  def initialize(proxy = ENV['http_proxy'] || ENV['HTTP_PROXY'], agent_name = nil, from = nil)
     @proxy = proxy
     @agent_name = agent_name
     @from = from
@@ -210,16 +210,20 @@ class Client
 
   def request(method, uri, query = nil, body = nil, extra_header = {}, &block)
     @debug_dev << "= Request\n\n" if @debug_dev
+    unless uri.is_a?(URI)
+      uri = URI.parse(uri)
+    end
+    proxy = no_proxy?(uri) ? nil : @proxy
     conn = Connection.new
     begin
-      req = create_request(method, uri, query, body, extra_header)
-      sess = @session_manager.query(req, @proxy)
+      req = create_request(method, uri, query, body, extra_header, proxy)
+      sess = @session_manager.query(req, proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       do_get_block(req, sess, conn, &block)
     rescue Session::KeepAliveDisconnected
       # Try again.
-      req = create_request(method, uri, query, body, extra_header)
-      sess = @session_manager.query(req, @proxy)
+      req = create_request(method, uri, query, body, extra_header, proxy)
+      sess = @session_manager.query(req, proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       do_get_block(req, sess, conn, &block)
     end
@@ -258,17 +262,21 @@ class Client
 
   def request_async(method, uri, query = nil, body = nil, extra_header = {})
     @debug_dev << "= Request\n\n" if @debug_dev
-    req = create_request(method, uri, query, body, extra_header)
+    unless uri.is_a?(URI)
+      uri = URI.parse(uri)
+    end
+    proxy = no_proxy?(uri) ? nil : @proxy
+    req = create_request(method, uri, query, body, extra_header, proxy)
     response_conn = Connection.new
     t = Thread.new(response_conn) { |conn|
-      sess = @session_manager.query(req, @proxy)
+      sess = @session_manager.query(req, proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       begin
 	do_get_stream(req, sess, conn)
       rescue Session::KeepAliveDisconnected
        	# Try again.
-	req = create_request(method, uri, query, body, extra_header)
-	sess = @session_manager.query(req, @proxy)
+	req = create_request(method, uri, query, body, extra_header, proxy)
+	sess = @session_manager.query(req, proxy)
 	do_get_stream(req, sess, conn)
       end
     }
@@ -290,12 +298,9 @@ class Client
 
 private
 
-  def create_request(method, uri, query, body, extra_header)
+  def create_request(method, uri, query, body, extra_header, proxy)
     if extra_header.is_a?(Hash)
       extra_header = extra_header.to_a
-    end
-    unless uri.is_a?(URI)
-      uri = URI.parse(uri)
     end
     cred = @basic_auth.get(uri)
     if cred
@@ -306,11 +311,18 @@ private
 	extra_header << ['Cookie', cookies]
       end
     end
-    req = HTTP::Message.new_request(method, uri, query, body, @proxy)
+    req = HTTP::Message.new_request(method, uri, query, body, proxy)
     extra_header.each do |key, value|
       req.header.set(key, value)
     end
     req
+  end
+
+  def no_proxy?(uri)
+    if uri.host == 'localhost'
+      return true
+    end
+    false
   end
 
   # !! CAUTION !!
@@ -673,11 +685,11 @@ class SessionManager	# :nodoc:
   end
 
   def proxy=(proxy_str)
-    unless proxy_str
+    if proxy_str.nil?
       @proxy = nil 
-      return
+    else
+      @proxy = Site.new(URI.parse(proxy_str))
     end
-    @proxy = Site.new(URI.parse(proxy_str))
   end
 
   def query(req, proxy_str)
