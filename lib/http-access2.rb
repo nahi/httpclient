@@ -30,7 +30,7 @@ RUBY_VERSION_STRING =
   "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
 
 /: (\S+),v (\S+)/ =~
-  %q$Id: http-access2.rb,v 1.5 2003/02/13 10:33:36 nahi Exp $
+  %q$Id: http-access2.rb,v 1.6 2003/02/13 15:25:10 nahi Exp $
 RCS_FILE, RCS_REVISION = $1, $2
 
 RS = "\r\n"
@@ -148,7 +148,7 @@ class Client
       res = get( uri, query, extraHeader, &block )
       case res.status
       when HTTP::Status::OK
-	return res.content.read
+	return res.content
       when HTTP::Status::MOVED_PERMANENTLY, HTTP::Status::MOVED_TEMPORARILY
 	uri = res.header[ 'location' ][ 0 ]
 	query = nil
@@ -190,24 +190,21 @@ class Client
   end
 
   def request( method, uri, query = nil, body = nil, extraHeader = {}, &block )
-    @debugDev << "= Request\n\n" if @debugDev
-    req = createRequest( method, uri, query, body, extraHeader )
-    sess = @sessionManager.query( req, @proxy )
-    @debugDev << "\n\n= Response\n\n" if @debugDev
-    conn = Connection.new
-    begin
-      doGet( sess, conn, &block )
-    rescue Session::KeepAliveDisconnected
-      # Try again.
-      req = createRequest( method, uri, query, body, extraHeader )
-      sess = @sessionManager.query( req, @proxy )
-      doGet( sess, conn, &block )
+    res = nil
+    if block
+      conn = requestAsync( method, uri, query, body, extraHeader, &block )
+      conn.join
+      res = conn.pop
+    else
+      readBuf = ''
+      conn = requestAsync( method, uri, query, body, extraHeader ) do |str|
+	readBuf << str
+      end
+      conn.join
+      res = conn.pop
+      res.body.set_content( readBuf )
     end
-    conn.pop
-  end
-
-  def reset( uri )
-    @sessionManager.reset( uri )
+    res
   end
 
   ##
@@ -241,8 +238,7 @@ class Client
     requestAsync( 'TRACE', uri, query, body, extraHeader, &block )
   end
 
-  def requestAsync( method, uri, query = nil, body = nil, extraHeader = {},
-      &block )
+  def requestAsync( method, uri, query = nil, body = nil, extraHeader = {}, &block )
     @debugDev << "= Request\n\n" if @debugDev
     req = createRequest( method, uri, query, body, extraHeader )
     sess = @sessionManager.query( req, @proxy )
@@ -266,6 +262,13 @@ class Client
   # Multiple call interface.
 
   # ???
+
+  ##
+  # Management interface.
+
+  def reset( uri )
+    @sessionManager.reset( uri )
+  end
 
 private
   def createRequest( method, uri, query, body, extraHeader )
@@ -302,8 +305,9 @@ private
     sess.getData() do | str |
       if block
 	block.call( str )
+      else
+	pipew.syswrite( str )
       end
-      pipew << str
     end
     pipew.close
     @sessionManager.keep( sess ) unless sess.closed?
@@ -442,13 +446,13 @@ class SessionManager	# :nodoc:
 
     @protocolVersion = nil
     @debugDev = nil
-    @chunkSize = 102400
+    @chunkSize = 4096
 
     @connectTimeout = 60
     @connectRetry = 1
     @sendTimeout = 120
     @receiveTimeout = 60	# For each readBlockSize bytes...
-    @readBlockSize = 102400
+    @readBlockSize = 4096
 
     @sessPool = []
     @sessPoolMutex = Mutex.new
@@ -464,6 +468,7 @@ class SessionManager	# :nodoc:
   end
 
   def query( req, proxyStr )
+    req.body.chunkSize = @chunkSize
     destSite = Site.new( req.header.requestUri.host, req.header.requestUri.port )
     proxySite = if proxyStr
   	proxyUri = URI.parse( proxyStr )
@@ -477,8 +482,6 @@ class SessionManager	# :nodoc:
     rescue
       close( destSite )
       raise
-      #sess = open( destSite, proxySite )
-      #sess.query( req )
     end
 
     sess
@@ -511,7 +514,6 @@ private
       sess.receiveTimeout = @receiveTimeout
       sess.readBlockSize = @readBlockSize
       sess.debugDev = @debugDev
-      sess.chunkSize = @chunkSize
     end
     sess
   end
@@ -626,7 +628,6 @@ class Session	# :nodoc:
 
   attr_accessor :requestedVersion	# Requested protocol version
 
-  attr_accessor :chunkSize		# Chunk size for chunked request
   attr_accessor :debugDev		# Device for dumping log for debugging
 
   # Those session parameters are not used now...
@@ -642,7 +643,6 @@ class Session	# :nodoc:
     @proxy = nil
     @requestedVersion = VERSION
 
-    @chunkSize = 102400
     @debugDev = nil
 
     @connectTimeout = nil
