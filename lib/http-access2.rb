@@ -1285,7 +1285,7 @@ private
           @src.host = @socket.addr[3]
           @src.port = @socket.addr[1]
         rescue SocketError
-          # to avoid IPSocket#addr problem on MacOS X + ruby-1.8.1.
+          # to avoid IPSocket#addr problem on Mac OS X 10.3 + ruby-1.8.1.
           # cf. [ruby-talk:84909], [ruby-talk:95827]
         end
 	if @dest.scheme == 'https'
