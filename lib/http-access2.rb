@@ -755,6 +755,14 @@ class Site	# :nodoc:
       false
     end
   end
+
+  def to_s
+    addr
+  end
+
+  def inspect
+    sprintf("#<%s:0x%x %s>", self.class.name, __id__, addr)
+  end
 end
 
 
@@ -1313,10 +1321,15 @@ private
   end
 
   def create_socket(site)
-    if @debug_dev	
-      DebugSocket.create_socket(site.host, site.port, @debug_dev)
-    else
-      TCPSocket.new(site.host, site.port)
+    begin
+      if @debug_dev	
+        DebugSocket.create_socket(site.host, site.port, @debug_dev)
+      else
+        TCPSocket.new(site.host, site.port)
+      end
+    rescue SystemCallError => e
+      e.message << " (#{site.host}, ##{site.port})"
+      raise
     end
   end
 
