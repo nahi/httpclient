@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.28 2003/11/26 11:52:42 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.29 2003/12/06 05:06:54 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -71,7 +71,6 @@ module HTTPAccess2
 class Client
   attr_reader :agent_name	# Name of this client.
   attr_reader :from		# Owner of this client.
-  attr_accessor :proxy		# HTTP Proxy URI.
   attr_accessor :no_proxy	# host:port list which should not be proxyed.
   				# Expects a String concatenated with ','.
   attr_reader :ssl_config	# SSL configuration (if enabled).
@@ -98,7 +97,7 @@ class Client
   #   Create an instance.
   #
   def initialize(proxy = nil, agent_name = nil, from = nil)
-    @proxy = proxy
+    self.proxy = proxy
     @no_proxy = nil
     @agent_name = agent_name
     @from = from
@@ -129,6 +128,23 @@ class Client
   def protocol_version=(protocol_version)
     @session_manager.reset_all
     @session_manager.protocol_version = protocol_version
+  end
+
+  def proxy
+    @proxy
+  end
+
+  def proxy=(proxy_str)
+    if proxy_str.nil?
+      @proxy = nil
+    else
+      @proxy = URI.parse(proxy_str)
+      if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
+	  @proxy.host == nil or @proxy.port == nil
+	raise ArgumentError.new("unsupported proxy `#{proxy_str}'")
+      end
+      @proxy
+    end
   end
 
   def set_basic_auth(uri, user_id, passwd)
@@ -216,17 +232,17 @@ class Client
     unless uri.is_a?(URI)
       uri = URI.parse(uri)
     end
-    proxy = no_proxy?(uri) ? nil : @proxy
+    via_proxy = !no_proxy?(uri)
     conn = Connection.new
     begin
-      req = create_request(method, uri, query, body, extra_header, proxy)
-      sess = @session_manager.query(req, proxy)
+      req = create_request(method, uri, query, body, extra_header, via_proxy)
+      sess = @session_manager.query(req, @proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       do_get_block(req, sess, conn, &block)
     rescue Session::KeepAliveDisconnected
       # Try again.
-      req = create_request(method, uri, query, body, extra_header, proxy)
-      sess = @session_manager.query(req, proxy)
+      req = create_request(method, uri, query, body, extra_header, via_proxy)
+      sess = @session_manager.query(req, @proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       do_get_block(req, sess, conn, &block)
     end
@@ -268,18 +284,18 @@ class Client
     unless uri.is_a?(URI)
       uri = URI.parse(uri)
     end
-    proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method, uri, query, body, extra_header, proxy)
+    via_proxy = !no_proxy?(uri)
+    req = create_request(method, uri, query, body, extra_header, via_proxy)
     response_conn = Connection.new
     t = Thread.new(response_conn) { |conn|
-      sess = @session_manager.query(req, proxy)
+      sess = @session_manager.query(req, @proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       begin
 	do_get_stream(req, sess, conn)
       rescue Session::KeepAliveDisconnected
        	# Try again.
-	req = create_request(method, uri, query, body, extra_header, proxy)
-	sess = @session_manager.query(req, proxy)
+	req = create_request(method, uri, query, body, extra_header, via_proxy)
+	sess = @session_manager.query(req, @proxy)
 	do_get_stream(req, sess, conn)
       end
     }
@@ -702,19 +718,19 @@ class SessionManager	# :nodoc:
     @sess_pool_mutex = Mutex.new
   end
 
-  def proxy=(proxy_str)
-    if proxy_str.nil?
+  def proxy=(proxy)
+    if proxy.nil?
       @proxy = nil 
     else
-      @proxy = Site.new(URI.parse(proxy_str))
+      @proxy = Site.new(proxy)
     end
   end
 
-  def query(req, proxy_str)
+  def query(req, proxy)
     req.body.chunk_size = @chunk_size
     dest_site = Site.new(req.header.request_uri)
-    proxy_site = if proxy_str
-  	Site.new(URI.parse(proxy_str))
+    proxy_site = if proxy
+  	Site.new(proxy)
       else
 	@proxy
       end

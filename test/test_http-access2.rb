@@ -86,13 +86,19 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_initialize
-    #setup_proxyserver
-    backup = HTTPAccess2::Client::NO_PROXY_HOSTS
-    HTTPAccess2::Client.remove_const("NO_PROXY_HOSTS")
-    HTTPAccess2::Client::NO_PROXY_HOSTS = []
+    setup_proxyserver
+    backup = HTTPAccess2::Client::NO_PROXY_HOSTS.dup
+    HTTPAccess2::Client::NO_PROXY_HOSTS.clear
     @client = HTTPAccess2::Client.new(@proxyurl)
-    puts @client.get(@url)
-    HTTPAccess2::Client::NO_PROXY_HOSTS = backup
+    @client.get(@url)
+    @client.proxy = nil
+    @client.get(@url)
+    @client.proxy = @proxyurl
+    @client.get(@url)
+    @client.get(@url)
+    #??
+  ensure
+    HTTPAccess2::Client::NO_PROXY_HOSTS.replace(backup)
   end
 
   def test_http10
