@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.24 2003/10/04 06:22:18 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.25 2003/10/04 08:29:06 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -72,6 +72,7 @@ class Client
   attr_reader :agent_name	# Name of this client.
   attr_reader :from		# Owner of this client.
   attr_accessor :proxy		# HTTP Proxy URI.
+  attr_accessor :no_proxy	# host:port list which should not be proxyed.
   attr_reader :debug_dev	# Device for logging.
   attr_reader :session_manager	# Session manager.
   attr_reader :ssl_config	# SSL configuration (if enabled).
@@ -99,6 +100,8 @@ class Client
   #
   def initialize(proxy = ENV['http_proxy'] || ENV['HTTP_PROXY'], agent_name = nil, from = nil)
     @proxy = proxy
+    name = 'no_proxy'
+    @no_proxy = ENV[name] || ENV[name.upcase]
     @agent_name = agent_name
     @from = from
     @basic_auth = BasicAuth.new
@@ -318,11 +321,22 @@ private
     req
   end
 
+  NO_PROXY_HOSTS = ['localhost']
+
   def no_proxy?(uri)
-    if uri.host == 'localhost'
+    if NO_PROXY_HOSTS.include?(uri.host)
       return true
     end
-    false
+    if @no_proxy
+      @no_proxy.scan(/([^:,]*)(?::(\d+))?/) do |host, port|
+  	if /(\A|\.)#{Regexp.quote(host)}\z/i =~ uri.host &&
+	    (!port || uri.port == port.to_i)
+	  return true
+	end
+      end
+    else
+      false
+    end
   end
 
   # !! CAUTION !!
