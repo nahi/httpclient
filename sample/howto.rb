@@ -8,11 +8,10 @@ clnt = HTTPAccess2::Client.new( proxy )
 target = ARGV.shift || "http://localhost/foo.cgi"
 
 puts
-puts '= Get content directly'
+puts '= GET content directly'
 puts clnt.getContent( target )
 
-
-puts '= Get result object'
+puts '= GET result object'
 result = clnt.get( target )
 puts '== Header object'
 p result.header
@@ -22,6 +21,10 @@ puts '== Body object'
 p result.body
 puts '== Content'
 print result.content
+puts '== GET with Block'
+clnt.get( target ) do |str|
+  puts str
+end
 
 puts
 puts '= GET with query'
@@ -43,6 +46,5 @@ puts
 puts '= GET with extraHeader 2'
 puts clnt.get( target, nil, [[ "Accept", "text/plain" ], [ "Accept", "text/html" ]] ).content
 
-clnt.debugDev = STDERR
 clnt.debugDev = nil
 clnt.reset( target )
