@@ -350,6 +350,10 @@ class Message
     syncBody
   end
 
+  def content
+    @body.content
+  end
+
   def body
     @body
   end
