@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.35 2004/01/28 15:08:17 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.36 2004/02/02 12:55:19 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -94,15 +94,16 @@ class Client
   #
   # DESCRIPTION
   #   Create an instance.
+  #   SSLConfig cannot be re-initialized.  Create new client.
   #
   def initialize(proxy = nil, agent_name = nil, from = nil)
     @proxy = nil	# assigned later.
     @no_proxy = nil
     @agent_name = agent_name
     @from = from
-    @basic_auth = BasicAuth.new
+    @basic_auth = BasicAuth.new(self)
     @debug_dev = nil
-    @ssl_config = SSLConfig.new
+    @ssl_config = SSLConfig.new(self)
     @test_loopback_response = []
     @session_manager = SessionManager.new
     @session_manager.agent_name = @agent_name
@@ -427,25 +428,26 @@ end
 # HTTPAccess2::SSLConfig -- SSL configuration of a client.
 #
 class SSLConfig	# :nodoc:
-  attr_accessor :client_cert
-  attr_accessor :client_key
-  attr_accessor :client_ca
+  attr_reader :client_cert
+  attr_reader :client_key
+  attr_reader :client_ca
   attr_reader :trust_ca_file
   attr_reader :trust_ca_path
   attr_reader :crl
 
-  attr_accessor :verify_mode
-  attr_accessor :verify_depth
-  attr_accessor :verify_callback
+  attr_reader :verify_mode
+  attr_reader :verify_depth
+  attr_reader :verify_callback
 
-  attr_accessor :timeout
-  attr_accessor :options
-  attr_accessor :ciphers
+  attr_reader :timeout
+  attr_reader :options
+  attr_reader :ciphers
 
-  attr_accessor :cert_store	# don't use if you don't know what it is.
+  attr_reader :cert_store	# don't use if you don't know what it is.
 
-  def initialize
+  def initialize(client)
     return unless SSLEnabled
+    @client = client
     @cert_store = OpenSSL::X509::Store.new
     @client_cert = @client_key = @client_ca = nil
     @trust_ca_file = @trust_ca_path = nil
@@ -464,6 +466,7 @@ class SSLConfig	# :nodoc:
   def set_client_cert_file(cert_file, key_file)
     @client_cert = OpenSSL::X509::Certificate.new(File.open(cert_file).read)
     @client_key = OpenSSL::X509::PKey.new(File.open(key_file).read)
+    change_notify
   end
 
   def set_trust_ca(trust_ca_file_or_hashed_dir)
@@ -474,14 +477,68 @@ class SSLConfig	# :nodoc:
       @trust_ca_file = trust_ca_file_or_hashed_dir
       @cert_store.add_file(@trust_ca_file)
     end
+    change_notify
   end
 
   def set_crl(crl_file)
     @crl = OpenSSL::X509::CRL.new(File.open(crl_file).read)
     @cert_store.add_crl(@crl)
-    @cert_store.flags = OpenSSL::X509::V_FLAG_CRL_CHECK |
-      OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
+    @cert_store.flags = OpenSSL::X509::V_FLAG_CRL_CHECK | OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
+    change_notify
   end
+
+  def client_cert=(client_cert)
+    @client_cert = client_cert
+    change_notify
+  end
+
+  def client_key=(client_key)
+    @client_key = client_key
+    change_notify
+  end
+
+  def client_ca=(client_ca)
+    @client_ca = client_ca
+    change_notify
+  end
+
+  def verify_mode=(verify_mode)
+    @verify_mode = verify_mode
+    change_notify
+  end
+
+  def verify_depth=(verify_depth)
+    @verify_depth = verify_depth
+    change_notify
+  end
+
+  def verify_callback=(verify_callback)
+    @verify_callback = verify_callback
+    change_notify
+  end
+
+  def timeout=(timeout)
+    @timeout = timeout
+    change_notify
+  end
+
+  def options=(options)
+    @options = options
+    change_notify
+  end
+
+  def ciphers=(ciphers)
+    @ciphers = ciphers
+    change_notify
+  end
+
+  # don't use if you don't know what it is.
+  def cert_store=(cert_store)
+    @cert_store = cert_store
+    change_notify
+  end
+
+  # interfaces for SSLSocketWrap.
 
   def set_context(ctx)
     # Verification: Use Store#verify_callback instead of SSLContext#verify*?
@@ -579,6 +636,10 @@ class SSLConfig	# :nodoc:
 
 private
 
+  def change_notify
+    @client.reset_all
+  end
+
   def retrieve_cert_name(cert)
     subject_alt_name = cert.extensions.find { |ex| ex.oid == 'subjectAltName' }
     if subject_alt_name
@@ -600,7 +661,8 @@ end
 # HTTPAccess2::BasicAuth -- BasicAuth repository.
 #
 class BasicAuth	# :nodoc:
-  def initialize
+  def initialize(client)
+    @client = client
     @auth = {}
   end
 
@@ -608,6 +670,7 @@ class BasicAuth	# :nodoc:
     uri = uri.clone
     uri.path = uri.path.sub(/\/[^\/]*$/, '/')
     @auth[uri] = ["#{ user_id }:#{ passwd }"].pack('m').strip
+    @client.reset_all
   end
 
   def get(uri)
