@@ -18,7 +18,6 @@ def key(filename)
 end
 
 def do_hello(req, res)
-  p req.client_cert
   res['content-type'] = 'text/html'
   res.body = "hello"
 end
@@ -47,10 +46,17 @@ server = WEBrick::HTTPServer.new(
   )
 end
 
-trap(:INT) do
-  server.shutdown
+t = Thread.new {
+  Thread.current.abort_on_exception = true
+  server.start
+}
+while server.status != :Running
+  sleep 0.1
+  unless t.alive?
+    t.join
+    raise
+  end
 end
-
 STDOUT.sync = true
-STDOUT.puts $$
-server.start
+puts $$
+t.join
