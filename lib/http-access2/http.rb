@@ -249,7 +249,11 @@ class Message
 
       if @is_request == true
 	if @http_version >= 'HTTP/1.1'
-	  set('Host', "#{@request_uri.host}:#{@request_uri.port}")
+          if @request_uri.port == @request_uri.default_port
+            set('Host', "#{@request_uri.host}")
+          else
+            set('Host', "#{@request_uri.host}:#{@request_uri.port}")
+          end
 	end
       elsif @is_request == false
 	set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ CharsetMap[@body_charset || $KCODE] }")
