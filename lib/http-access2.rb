@@ -23,14 +23,25 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.19 2003/06/07 14:48:35 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.20 2003/06/11 15:05:02 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
   FS = "\r\n\t"
 
+  # You need to install RubyPKI.  Check
+  # http://raa.ruby-lang.org/list.rhtml?name=openssl
+  # RubyPKI requires Ruby/1.8 or later.
   SSLEnabled = begin
       require 'openssl'
+      true
+    rescue LoadError
+      false
+    end
+
+  # You need to install webagent: http://www.rubycolor.org/arc/
+  CookieEnabled = begin
+      require 'webagent/cookie'
       true
     rescue LoadError
       false
@@ -104,6 +115,7 @@ class Client
     @session_manager.agent_name = @agent_name
     @session_manager.from = @from
     @session_manager.ssl_config = @ssl_config
+    @cookie_manager = nil
   end
 
   # SYNOPSIS
@@ -128,6 +140,18 @@ class Client
       uri = URI.parse(uri)
     end
     @basic_auth.set(uri, user_id, passwd)
+  end
+
+  def set_cookie_store(filename)
+    unless CookieEnabled
+      raise RuntimeError.new('Not supported.')
+    end
+    @cookie_manager = WebAgent::CookieManager.new(filename)
+    @cookie_manager.load_cookies
+  end
+
+  def save_cookie_store
+    @cookie_manager.save_cookies
   end
 
   # SYNOPSIS
@@ -201,13 +225,13 @@ class Client
       req = create_request(method, uri, query, body, extra_header)
       sess = @session_manager.query(req, @proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
-      do_get_block(sess, conn, &block)
+      do_get_block(req, sess, conn, &block)
     rescue Session::KeepAliveDisconnected
       # Try again.
       req = create_request(method, uri, query, body, extra_header)
       sess = @session_manager.query(req, @proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
-      do_get_block(sess, conn, &block)
+      do_get_block(req, sess, conn, &block)
     end
     conn.pop
   end
@@ -250,12 +274,12 @@ class Client
       sess = @session_manager.query(req, @proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       begin
-	do_get_stream(sess, conn)
+	do_get_stream(req, sess, conn)
       rescue Session::KeepAliveDisconnected
        	# Try again.
 	req = create_request(method, uri, query, body, extra_header)
 	sess = @session_manager.query(req, @proxy)
-	do_get_stream(sess, conn)
+	do_get_stream(req, sess, conn)
       end
     }
     response_conn.async_thread = t
@@ -287,6 +311,11 @@ private
     if cred
       extra_header << ['Authorization', "Basic " << cred]
     end
+    if @cookie_manager
+      if (cookies = @cookie_manager.find(uri))
+	extra_header << ['Cookie', cookies]
+      end
+    end
     req = HTTP::Message.new_request(method, uri, query, body, @proxy)
     extra_header.each do |key, value|
       req.header.set(key, value)
@@ -296,10 +325,10 @@ private
 
   # !! CAUTION !!
   #   Method 'do_get*' runs under MT conditon. Be careful to change.
-  def do_get_block(sess, conn, &block)
+  def do_get_block(req, sess, conn, &block)
     content = ''
     res = HTTP::Message.new_response(content)
-    do_get_header(sess, conn, res)
+    do_get_header(req, res, sess, conn)
     sess.get_data() do |str|
       block.call(str) if block
       content << str
@@ -307,10 +336,10 @@ private
     @session_manager.keep(sess) unless sess.closed?
   end
 
-  def do_get_stream(sess, conn)
+  def do_get_stream(req, sess, conn)
     piper, pipew = IO.pipe
     res = HTTP::Message.new_response(piper)
-    do_get_header(sess, conn, res)
+    do_get_header(req, res, sess, conn)
     sess.get_data() do |str|
       pipew.syswrite(str)
     end
@@ -318,13 +347,18 @@ private
     @session_manager.keep(sess) unless sess.closed?
   end
 
-  def do_get_header(sess, conn, res)
+  def do_get_header(req, res, sess, conn)
     res.version, res.status, res.reason = sess.get_status
     sess.get_header().each do |line|
       unless /^([^:]+)\s*:\s*(.*)$/ =~ line
 	raise RuntimeError.new("Unparsable header: '#{ line }'.") if $DEBUG
       end
       res.header.set($1, $2)
+    end
+    if @cookie_manager and res.header['set-cookie']
+      res.header['set-cookie'].each do |cookie|
+	@cookie_manager.parse(cookie, req.header.request_uri)
+      end
     end
     conn.push(res)
   end
@@ -338,6 +372,7 @@ class SSLConfig	# :nodoc:
   attr_reader :client_key
   attr_reader :trust_ca_file
   attr_reader :trust_ca_path
+  attr_reader :crl
 
   attr_accessor :verify_mode
   attr_accessor :verify_depth
@@ -349,8 +384,10 @@ class SSLConfig	# :nodoc:
 
   def initialize
     return unless SSLEnabled
+    @cert_store = OpenSSL::X509::Store.new
     @client_cert = @client_key = nil
     @trust_ca_file = @trust_ca_path = nil
+    @crl = nil
     @verify_mode = OpenSSL::SSL::VERIFY_PEER |
       OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
     @verify_depth = 3
@@ -359,10 +396,6 @@ class SSLConfig	# :nodoc:
     @timeout = nil
     @options = OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2
     @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"
-  end
-
-  def create_context
-    dup
   end
 
   def set_client_cert_file(cert_file, key_file)
@@ -380,7 +413,17 @@ class SSLConfig	# :nodoc:
     end
   end
 
+  def set_crl(crl_file)
+    @crl = OpenSSL::X509::CRL.new(File.open(crl_file).read)
+    if @trust_ca_file
+      ca = OpenSSL::X509::Certificate.new(File.open(@trust_ca_file).read)
+      @cert_store.add_trusted(ca)
+    end
+    @cert_store.add_crl(@crl)
+  end
+
   def set_context(ctx)
+    ctx.cert_store = @cert_store
     ctx.cert = @client_cert
     ctx.key = @client_key
     ctx.ca_file = @trust_ca_file
@@ -405,12 +448,15 @@ class SSLConfig	# :nodoc:
     end
   end
 
-  # Default callback for verification: only dumps error if $DEBUG.
+  # Default callback for verification: only dumps error.
   def default_verify_callback(ok, store)
-    if $DEBUG && !ok
+    if $DEBUG
+      puts "#{ ok ? 'ok' : 'ng' }: #{ store.cert.subject }"
+    end
+    if !ok
+      depth = store.verify_depth
       code = store.verify_status
       msg = store.verify_message
-      depth = store.verify_depth
       STDERR.puts "at depth #{ depth } - #{ code }: #{ msg }"
     end
     ok
@@ -431,14 +477,7 @@ class SSLConfig	# :nodoc:
     ca = false
     pathlen = nil
     server_auth = true
-
-    if cert.subject.respond_to?(:cmp)
-      # ossl2
-      self_signed = (cert.subject.cmp(cert.issuer) == 0)
-    else
-      # ossl1
-      self_signed = (cert.subject.to_a == cert.issuer.to_a)
-    end
+    self_signed = (cert.subject.cmp(cert.issuer) == 0)
 
     # Check extensions whatever its criticality is. (sample)
     cert.extensions.each do |ex|
@@ -501,6 +540,8 @@ end
 # HTTPAccess2::BasicAuth -- BasicAuth repository.
 #
 class BasicAuth	# :nodoc:
+  include URISupport
+
   def initialize
     @auth = {}
   end
@@ -515,8 +556,8 @@ class BasicAuth	# :nodoc:
     @auth.each do |realm_uri, cred|
       if ((realm_uri.host == uri.host) and
 	  (realm_uri.scheme == uri.scheme) and
-	  (realm_uri.port == uri.port) and
-	  uri.path.index(realm_uri.path) == 0)
+  	  (realm_uri.port == uri.port) and
+  	  uri.path.upcase.index(realm_uri.path.upcase) == 0)
 	return cred
       end
     end
@@ -1102,8 +1143,7 @@ private
 
   # wrap socket with OpenSSL.
   def create_ssl_socket(raw_socket)
-    context = @ssl_config.create_context
-    SSLSocketWrap.new(raw_socket, context)
+    SSLSocketWrap.new(raw_socket, @ssl_config)
   end
 
   def connect_ssl_proxy(socket)
