@@ -36,7 +36,12 @@ class TestSSL < Test::Unit::TestCase
   end
 
   def test_certificate
-    @client.ssl_config.verify_callback = method(:verify_callback).to_proc
+    cfg = @client.ssl_config
+    assert_equal(OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2, cfg.options)
+    assert_equal(OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT, cfg.verify_mode)
+    assert_equal("ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH", cfg.ciphers)
+    #
+    cfg.verify_callback = method(:verify_callback).to_proc
     begin
       @verify_callback_called = false
       @client.get(@url)
@@ -45,30 +50,47 @@ class TestSSL < Test::Unit::TestCase
       assert_equal("certificate verify failed", ssle.message)
       assert(@verify_callback_called)
     end
-    @client.ssl_config.client_cert = cert("client.cert")
-    @client.ssl_config.client_key = key("client.key")
-    begin
-      @verify_callback_called = false
-      @client.get(@url)
-      assert(false)
-    rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("certificate verify failed", ssle.message)
-      assert(@verify_callback_called)
-    end
+    #
+    cfg.client_cert = cert("client.cert")
+    cfg.client_key = key("client.key")
     @verify_callback_called = false
-    @client.ssl_config.set_trust_ca("ca.cert")
+    begin
+      @client.get(@url)
+      assert(false)
+    rescue OpenSSL::SSL::SSLError => ssle
+      assert_equal("certificate verify failed", ssle.message)
+      assert(@verify_callback_called)
+    end
+    #
+    cfg.set_trust_ca("ca.cert")
+    @verify_callback_called = false
+    begin
+      @client.get(@url)
+      assert(false)
+    rescue OpenSSL::SSL::SSLError => ssle
+      assert_equal("certificate verify failed", ssle.message)
+      assert(@verify_callback_called)
+    end
+    #
+    cfg.set_trust_ca("subca.cert")
+    @verify_callback_called = false
     assert_equal("hello", @client.get_content(@url))
     assert(@verify_callback_called)
     #
-    @client.ssl_config.verify_depth = 1
+    cfg.verify_depth = 1
     @verify_callback_called = false
-    assert_equal("hello", @client.get_content(@url))
-    assert(!@verify_callback_called)
+    begin
+      @client.get(@url)
+      assert(false)
+    rescue OpenSSL::SSL::SSLError => ssle
+      assert_equal("certificate verify failed", ssle.message)
+      assert(@verify_callback_called)
+    end
     #
-    @client.ssl_config.verify_depth = 0
+    cfg.verify_depth = 2
     @verify_callback_called = false
     assert_equal("hello", @client.get_content(@url))
-    assert(!@verify_callback_called)
+    assert(@verify_callback_called)
   end
 
 private
