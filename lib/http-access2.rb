@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.31 2003/12/13 03:44:00 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.32 2003/12/14 15:28:45 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -71,8 +71,6 @@ module HTTPAccess2
 class Client
   attr_reader :agent_name	# Name of this client.
   attr_reader :from		# Owner of this client.
-  attr_accessor :no_proxy	# host:port list which should not be proxyed.
-  				# Expects a String concatenated with ','.
   attr_reader :ssl_config	# SSL configuration (if enabled).
 
   class << self
@@ -97,6 +95,7 @@ class Client
   #   Create an instance.
   #
   def initialize(proxy = nil, agent_name = nil, from = nil)
+    @proxy = nil	# assigned later.
     @no_proxy = nil
     @agent_name = agent_name
     @from = from
@@ -134,18 +133,29 @@ class Client
     @proxy
   end
 
-  def proxy=(proxy_str)
-    if proxy_str.nil?
+  def proxy=(proxy)
+    if proxy.nil?
       @proxy = nil
+    elsif proxy.is_a?(URI)
+      @proxy = proxy
     else
-      @proxy = URI.parse(proxy_str)
+      @proxy = URI.parse(proxy)
       if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
 	  @proxy.host == nil or @proxy.port == nil
-	raise ArgumentError.new("unsupported proxy `#{proxy_str}'")
+	raise ArgumentError.new("unsupported proxy `#{proxy}'")
       end
     end
     reset_all
     @proxy
+  end
+
+  def no_proxy
+    @no_proxy
+  end
+
+  def no_proxy=(no_proxy)
+    @no_proxy = no_proxy
+    reset_all
   end
 
   def set_basic_auth(uri, user_id, passwd)
@@ -185,10 +195,9 @@ class Client
     retry_number = 0
     while retry_number < 10
       res = get(uri, query, extra_header, &block)
-      case res.status
-      when HTTP::Status::OK
+      if res.status == HTTP::Status::OK
 	return res.content
-      when HTTP::Status::MOVED_PERMANENTLY, HTTP::Status::MOVED_TEMPORARILY
+      elsif HTTP::Status.redirect?(res.status)
 	uri = res.header['location'][0]
 	query = nil
 	retry_number += 1
@@ -233,17 +242,17 @@ class Client
     unless uri.is_a?(URI)
       uri = URI.parse(uri)
     end
-    via_proxy = !no_proxy?(uri)
+    proxy = no_proxy?(uri) ? nil : @proxy
     conn = Connection.new
     begin
-      req = create_request(method, uri, query, body, extra_header, via_proxy)
-      sess = @session_manager.query(req, @proxy)
+      req = create_request(method, uri, query, body, extra_header, !proxy.nil?)
+      sess = @session_manager.query(req, proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       do_get_block(req, sess, conn, &block)
     rescue Session::KeepAliveDisconnected
       # Try again.
-      req = create_request(method, uri, query, body, extra_header, via_proxy)
-      sess = @session_manager.query(req, @proxy)
+      req = create_request(method, uri, query, body, extra_header, !proxy.nil?)
+      sess = @session_manager.query(req, proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       do_get_block(req, sess, conn, &block)
     end
@@ -285,18 +294,18 @@ class Client
     unless uri.is_a?(URI)
       uri = URI.parse(uri)
     end
-    via_proxy = !no_proxy?(uri)
-    req = create_request(method, uri, query, body, extra_header, via_proxy)
+    proxy = no_proxy?(uri) ? nil : @proxy
+    req = create_request(method, uri, query, body, extra_header, !proxy.nil?)
     response_conn = Connection.new
     t = Thread.new(response_conn) { |conn|
-      sess = @session_manager.query(req, @proxy)
+      sess = @session_manager.query(req, proxy)
       @debug_dev << "\n\n= Response\n\n" if @debug_dev
       begin
 	do_get_stream(req, sess, conn)
       rescue Session::KeepAliveDisconnected
        	# Try again.
-	req = create_request(method, uri, query, body, extra_header, via_proxy)
-	sess = @session_manager.query(req, @proxy)
+	req = create_request(method, uri, query, body, extra_header, !proxy.nil?)
+	sess = @session_manager.query(req, proxy)
 	do_get_stream(req, sess, conn)
       end
     }
@@ -348,16 +357,16 @@ private
     if !@proxy or NO_PROXY_HOSTS.include?(uri.host)
       return true
     end
-    if @no_proxy
-      @no_proxy.scan(/([^:,]*)(?::(\d+))?/) do |host, port|
-  	if /(\A|\.)#{Regexp.quote(host)}\z/i =~ uri.host &&
-	    (!port || uri.port == port.to_i)
-	  return true
-	end
-      end
-    else
-      false
+    unless @no_proxy
+      return false
     end
+    @no_proxy.scan(/([^:,]+)(?::(\d+))?/) do |host, port|
+      if /(\A|\.)#{Regexp.quote(host)}\z/i =~ uri.host &&
+	  (!port || uri.port == port.to_i)
+	return true
+      end
+    end
+    false
   end
 
   # !! CAUTION !!
