@@ -23,7 +23,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.18 2003/06/07 06:32:39 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.19 2003/06/07 14:48:35 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -344,6 +344,8 @@ class SSLConfig	# :nodoc:
   attr_accessor :verify_callback
 
   attr_accessor :timeout
+  attr_accessor :options
+  attr_accessor :ciphers
 
   def initialize
     return unless SSLEnabled
@@ -355,6 +357,8 @@ class SSLConfig	# :nodoc:
     @verify_callback = nil
     @dest = nil
     @timeout = nil
+    @options = OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2
+    @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"
   end
 
   def create_context
@@ -385,6 +389,8 @@ class SSLConfig	# :nodoc:
     ctx.verify_depth = @verify_depth
     ctx.verify_callback = @verify_callback || method(:default_verify_callback)
     ctx.timeout = @timeout
+    ctx.options = @options
+    ctx.ciphers = @ciphers
   end
 
   def post_connection_check(cert, sess)
