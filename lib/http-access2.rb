@@ -23,7 +23,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.16 2003/06/06 14:49:14 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.17 2003/06/06 16:15:37 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -410,9 +410,16 @@ private
     end
 
     cert = store.cert
-    if (cert.subject.cmp(cert.issuer) == 0)
-      STDERR.puts 'self signing CA' if $DEBUG
-      return true
+    if cert.subject.respond_to?(:cmp)
+      if cert.subject.cmp(cert.issuer) == 0
+	STDERR.puts 'self signing CA' if $DEBUG
+	return true
+      end
+    else
+      if cert.subject.to_a == cert.issuer.to_a
+	STDERR.puts 'self signing CA' if $DEBUG
+	return true
+      end
     end
 
     basic_constraints = cert.extensions.find { |ext|
@@ -736,7 +743,7 @@ private
       ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ctx)
     else
       ssl_socket = OpenSSL::SSL::SSLSocket.new(socket)
-      @context.set_context(ctx)
+      @context.set_context(ssl_socket)
     end
     ssl_socket
   end
