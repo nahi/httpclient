@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.37 2004/02/06 14:45:07 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.38 2004/02/10 03:00:24 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -441,9 +441,6 @@ class SSLConfig	# :nodoc:
   attr_reader :client_cert
   attr_reader :client_key
   attr_reader :client_ca
-  attr_reader :trust_ca_file
-  attr_reader :trust_ca_path
-  attr_reader :crl
 
   attr_reader :verify_mode
   attr_reader :verify_depth
@@ -460,8 +457,6 @@ class SSLConfig	# :nodoc:
     @client = client
     @cert_store = OpenSSL::X509::Store.new
     @client_cert = @client_key = @client_ca = nil
-    @trust_ca_file = @trust_ca_path = nil
-    @crl = nil
     @verify_mode = OpenSSL::SSL::VERIFY_PEER |
       OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
     @verify_depth = nil
@@ -481,18 +476,16 @@ class SSLConfig	# :nodoc:
 
   def set_trust_ca(trust_ca_file_or_hashed_dir)
     if FileTest.directory?(trust_ca_file_or_hashed_dir)
-      @trust_ca_path = trust_ca_file_or_hashed_dir
-      @cert_store.add_path(@trust_ca_path)
+      @cert_store.add_path(trust_ca_file_or_hashed_dir)
     else
-      @trust_ca_file = trust_ca_file_or_hashed_dir
-      @cert_store.add_file(@trust_ca_file)
+      @cert_store.add_file(trust_ca_file_or_hashed_dir)
     end
     change_notify
   end
 
   def set_crl(crl_file)
-    @crl = OpenSSL::X509::CRL.new(File.open(crl_file).read)
-    @cert_store.add_crl(@crl)
+    crl = OpenSSL::X509::CRL.new(File.open(crl_file).read)
+    @cert_store.add_crl(crl)
     @cert_store.flags = OpenSSL::X509::V_FLAG_CRL_CHECK | OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
     change_notify
   end
@@ -839,7 +832,7 @@ class SessionManager	# :nodoc:
     begin
       sess.query(req)
     rescue
-      close(dest_site)
+      sess.close
       raise
     end
     sess
