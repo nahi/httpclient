@@ -23,7 +23,7 @@ require 'http-access2/http'
 module HTTPAccess2
   VERSION = '1.1'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.17 2003/06/06 16:15:37 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.18 2003/06/07 06:32:39 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -357,10 +357,8 @@ class SSLConfig	# :nodoc:
     @timeout = nil
   end
 
-  def create_context(dest)
-    duped = self.dup
-    duped.dest = dest
-    duped
+  def create_context
+    dup
   end
 
   def set_client_cert_file(cert_file, key_file)
@@ -389,18 +387,31 @@ class SSLConfig	# :nodoc:
     ctx.timeout = @timeout
   end
 
-protected
-
-  def dest=(dest)
-    @dest = dest
+  def post_connection_check(cert, sess)
+    unless cert
+      return false
+    end
+    cert_name = retrieve_cert_name(cert)
+    if cert_name.upcase == sess.dest.host.upcase
+      true
+    else
+      false
+    end
   end
 
-private
-
-  # Does not check CRL/ARL.
-  # Does not check keyUsage.
-  # Does not check criticality of extentions.
+  # Default callback for verification: only dumps error if $DEBUG.
   def default_verify_callback(ok, store)
+    if $DEBUG && !ok
+      code = store.verify_status
+      msg = store.verify_message
+      depth = store.verify_depth
+      STDERR.puts "at depth #{ depth } - #{ code }: #{ msg }"
+    end
+    ok
+  end
+
+  # Sample callback method:  CAUTION: does not check CRL/ARL.
+  def sample_verify_callback(ok, store)
     unless ok
       code = store.verify_status
       msg = store.verify_message
@@ -410,34 +421,73 @@ private
     end
 
     cert = store.cert
+    self_signed = false
+    ca = false
+    pathlen = nil
+    server_auth = true
+
     if cert.subject.respond_to?(:cmp)
-      if cert.subject.cmp(cert.issuer) == 0
-	STDERR.puts 'self signing CA' if $DEBUG
-	return true
-      end
+      # ossl2
+      self_signed = (cert.subject.cmp(cert.issuer) == 0)
     else
-      if cert.subject.to_a == cert.issuer.to_a
-	STDERR.puts 'self signing CA' if $DEBUG
-	return true
+      # ossl1
+      self_signed = (cert.subject.to_a == cert.issuer.to_a)
+    end
+
+    # Check extensions whatever its criticality is. (sample)
+    cert.extensions.each do |ex|
+      case ex.oid
+      when 'basicConstraints'
+	/CA:(TRUE|FALSE), pathlen:(\d+)/ =~ ex.value
+	ca = ($1 == 'TRUE')
+	pathlen = $2.to_i
+      when 'keyUsage'
+	usage = ex.value.split(/\s*,\s*/)
+	if usage.include?('Certificate Sign')
+	  ca = true
+	end
+	ca = usage.include?('Certificate Sign')
+	server_auth = usage.include?('Key Encipherment')
+      when 'extendedKeyUsage'
+	usage = ex.value.split(/\s*,\s*/)
+	server_auth = usage.include?('Netscape Server Gated Crypto')
+      when 'nsCertType'
+	usage = ex.value.split(/\s*,\s*/)
+	ca = usage.include?('SSL CA')
+	server_auth = usage.include?('SSL Server')
       end
     end
 
-    basic_constraints = cert.extensions.find { |ext|
-	ext.oid == 'basicConstraints'
-      }
-    if basic_constraints && /CA:TRUE/ =~ basic_constraints.value
+    if self_signed
+      STDERR.puts 'self signing CA' if $DEBUG
+      return true
+    elsif ca
       STDERR.puts 'middle level CA' if $DEBUG
+      return true
+    elsif server_auth
+      STDERR.puts 'for server authentication' if $DEBUG
       return true
     end
 
-    # End Entity(CA:FALSE)
-    cn = cert.subject.to_a.find { |rdn| rdn[0] == 'CN' }
-    unless cn[1] == @dest.host
-      STDERR.puts "CN does not match.  cert:#{ cn[1] }, connected:#{ @dest.host }" if $DEBUG
-      return false
-    end
+    return false
+  end
 
-    true
+private
+
+  def retrieve_cert_name(cert)
+    subject_alt_name = cert.extensions.find { |ex| ex.oid == 'subjectAltName' }
+    if subject_alt_name
+      subject_alt_name.value.split(/\s*,\s/).each do |alt_name_pair|
+	alt_tag, alt_name = alt_name_pair.split(/:/)
+	if alt_tag == 'DNS'
+	  return alt_name
+	end
+      end
+    end
+    if (cn = cert.subject.to_a.find { |rdn| rdn[0] == 'CN' })
+      return cn[1]
+    end
+    nil
   end
 end
 
@@ -698,6 +748,10 @@ class SSLSocketWrap
 
   def ssl_connect
     @ssl_socket.connect
+  end
+
+  def post_connection_check(sess)
+    @context.post_connection_check(@ssl_socket.peer_cert, sess)
   end
 
   def peer_cert
@@ -1012,6 +1066,9 @@ private
 	  @socket = create_ssl_socket(@socket)
 	  connect_ssl_proxy(@socket) if @proxy
 	  @socket.ssl_connect
+	  unless @socket.post_connection_check(self)
+	    raise OpenSSL::SSL::SSLError.new("Post connection check failed.")
+	  end
 	end
       end
     rescue TimeoutError
@@ -1039,7 +1096,7 @@ private
 
   # wrap socket with OpenSSL.
   def create_ssl_socket(raw_socket)
-    context = @ssl_config.create_context(@dest)
+    context = @ssl_config.create_context
     SSLSocketWrap.new(raw_socket, context)
   end
 
