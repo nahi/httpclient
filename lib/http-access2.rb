@@ -24,7 +24,7 @@ require 'http-access2/cookie'
 module HTTPAccess2
   VERSION = '2.0'
   RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
-  s = %w$Id: http-access2.rb,v 1.25 2003/10/04 08:29:06 nahi Exp $
+  s = %w$Id: http-access2.rb,v 1.26 2003/10/04 09:29:11 nahi Exp $
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
   RS = "\r\n"
@@ -324,7 +324,7 @@ private
   NO_PROXY_HOSTS = ['localhost']
 
   def no_proxy?(uri)
-    if NO_PROXY_HOSTS.include?(uri.host)
+    if !@proxy or NO_PROXY_HOSTS.include?(uri.host)
       return true
     end
     if @no_proxy
