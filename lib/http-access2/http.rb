@@ -230,14 +230,15 @@ class Message
 	set('Date', HTTP.http_date(Time.now))
       end
 
-      unless HTTP.keep_alive_enabled?(@http_version)
-	set('Connection', 'close')
-      end
+      keep_alive = HTTP.keep_alive_enabled?(@http_version)
+      set('Connection', 'close') unless keep_alive
 
       if @chunked
 	set('Transfer-Encoding', 'chunked')
       else
-	set('Content-Length', @body_size.to_s)
+	unless (!keep_alive and @body_size == 0)
+	  set('Content-Length', @body_size.to_s)
+	end
       end
 
       if @body_date
@@ -245,7 +246,7 @@ class Message
       end
 
       if @is_request == true
-	set('Host', @request_uri.host)
+	set('Host', @request_uri.host) if @http_version >= 'HTTP/1.1'
       elsif @is_request == false
 	set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ CharsetMap[@body_charset || $KCODE] }")
       end
