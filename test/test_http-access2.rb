@@ -242,6 +242,26 @@ class TestClient < Test::Unit::TestCase
     assert(called)
   end
 
+  def test_post_content
+    assert_equal('hello', @client.post_content(@url + 'hello'))
+    assert_equal('hello', @client.post_content(@url + 'redirect1'))
+    assert_equal('hello', @client.post_content(@url + 'redirect2'))
+    assert_raises(RuntimeError) do
+      @client.post_content(@url + 'notfound')
+    end
+    assert_raises(RuntimeError) do
+      @client.post_content(@url + 'redirect_self')
+    end
+    called = false
+    @client.redirect_uri_callback = lambda { |res|
+      uri = res.header['location'][0]
+      called = true
+      URI.parse(@url).merge(uri).to_s
+    }
+    assert_equal('hello', @client.post_content(@url + 'relative_redirect'))
+    assert(called)
+  end
+
   def test_head
     assert_equal("head", @client.head(@url + 'servlet').header["x-head"][0])
     res = @client.head(@url + 'servlet', {1=>2, 3=>4})

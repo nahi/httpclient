@@ -22,7 +22,8 @@ s = WEBrick::HTTPServer.new(
   :SSLVerifyClient  => ::OpenSSL::SSL::VERIFY_NONE,
   :SSLCertificate   => cert,
   :SSLPrivateKey    => pkey,
-  :SSLCertName      => nil
+  :SSLCertName      => nil,
+  :SSLCACertificateFile => "all.pem"
 )
 trap("INT"){ s.shutdown }
 s.start

@@ -235,20 +235,15 @@ class Client
   #   Get a_sring of message-body of response.
   #
   def get_content(uri, query = nil, extheader = {}, &block)
-    retry_number = 0
-    while retry_number < 10
-      res = get(uri, query, extheader, &block)
-      if res.status == HTTP::Status::OK
-	return res.content
-      elsif HTTP::Status.redirect?(res.status)
-	uri = @redirect_uri_callback.call(res)
-	query = nil
-	retry_number += 1
-      else
-	raise RuntimeError.new("Unexpected response: #{ res.header.inspect }")
-      end
+    retry_connect(uri, query) do |uri, query|
+      get(uri, query, extheader, &block)
     end
-    raise RuntimeError.new("Retry count exceeded.")
+  end
+
+  def post_content(uri, body = nil, extheader = {}, &block)
+    retry_connect(uri, nil) do |uri, query|
+      post(uri, body, extheader, &block)
+    end
   end
 
   def default_redirect_uri_callback(res)
@@ -348,6 +343,23 @@ class Client
 
 private
 
+  def retry_connect(uri, query = nil)
+    retry_number = 0
+    while retry_number < 10
+      res = yield(uri, query)
+      if res.status == HTTP::Status::OK
+	return res.content
+      elsif HTTP::Status.redirect?(res.status)
+	uri = @redirect_uri_callback.call(res)
+	query = nil
+	retry_number += 1
+      else
+	raise RuntimeError.new("Unexpected response: #{ res.header.inspect }")
+      end
+    end
+    raise RuntimeError.new("Retry count exceeded.")
+  end
+
   def conn_request(conn, method, uri, query, body, extheader, &block)
     unless uri.is_a?(URI)
       uri = URI.parse(uri)
@@ -375,7 +387,14 @@ private
 	extheader << ['Cookie', cookies]
       end
     end
-    req = HTTP::Message.new_request(method, uri, query, body, proxy)
+    boundary = nil
+    content_type = extheader.find { |key, value|
+      key.downcase == 'content-type'
+    }
+    if content_type && content_type[1] =~ /boundary=(.+)\z/
+      boundary = $1
+    end
+    req = HTTP::Message.new_request(method, uri, query, body, proxy, boundary)
     extheader.each do |key, value|
       req.header.set(key, value)
     end

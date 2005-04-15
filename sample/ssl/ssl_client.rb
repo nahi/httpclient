@@ -6,11 +6,12 @@ require 'http-access2'
 url = ARGV.shift || 'https://localhost:8808/'
 uri = URI.parse(url)
 
-ca_file = "0cert.pem"
+#ca_file = "0cert.pem"
+#crl_file = '0crl.pem'
+
 # create CA's cert in pem format and run 'c_rehash' in trust_certs dir. before
 # using this.
 ca_path = File.join(File.dirname(File.expand_path(__FILE__)), "trust_certs")
-crl_file = '0crl.pem'
 
 proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || nil
 h = HTTPClient.new(proxy)

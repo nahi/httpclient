@@ -1,11 +1,11 @@
 # HTTP - HTTP container.
-# Copyright (C) 2001, 2002, 2003 NAKAMURA, Hiroshi.
+# Copyright (C) 2001, 2002, 2003, 2005 NAKAMURA, Hiroshi.
 #
 # This module is copyrighted free software by NAKAMURA, Hiroshi.
 # You can redistribute it and/or modify it under the same term as Ruby.
 
 require 'uri'
-
+require 'time'
 
 module HTTP
 
@@ -288,9 +288,11 @@ class Message
   class Body
     attr_accessor :type, :charset, :date, :chunk_size
 
-    def initialize(body = nil, date = nil, type = nil, charset = nil)
+    def initialize(body = nil, date = nil, type = nil, charset = nil,
+        boundary = nil)
       @body = nil
-      set_content(body || '')
+      @boundary = boundary
+      set_content(body || '', boundary)
       @type = type
       @charset = charset
       @date = date
@@ -326,9 +328,11 @@ class Message
       @body
     end
 
-    def set_content(body)
+    def set_content(body, boundary = nil)
       if body.respond_to?(:read)
 	@body = body
+      elsif boundary
+	@body = Message.create_query_multipart_str(body, boundary)
       else
 	@body = Message.create_query_part_str(body)
       end
@@ -358,11 +362,12 @@ class Message
     undef new
   end
 
-  def self.new_request(method, uri, query = nil, body = nil, proxy = nil)
+  def self.new_request(method, uri, query = nil, body = nil, proxy = nil,
+      boundary = nil)
     m = self.__new
     m.header = Headers.new
     m.header.init_request(method, uri, query, proxy)
-    m.body = Body.new(body)
+    m.body = Body.new(body, nil, nil, nil, boundary)
     m
   end
 
@@ -450,6 +455,40 @@ class Message
       else
 	query.to_s
       end
+    end
+
+    def mime_type(path)
+      case path
+      when /.(htm|html)$/
+        'text/html'
+      when /.doc$/
+        'application/msword'
+      else
+        'text/plain'
+      end
+    end
+
+    def create_query_multipart_str(query, boundary)
+      query.collect { |attr, value|
+        value ||= ''
+        if value.is_a? File
+          params = {
+            'filename' => value.path,
+            # Creation time is not available from File::Stat
+            # 'creation-date' => value.ctime.rfc822,
+            'modification-date' => value.mtime.rfc822,
+            'read-date' => value.atime.rfc822,
+          }
+          param_str = params.to_a.collect { |k, v| "#{k}=\"#{v}\"" }.join("; ")
+          "--#{boundary}\n" +
+            %{Content-Disposition: form-data; name="#{attr.to_s}"; #{param_str}\n} +
+            "Content-Type: #{mime_type(value.path)}\n\n#{value.read}\n"
+        else
+          "--#{boundary}\n" +
+            %{Content-Disposition: form-data; name="#{attr.to_s}"\n} +
+            "\n#{value.to_s}\n"
+        end
+      }.join('') + "--#{boundary}--\n"
     end
 
     def escape_query(query)
