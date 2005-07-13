@@ -398,6 +398,9 @@ private
     extheader.each do |key, value|
       req.header.set(key, value)
     end
+    if content_type.nil? and !body.nil?
+      req.header.set('content-type', 'application/x-www-form-urlencoded')
+    end
     req
   end
 
