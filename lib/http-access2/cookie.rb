@@ -168,10 +168,9 @@ class WebAgent
       cookie_elem.each{|pair|
 	key, value = pair.split(/=/)  ## value may nil
 	key.strip!
-	value.strip!
-	if value && value =~ /^"(.*)"$/
-	  value = $1
-	end
+        if value
+          value = value.strip.sub(/\A"(.*)"\z/) { $1 }
+        end
 	case key.downcase
 	when 'domain'
 	  @domain = value
@@ -202,7 +201,7 @@ class WebAgent
     class SpecialError < Error; end
     class NoDotError < ErrorOverrideOK; end
 
-    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
+    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int",".fr"]
 
     attr_accessor :cookies
     attr_accessor :cookies_file
