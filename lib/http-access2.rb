@@ -606,6 +606,9 @@ class SSLConfig	# :nodoc:
   end
 
   def post_connection_check(cert, sess)
+    if @verify_mode <= OpenSSL::SSL::VERIFY_NONE
+      return true
+    end
     # Check if the cert is for the host it connects.
     unless cert
       return false
