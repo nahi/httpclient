@@ -39,9 +39,11 @@ class BadResponseError < Error; end
     ProtocolVersionRegexp = Regexp.new('^(?:HTTP/|)(\d+)\.(\d+)$')
     def keep_alive_enabled?(version)
       ProtocolVersionRegexp =~ version
-      if ($1 && ($1.to_i > 1))
+      if !($1 and $2)
+        false
+      elsif $1.to_i > 1
 	true
-      elsif ($2 && ($2.to_i >= 1))
+      elsif $1.to_i == 1 and $2.to_i >= 1
 	true
       else
 	false
@@ -238,7 +240,7 @@ class Message
       if @chunked
 	set('Transfer-Encoding', 'chunked')
       else
-	unless (!keep_alive and @body_size == 0)
+	if keep_alive or @body_size != 0
 	  set('Content-Length', @body_size.to_s)
 	end
       end
