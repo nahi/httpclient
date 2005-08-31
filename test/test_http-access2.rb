@@ -53,7 +53,7 @@ class TestClient < Test::Unit::TestCase
     @client.get(@url)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_match(/^User-Agent: agent_name_foo/, lines[3])
+    assert_match(/^User-Agent: agent_name_foo/, lines[4])
   end
 
   def test_from
@@ -63,7 +63,7 @@ class TestClient < Test::Unit::TestCase
     @client.get(@url)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_match(/^From: from_bar/, lines[3])
+    assert_match(/^From: from_bar/, lines[4])
   end
 
   def test_debug_dev
@@ -74,17 +74,31 @@ class TestClient < Test::Unit::TestCase
     assert(!str.empty?)
   end
 
+  def test_protocol_version_http09
+    @client.protocol_version = 'HTTP/0.9'
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url + 'hello')
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_equal("! CONNECTION ESTABLISHED", lines[2])
+    assert_equal("GET /hello HTTP/0.9", lines[3])
+    assert_equal("Connection: close", lines[5])
+    assert_equal("= Response", lines[6])
+    assert_match(/^hello/, lines[7])
+  end
+
   def test_protocol_version_http10
     @client.protocol_version = 'HTTP/1.0'
     str = ""
     @client.debug_dev = str
-    @client.get(@url)
+    @client.get(@url + 'hello')
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_equal("! CONNECTION ESTABLISHED", lines[1])
-    assert_equal("GET / HTTP/1.0", lines[2])
-    assert_equal("Connection: close", lines[4])
-    assert_equal("= Response", lines[5])
+    assert_equal("! CONNECTION ESTABLISHED", lines[2])
+    assert_equal("GET /hello HTTP/1.0", lines[3])
+    assert_equal("Connection: close", lines[5])
+    assert_equal("= Response", lines[6])
   end
 
   def test_protocol_version_http11
@@ -93,25 +107,25 @@ class TestClient < Test::Unit::TestCase
     @client.get(@url)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_equal("! CONNECTION ESTABLISHED", lines[1])
-    assert_equal("GET / HTTP/1.1", lines[2])
-    assert_equal("Host: localhost:#{Port}", lines[5])
+    assert_equal("! CONNECTION ESTABLISHED", lines[2])
+    assert_equal("GET / HTTP/1.1", lines[3])
+    assert_equal("Host: localhost:#{Port}", lines[6])
     @client.protocol_version = 'HTTP/1.1'
     str = ""
     @client.debug_dev = str
     @client.get(@url)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_equal("! CONNECTION ESTABLISHED", lines[1])
-    assert_equal("GET / HTTP/1.1", lines[2])
+    assert_equal("! CONNECTION ESTABLISHED", lines[2])
+    assert_equal("GET / HTTP/1.1", lines[3])
     @client.protocol_version = 'HTTP/1.0'
     str = ""
     @client.debug_dev = str
     @client.get(@url)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_equal("! CONNECTION ESTABLISHED", lines[1])
-    assert_equal("GET / HTTP/1.0", lines[2])
+    assert_equal("! CONNECTION ESTABLISHED", lines[2])
+    assert_equal("GET / HTTP/1.0", lines[3])
   end
 
   def test_proxy
@@ -196,7 +210,7 @@ class TestClient < Test::Unit::TestCase
     @client.head(@url)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_match(/^Date/, lines[3])
+    assert_match(/^Date/, lines[4])
     #
     @client.set_basic_auth(@url + "bar/", "foo", "bar")
     str = ""
@@ -204,7 +218,7 @@ class TestClient < Test::Unit::TestCase
     @client.head(@url + "foo/")
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_match(/^Date/, lines[3])
+    assert_match(/^Date/, lines[4])
     #
     @client.set_basic_auth(@url + "foo/bar", "foo", "bar")
     str = ""
@@ -212,14 +226,14 @@ class TestClient < Test::Unit::TestCase
     @client.head(@url + "foo/")
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_equal("Authorization: Basic Zm9vOmJhcg==", lines[3])
+    assert_equal("Authorization: Basic Zm9vOmJhcg==", lines[4])
     #
     str = ""
     @client.debug_dev = str
     @client.head(@url + "foo/baz/baz.txt")
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_equal("Authorization: Basic Zm9vOmJhcg==", lines[3])
+    assert_equal("Authorization: Basic Zm9vOmJhcg==", lines[4])
   end
 
   def test_get_content
@@ -344,15 +358,15 @@ class TestClient < Test::Unit::TestCase
     @client.head(@url, nil, {"ABC" => "DEF"})
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_match("ABC: DEF", lines[3])
+    assert_match("ABC: DEF", lines[4])
     #
     str = ""
     @client.debug_dev = str
     @client.get(@url, nil, [["ABC", "DEF"], ["ABC", "DEF"]])
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_match("ABC: DEF", lines[3])
     assert_match("ABC: DEF", lines[4])
+    assert_match("ABC: DEF", lines[5])
   end
 
   def test_timeout

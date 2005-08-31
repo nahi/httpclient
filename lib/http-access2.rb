@@ -23,22 +23,18 @@ require 'http-access2/cookie'
 
 module HTTPAccess2
   VERSION = '2.0'
-  RUBY_VERSION_STRING = "ruby #{ RUBY_VERSION } (#{ RUBY_RELEASE_DATE }) [#{ RUBY_PLATFORM }]"
+  RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
   s = %w$Id$
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
 
-  RS = "\r\n"
-  FS = "\r\n\t"
-
-  # You need to install RubyPKI.  Check
-  # http://raa.ruby-lang.org/list.rhtml?name=openssl
-  # RubyPKI requires Ruby/1.8 or later.
   SSLEnabled = begin
       require 'openssl'
       true
     rescue LoadError
       false
     end
+
+  DEBUG_SSL = true
 
 
 # DESCRIPTION
@@ -117,8 +113,6 @@ class Client
   def debug_dev
     @debug_dev
   end
-
-  attr_reader :debug_dev
 
   def debug_dev=(dev)
     @debug_dev = dev
@@ -354,7 +348,7 @@ private
 	query = nil
 	retry_number += 1
       else
-	raise RuntimeError.new("Unexpected response: #{ res.header.inspect }")
+	raise RuntimeError.new("Unexpected response: #{res.header.inspect}")
       end
     end
     raise RuntimeError.new("Retry count exceeded.")
@@ -468,7 +462,7 @@ private
     res.version, res.status, res.reason = sess.get_status
     sess.get_header().each do |line|
       unless /^([^:]+)\s*:\s*(.*)$/ =~ line
-	raise RuntimeError.new("Unparsable header: '#{ line }'.") if $DEBUG
+	raise RuntimeError.new("Unparsable header: '#{line}'.") if $DEBUG
       end
       res.header.set($1, $2)
     end
@@ -627,13 +621,13 @@ class SSLConfig	# :nodoc:
   # Default callback for verification: only dumps error.
   def default_verify_callback(ok, ctx)
     if $DEBUG
-      puts "#{ ok ? 'ok' : 'ng' }: #{ ctx.current_cert.subject }"
+      puts "#{ ok ? 'ok' : 'ng' }: #{ctx.current_cert.subject}"
     end
     if !ok
       depth = ctx.error_depth
       code = ctx.error
       msg = ctx.error_string
-      STDERR.puts "at depth #{ depth } - #{ code }: #{ msg }"
+      STDERR.puts "at depth #{depth} - #{code}: #{msg}"
     end
     ok
   end
@@ -644,7 +638,7 @@ class SSLConfig	# :nodoc:
       depth = ctx.error_depth
       code = ctx.error
       msg = ctx.error_string
-      STDERR.puts "at depth #{ depth } - #{ code }: #{ msg }" if $DEBUG
+      STDERR.puts "at depth #{depth} - #{code}: #{msg}" if $DEBUG
       return false
     end
 
@@ -725,7 +719,7 @@ class BasicAuth	# :nodoc:
   def set(uri, user_id, passwd)
     uri = uri.clone
     uri.path = uri.path.sub(/\/[^\/]*$/, '/')
-    @auth[uri] = ["#{ user_id }:#{ passwd }"].pack('m').strip
+    @auth[uri] = ["#{user_id}:#{passwd}"].pack('m').strip
     @client.reset_all
   end
 
@@ -763,7 +757,7 @@ class Site	# :nodoc:
   end
 
   def addr
-    "#{ @scheme }://#{ @host }:#{ @port.to_s }"
+    "#{@scheme}://#{@host}:#{@port.to_s}"
   end
 
   def port=(port)
@@ -987,13 +981,15 @@ end
 # HTTPAccess2::SSLSocketWrap
 #
 class SSLSocketWrap
-  def initialize(socket, context)
+  def initialize(socket, context, debug_dev = nil)
     unless SSLEnabled
-      raise RuntimeError.new("Ruby/OpenSSL module is required for https access.")
+      raise RuntimeError.new(
+        "Ruby/OpenSSL module is required for https access.")
     end
     @context = context
     @socket = socket
     @ssl_socket = create_ssl_socket(@socket)
+    @debug_dev = debug_dev
   end
 
   def ssl_connect
@@ -1026,15 +1022,26 @@ class SSLSocketWrap
   end
 
   def gets(*args)
-    @ssl_socket.gets(*args)
+    str = @ssl_socket.gets(*args)
+    @debug_dev << str if @debug_dev
+    str
   end
 
   def read(*args)
-    @ssl_socket.read(*args)
+    str = @ssl_socket.read(*args)
+    @debug_dev << str if @debug_dev
+    str
   end
 
   def <<(str)
-    @ssl_socket.write(str)
+    rv = @ssl_socket.write(str)
+    @debug_dev << str if @debug_dev
+    rv
+  end
+
+  # Wrap flush method for SSL socket
+  def flush
+    @ssl_socket.flush
   end
 
 private
@@ -1061,6 +1068,7 @@ class DebugSocket < TCPSocket
 
   class << self
     def create_socket(host, port, debug_dev)
+      debug_dev << "! CONNECT TO #{host}:#{port}\n"
       socket = new(host, port)
       socket.debug_dev = debug_dev
       socket.log_connect
@@ -1086,13 +1094,13 @@ class DebugSocket < TCPSocket
 
   def gets(*args)
     str = super
-    @debug_dev << str
+    @debug_dev << str if str
     str
   end
 
   def read(*args)
     str = super
-    @debug_dev << str
+    @debug_dev << str if str
     str
   end
 
@@ -1175,6 +1183,8 @@ class Session	# :nodoc:
       timeout(@send_timeout) do
 	set_header(req)
 	req.dump(@socket)
+        # flush the IO stream as IO::sync mode is false
+        @socket.flush
       end
     rescue Errno::ECONNABORTED
       close
@@ -1291,12 +1301,12 @@ class Session	# :nodoc:
 
 private
 
-  LibNames = "(#{ RCS_FILE }/#{ RCS_REVISION }, #{ RUBY_VERSION_STRING })"
+  LibNames = "(#{RCS_FILE}/#{RCS_REVISION}, #{RUBY_VERSION_STRING})"
 
   def set_header(req)
     req.version = @requested_version if @requested_version
     if @user_agent
-      req.header.set('User-Agent', "#{ @user_agent } #{ LibNames }")
+      req.header.set('User-Agent', "#{@user_agent} #{LibNames}")
     end
     if @from
       req.header.set('From', @from)
@@ -1326,6 +1336,10 @@ private
 	    raise OpenSSL::SSL::SSLError.new("Post connection check failed.")
 	  end
 	end
+        # Use Ruby internal buffering instead of passing data immediatly
+        # to the underlying layer
+        # => we need to to call explicitely flush on the socket
+        @socket.sync = false
       end
     rescue TimeoutError
       if @connect_retry == 0
@@ -1357,7 +1371,7 @@ private
 
   # wrap socket with OpenSSL.
   def create_ssl_socket(raw_socket)
-    SSLSocketWrap.new(raw_socket, @ssl_config)
+    SSLSocketWrap.new(raw_socket, @ssl_config, (DEBUG_SSL ? @debug_dev : nil))
   end
 
   def connect_ssl_proxy(socket)
@@ -1370,7 +1384,6 @@ private
   end
 
   # Read status block.
-  StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d+)(?:\s+(.*))?#{ RS }\z)
   def read_header
     if @state == :DATA
       get_data {}
@@ -1379,9 +1392,7 @@ private
     unless @state == :META
       raise InvalidState, 'state != :META'
     end
-
     parse_header(@socket)
-
     @content_length = nil
     @chunked = false
     @headers.each do |line|
@@ -1416,32 +1427,38 @@ private
         close
       end
     end
-
     @next_connection = false unless @content_length
-
     return [@version, @status, @reason]
   end
 
+  StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d+)(?:\s+(.*))?\r?\n\z)
   def parse_header(socket)
     begin
       timeout(@receive_timeout) do
 	begin
-	  @status_line = socket.gets(RS)
-	  if @status_line.nil?
+          initial_line = socket.gets("\n")
+	  if initial_line.nil?
 	    raise KeepAliveDisconnected.new
 	  end
-	  StatusParseRegexp =~ @status_line
-	  unless $1
-	    raise BadResponse.new(@status_line)
-	  end
-	  @version, @status, @reason = $1, $2.to_i, $3
-	  @next_connection = HTTP.keep_alive_enabled?(@version) ? true : false
+	  if StatusParseRegexp =~ initial_line
+            @version, @status, @reason = $1, $2.to_i, $3
+            @next_connection = HTTP.keep_alive_enabled?(@version) ? true : false
+          else
+            @version = '0.9'
+            @status = 200
+            @reason = 'OK'
+            @next_connection = false
+            @readbuf = initial_line
+            break
+          end
 	  @headers = []
-	  until ((line = socket.gets(RS)) == RS)
+          while true
+            line = socket.gets("\n")
 	    unless line
 	      raise BadResponse.new('Unexpected EOF.')
 	    end
-	    line.sub!(/#{ RS }\z/, '')
+            line.sub!(/\r?\n\z/, '')
+            break if line.empty?
 	    if line.sub!(/^\t/, '')
       	      @headers[-1] << line
 	    else
@@ -1493,8 +1510,9 @@ private
     return data
   end
 
-  ChunkDelimiter = "0#{ RS }"
-  ChunkTrailer = "0#{ RS }#{ RS }"
+  RS = "\r\n"
+  ChunkDelimiter = "0#{RS}"
+  ChunkTrailer = "0#{RS}#{RS}"
   def read_body_chunked
     if @chunk_length == 0
       until (i = @readbuf.index(RS))
