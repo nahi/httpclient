@@ -1,5 +1,5 @@
 # HTTPAccess2 - HTTP accessing library.
-# Copyright (C) 2000-2004  NAKAMURA, Hiroshi  <nakahiro@sarion.co.jp>.
+# Copyright (C) 2000-2005  NAKAMURA, Hiroshi  <nakahiro@sarion.co.jp>.
 
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;

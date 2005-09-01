@@ -1,0 +1,77 @@
+--- lib/webagent/cookie.rb	2002-09-30 01:00:39.000000000 +0900
++++ ../lib/http-access2/cookie.rb	2005-09-01 21:13:10.452454400 +0900
+@@ -1,2 +1,8 @@
++# cookie.rb is redistributed file which is originally included in Webagent
++# version 0.6.2 by TAKAHASHI `Maki' Masayoshi.  And it contains some bug fixes.
++# You can download the entire package of Webagent from
++# http://www.rubycolor.org/arc/.
++
++
+ # Cookie class
+ #
+@@ -64,4 +70,5 @@
+ 
+     def initialize()
++      @discard = @use = @secure = @domain_orig = @path_orig = @override = nil
+     end
+ 
+@@ -168,8 +175,7 @@
+ 	key, value = pair.split(/=/)  ## value may nil
+ 	key.strip!
+-	value.strip!
+-	if value && value =~ /^"(.*)"$/
+-	  value = $1
+-	end
++        if value
++          value = value.strip.sub(/\A"(.*)"\z/) { $1 }
++        end
+ 	case key.downcase
+ 	when 'domain'
+@@ -207,4 +213,5 @@
+     attr_accessor :cookies_file
+     attr_accessor :accept_domains, :reject_domains
++    attr_accessor :require_three_periods_in_domain
+ 
+     def initialize(file=nil)
+@@ -214,13 +221,16 @@
+       @reject_domains = Array.new()
+       @accept_domains = Array.new()
++      # for conformance to http://wp.netscape.com/newsref/std/cookie_spec.html
++      @require_three_periods_in_domain = true
+     end
+ 
+-    def save_cookies(force = nil)
+-      if @is_saved && !force
++    def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
++      if @is_saved and !force
+ 	return
+       end
+-      File.open(@cookies_file,'w'){|f|
+-	@cookies.each{|cookie|
+-	  if cookie.use? && (!cookie.discard?)
++      File.open(@cookies_file, 'w') do |f|
++	@cookies.each do |cookie|
++          if (cookie.use? or save_unused) and
++              (!cookie.discard? or save_discarded)
+ 	    f.print(cookie.url.to_s,"\t",
+ 		    cookie.name,"\t",
+@@ -231,6 +241,10 @@
+ 		    cookie.flag,"\n")
+ 	  end
+-	}
+-      }
++        end
++      end
++    end
++
++    def save_cookies(force = nil)
++      save_all_cookies(force, false, false)
+     end
+ 
+@@ -334,5 +348,5 @@
+ 	    sdomain == domain[-(sdomain.length)..-1]
+ 	  }
+-	  if ok.empty?
++	  if ok.empty? and @require_three_periods_in_domain
+ 	    cookie_error(SpecialError.new(), override)
+ 	  end

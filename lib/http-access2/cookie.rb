@@ -1,3 +1,9 @@
+# cookie.rb is redistributed file which is originally included in Webagent
+# version 0.6.2 by TAKAHASHI `Maki' Masayoshi.  And it contains some bug fixes.
+# You can download the entire package of Webagent from
+# http://www.rubycolor.org/arc/.
+
+
 # Cookie class
 #
 # I refered to w3m's source to make these classes. Some comments
@@ -201,7 +207,7 @@ class WebAgent
     class SpecialError < Error; end
     class NoDotError < ErrorOverrideOK; end
 
-    SPECIAL_DOMAIN = ['.com', '.edu', '.net', '.org', '.gov', '.mil', '.int']
+    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
 
     attr_accessor :cookies
     attr_accessor :cookies_file
@@ -416,3 +422,117 @@ class WebAgent
     end
   end
 end
+
+__END__
+
+=begin
+
+== WebAgent::CookieManager Class
+
+Load, save, parse and send cookies.
+
+=== Usage
+
+  ## initialize
+  cm = WebAgent::CookieManager.new("/home/foo/bar/cookie")
+
+  ## load cookie data
+  cm.load_cookies()
+
+  ## parse cookie from string (maybe "Set-Cookie:" header)
+  cm.parse(str)
+
+  ## send cookie data to url
+  f.write(cm.find(url))
+
+  ## save cookie to cookiefile
+  cm.save_cookies()
+
+
+=== Class Methods
+
+ -- CookieManager::new(file=nil)
+
+     create new CookieManager. If a file is provided,
+     use it as cookies' file.
+
+=== Methods
+
+ -- CookieManager#save_cookies(force = nil)
+
+     save cookies' data into file. if argument is true,
+     save data although data is not modified.
+
+ -- CookieManager#parse(str, url)
+
+     parse string and store cookie (to parse HTTP response header).
+
+ -- CookieManager#find(url)
+
+     get cookies and make into string (to send as HTTP request header).
+
+ -- CookieManager#add(cookie)
+
+     add new cookie.
+
+ -- CookieManager#load_cookies()
+
+     load cookies' data from file.
+
+
+== WebAgent::CookieUtils Module
+
+ -- CookieUtils::head_match?(str1, str2)
+ -- CookieUtils::tail_match?(str1, str2)
+ -- CookieUtils::domain_match(host, domain)
+ -- CookieUtils::total_dot_num(str)
+
+
+== WebAgent::Cookie Class
+
+=== Class Methods
+
+ -- Cookie::new()
+
+      create new cookie.
+
+=== Methods
+
+ -- Cookie#match?(url)
+
+       match cookie by url. if match, return true. otherwise,
+       return false.
+
+ -- Cookie#name
+ -- Cookie#name=(name)
+ -- Cookie#value
+ -- Cookie#value=(value)
+ -- Cookie#domain
+ -- Cookie#domain=(domain)
+ -- Cookie#path
+ -- Cookie#path=(path)
+ -- Cookie#expires
+ -- Cookie#expires=(expires)
+ -- Cookie#url
+ -- Cookie#url=(url)
+
+      accessor methods for cookie's items.
+
+ -- Cookie#discard?
+ -- Cookie#discard=(discard)
+ -- Cookie#use?
+ -- Cookie#use=(use)
+ -- Cookie#secure?
+ -- Cookie#secure=(secure)
+ -- Cookie#domain_orig?
+ -- Cookie#domain_orig=(domain_orig)
+ -- Cookie#path_orig?
+ -- Cookie#path_orig=(path_orig)
+ -- Cookie#override?
+ -- Cookie#override=(override)
+ -- Cookie#flag
+ -- Cookie#set_flag(flag_num)
+
+      accessor methods for flags.
+
+=end
