@@ -218,13 +218,14 @@ class WebAgent
       @require_three_periods_in_domain = true
     end
 
-    def save_cookies(force = nil)
-      if @is_saved && !force
+    def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
+      if @is_saved and !force
 	return
       end
-      File.open(@cookies_file,'w'){|f|
-	@cookies.each{|cookie|
-	  if cookie.use? && (!cookie.discard?)
+      File.open(@cookies_file, 'w') do |f|
+	@cookies.each do |cookie|
+          if (cookie.use? or save_unused) and
+              (!cookie.discard? or save_discarded)
 	    f.print(cookie.url.to_s,"\t",
 		    cookie.name,"\t",
 		    cookie.value,"\t",
@@ -233,8 +234,12 @@ class WebAgent
 		    cookie.path,"\t",
 		    cookie.flag,"\n")
 	  end
-	}
-      }
+        end
+      end
+    end
+
+    def save_cookies(force = nil)
+      save_all_cookies(force, false, false)
     end
 
     def check_expired_cookies()
