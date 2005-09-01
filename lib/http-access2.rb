@@ -68,7 +68,7 @@ class Client
   attr_reader :agent_name
   attr_reader :from
   attr_reader :ssl_config
-  attr_reader :cookie_manager
+  attr_accessor :cookie_manager
   attr_reader :test_loopback_response
 
   class << self
@@ -107,7 +107,7 @@ class Client
     @session_manager.agent_name = @agent_name
     @session_manager.from = @from
     @session_manager.ssl_config = @ssl_config
-    @cookie_manager = nil
+    @cookie_manager = WebAgent::CookieManager.new
     self.proxy = proxy
   end
 
@@ -196,12 +196,11 @@ class Client
   end
 
   def set_cookie_store(filename)
-    if filename
-      @cookie_manager = WebAgent::CookieManager.new(filename)
-      @cookie_manager.load_cookies
-    else
-      @cookie_manager = nil
+    if @cookie_manager.cookies_file
+      raise RuntimeError.new("overriding cookie file location")
     end
+    @cookie_manager.cookies_file = filename
+    @cookie_manager.load_cookies if filename
   end
 
   def save_cookie_store
@@ -377,10 +376,8 @@ private
     if cred
       extheader << ['Authorization', "Basic " << cred]
     end
-    if @cookie_manager
-      if (cookies = @cookie_manager.find(uri))
-	extheader << ['Cookie', cookies]
-      end
+    if cookies = @cookie_manager.find(uri)
+      extheader << ['Cookie', cookies]
     end
     boundary = nil
     content_type = extheader.find { |key, value|
@@ -467,7 +464,7 @@ private
       end
       res.header.set($1, $2)
     end
-    if @cookie_manager and res.header['set-cookie']
+    if res.header['set-cookie']
       res.header['set-cookie'].each do |cookie|
 	@cookie_manager.parse(cookie, req.header.request_uri)
       end
@@ -912,7 +909,7 @@ private
 
   def open(dest, proxy = nil)
     sess = nil
-    if (cached = get_cached_session(dest))
+    if cached = get_cached_session(dest)
       sess = cached
     else
       sess = Session.new(dest, @agent_name, @from)
@@ -937,7 +934,7 @@ private
   end
 
   def close(dest)
-    if (cached = get_cached_session(dest))
+    if cached = get_cached_session(dest)
       cached.close
       true
     else
