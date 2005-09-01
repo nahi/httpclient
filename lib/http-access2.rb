@@ -630,7 +630,7 @@ class SSLConfig	# :nodoc:
         end
       }
     end
-    raise SSLError, "hostname not match"
+    raise OpenSSL::SSL::SSLError, "hostname not match"
   end
 
   # Default callback for verification: only dumps error.
@@ -997,10 +997,15 @@ class SSLSocketWrap
 
   def post_connection_check(host)
     verify_mode = @context.verify_mode || OpenSSL::SSL::VERIFY_NONE
-    return true if verify_mode <= OpenSSL::SSL::VERIFY_NONE
+    if verify_mode == OpenSSL::SSL::VERIFY_NONE
+      return
+    elsif @ssl_socket.peer_cert.nil? and
+        check_mask(verify_mode, OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT)
+      raise OpenSSL::SSL::SSLError, "no peer cert"
+    end
     hostname = host.host
     if @ssl_socket.respond_to?(:post_connection_check)
-      return @ssl_socket.post_connection_check(hostname)
+      @ssl_socket.post_connection_check(hostname)
     end
     @context.post_connection_check(@ssl_socket.peer_cert, hostname)
   end
@@ -1053,6 +1058,10 @@ class SSLSocketWrap
   end
 
 private
+
+  def check_mask(value, mask)
+    value & mask == mask
+  end
 
   def create_ssl_socket(socket)
     ssl_socket = nil
