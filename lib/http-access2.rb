@@ -68,6 +68,7 @@ class Client
   attr_reader :agent_name
   attr_reader :from
   attr_reader :ssl_config
+  attr_reader :cookie_manager
   attr_reader :test_loopback_response
 
   class << self
