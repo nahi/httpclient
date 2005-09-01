@@ -605,20 +605,31 @@ class SSLConfig	# :nodoc:
     ctx.ciphers = @ciphers
   end
 
-  def post_connection_check(cert, sess)
-    if @verify_mode <= OpenSSL::SSL::VERIFY_NONE
-      return true
+  # this definition must match with the one in ext/openssl/lib/openssl/ssl.rb
+  def post_connection_check(peer_cert, hostname)
+    check_common_name = true
+    cert = peer_cert
+    cert.extensions.each{|ext|
+      next if ext.oid != "subjectAltName"
+      ext.value.split(/,\s+/).each{|general_name|
+        if /\ADNS:(.*)/ =~ general_name
+          check_common_name = false
+          reg = Regexp.escape($1).gsub(/\\\*/, "[^.]+")
+          return true if /\A#{reg}\z/i =~ hostname
+        elsif /\AIP Address:(.*)/ =~ general_name
+          check_common_name = false
+          return true if $1 == hostname
+        end
+      }
+    }
+    if check_common_name
+      cert.subject.to_a.each{|oid, value|
+        if oid == "CN" && value.casecmp(hostname) == 0
+          return true
+        end
+      }
     end
-    # Check if the cert is for the host it connects.
-    unless cert
-      return false
-    end
-    cert_name = retrieve_cert_name(cert)
-    if cert_name.upcase == sess.dest.host.upcase
-      true
-    else
-      false
-    end
+    raise SSLError, "hostname not match"
   end
 
   # Default callback for verification: only dumps error.
@@ -691,22 +702,6 @@ private
 
   def change_notify
     @client.reset_all
-  end
-
-  def retrieve_cert_name(cert)
-    subject_alt_name = cert.extensions.find { |ex| ex.oid == 'subjectAltName' }
-    if subject_alt_name
-      subject_alt_name.value.split(/\s*,\s/).each do |alt_name_pair|
-	alt_tag, alt_name = alt_name_pair.split(/:/)
-	if alt_tag == 'DNS'
-	  return alt_name
-	end
-      end
-    end
-    if (cn = cert.subject.to_a.find { |rdn| rdn[0] == 'CN' })
-      return cn[1]
-    end
-    nil
   end
 end
 
@@ -999,8 +994,14 @@ class SSLSocketWrap
     @ssl_socket.connect
   end
 
-  def post_connection_check(sess)
-    @context.post_connection_check(@ssl_socket.peer_cert, sess)
+  def post_connection_check(host)
+    verify_mode = @context.verify_mode || OpenSSL::SSL::VERIFY_NONE
+    return true if verify_mode <= OpenSSL::SSL::VERIFY_NONE
+    hostname = host.host
+    if @ssl_socket.respond_to?(:post_connection_check)
+      return @ssl_socket.post_connection_check(hostname)
+    end
+    @context.post_connection_check(@ssl_socket.peer_cert, hostname)
   end
 
   def peer_cert
@@ -1042,7 +1043,10 @@ class SSLSocketWrap
     rv
   end
 
-  # Wrap flush method for SSL socket
+  def sync=(sync)
+    @ssl_socket.sync = sync
+  end
+
   def flush
     @ssl_socket.flush
   end
@@ -1335,9 +1339,7 @@ private
 	  @socket = create_ssl_socket(@socket)
 	  connect_ssl_proxy(@socket) if @proxy
 	  @socket.ssl_connect
-	  unless @socket.post_connection_check(self)
-	    raise OpenSSL::SSL::SSLError.new("Post connection check failed.")
-	  end
+	  @socket.post_connection_check(@dest)
 	end
         # Use Ruby internal buffering instead of passing data immediatly
         # to the underlying layer
