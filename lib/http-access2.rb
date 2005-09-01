@@ -1046,10 +1046,6 @@ class SSLSocketWrap
     rv
   end
 
-  def sync=(sync)
-    @ssl_socket.sync = sync
-  end
-
   def flush
     @ssl_socket.flush
   end
@@ -1342,16 +1338,18 @@ private
           # to avoid IPSocket#addr problem on Mac OS X 10.3 + ruby-1.8.1.
           # cf. [ruby-talk:84909], [ruby-talk:95827]
         end
-	if @dest.scheme == 'https'
+	if @dest.scheme != 'https'
+          # Use Ruby internal buffering instead of passing data immediatly
+          # to the underlying layer
+          # => we need to to call explicitely flush on the socket
+          @socket.sync = false
+        else
+          # do not set sync property to true for ssl_socket
 	  @socket = create_ssl_socket(@socket)
 	  connect_ssl_proxy(@socket) if @proxy
 	  @socket.ssl_connect
 	  @socket.post_connection_check(@dest)
 	end
-        # Use Ruby internal buffering instead of passing data immediatly
-        # to the underlying layer
-        # => we need to to call explicitely flush on the socket
-        @socket.sync = false
       end
     rescue TimeoutError
       if @connect_retry == 0
