@@ -1,5 +1,5 @@
---- lib/webagent/cookie.rb	2002-09-30 01:00:39.000000000 +0900
-+++ ../lib/http-access2/cookie.rb	2005-09-01 21:13:10.452454400 +0900
+--- cookie.rb	2002-09-30 01:00:39.000000000 +0900
++++ ../../../lib/http-access2/cookie.rb	2005-09-01 21:13:10.452454400 +0900
 @@ -1,2 +1,8 @@
 +# cookie.rb is redistributed file which is originally included in Webagent
 +# version 0.6.2 by TAKAHASHI `Maki' Masayoshi.  And it contains some bug fixes.
@@ -9,13 +9,13 @@
 +
  # Cookie class
  #
-@@ -64,4 +70,5 @@
+@@ -64,4 +70,5 @@ class WebAgent
  
      def initialize()
 +      @discard = @use = @secure = @domain_orig = @path_orig = @override = nil
      end
  
-@@ -168,8 +175,7 @@
+@@ -168,8 +175,7 @@ class WebAgent
  	key, value = pair.split(/=/)  ## value may nil
  	key.strip!
 -	value.strip!
@@ -27,13 +27,13 @@
 +        end
  	case key.downcase
  	when 'domain'
-@@ -207,4 +213,5 @@
+@@ -207,4 +213,5 @@ class WebAgent
      attr_accessor :cookies_file
      attr_accessor :accept_domains, :reject_domains
 +    attr_accessor :require_three_periods_in_domain
  
      def initialize(file=nil)
-@@ -214,13 +221,16 @@
+@@ -214,13 +221,16 @@ class WebAgent
        @reject_domains = Array.new()
        @accept_domains = Array.new()
 +      # for conformance to http://wp.netscape.com/newsref/std/cookie_spec.html
@@ -55,7 +55,7 @@
 +              (!cookie.discard? or save_discarded)
  	    f.print(cookie.url.to_s,"\t",
  		    cookie.name,"\t",
-@@ -231,6 +241,10 @@
+@@ -231,6 +241,10 @@ class WebAgent
  		    cookie.flag,"\n")
  	  end
 -	}
@@ -68,7 +68,7 @@
 +      save_all_cookies(force, false, false)
      end
  
-@@ -334,5 +348,5 @@
+@@ -334,5 +348,5 @@ class WebAgent
  	    sdomain == domain[-(sdomain.length)..-1]
  	  }
 -	  if ok.empty?
