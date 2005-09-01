@@ -452,45 +452,44 @@ class Message
 
   class << self
     def create_query_part_str(query)
-      if query.is_a?(Array) or query.is_a?(Hash)
+      if multiparam_query?(query)
 	escape_query(query)
       else
 	query.to_s
       end
     end
 
-    def mime_type(path)
-      case path
-      when /.(htm|html)$/
-        'text/html'
-      when /.doc$/
-        'application/msword'
+    def create_query_multipart_str(query, boundary)
+      if multiparam_query?(query)
+        query.collect { |attr, value|
+          value ||= ''
+          if value.is_a? File
+            params = {
+              'filename' => value.path,
+              # Creation time is not available from File::Stat
+              # 'creation-date' => value.ctime.rfc822,
+              'modification-date' => value.mtime.rfc822,
+              'read-date' => value.atime.rfc822,
+            }
+            param_str = params.to_a.collect { |k, v|
+              "#{k}=\"#{v}\""
+            }.join("; ")
+            "--#{boundary}\n" +
+              %{Content-Disposition: form-data; name="#{attr.to_s}"; #{param_str}\n} +
+              "Content-Type: #{mime_type(value.path)}\n\n#{value.read}\n"
+          else
+            "--#{boundary}\n" +
+              %{Content-Disposition: form-data; name="#{attr.to_s}"\n} +
+              "\n#{value.to_s}\n"
+          end
+        }.join('') + "--#{boundary}--\n"
       else
-        'text/plain'
+        query.to_s
       end
     end
 
-    def create_query_multipart_str(query, boundary)
-      query.collect { |attr, value|
-        value ||= ''
-        if value.is_a? File
-          params = {
-            'filename' => value.path,
-            # Creation time is not available from File::Stat
-            # 'creation-date' => value.ctime.rfc822,
-            'modification-date' => value.mtime.rfc822,
-            'read-date' => value.atime.rfc822,
-          }
-          param_str = params.to_a.collect { |k, v| "#{k}=\"#{v}\"" }.join("; ")
-          "--#{boundary}\n" +
-            %{Content-Disposition: form-data; name="#{attr.to_s}"; #{param_str}\n} +
-            "Content-Type: #{mime_type(value.path)}\n\n#{value.read}\n"
-        else
-          "--#{boundary}\n" +
-            %{Content-Disposition: form-data; name="#{attr.to_s}"\n} +
-            "\n#{value.to_s}\n"
-        end
-      }.join('') + "--#{boundary}--\n"
+    def multiparam_query?(query)
+      query.is_a?(Array) or query.is_a?(Hash)
     end
 
     def escape_query(query)
@@ -504,6 +503,17 @@ class Message
       str.gsub(/([^ a-zA-Z0-9_.-]+)/n) {
   	'%' + $1.unpack('H2' * $1.size).join('%').upcase
       }.tr(' ', '+')
+    end
+
+    def mime_type(path)
+      case path
+      when /.(htm|html)$/
+        'text/html'
+      when /.doc$/
+        'application/msword'
+      else
+        'text/plain'
+      end
     end
   end
 

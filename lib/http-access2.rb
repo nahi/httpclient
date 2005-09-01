@@ -1451,8 +1451,8 @@ private
             @next_connection = HTTP.keep_alive_enabled?(@version) ? true : false
           else
             @version = '0.9'
-            @status = 200
-            @reason = 'OK'
+            @status = nil
+            @reason = nil
             @next_connection = false
             @readbuf = initial_line
             break
