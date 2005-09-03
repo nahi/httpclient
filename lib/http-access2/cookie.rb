@@ -212,7 +212,7 @@ class WebAgent
     attr_accessor :cookies
     attr_accessor :cookies_file
     attr_accessor :accept_domains, :reject_domains
-    attr_accessor :require_three_periods_in_domain
+    attr_accessor :netscape_rule
 
     def initialize(file=nil)
       @cookies = Array.new()
@@ -221,7 +221,7 @@ class WebAgent
       @reject_domains = Array.new()
       @accept_domains = Array.new()
       # for conformance to http://wp.netscape.com/newsref/std/cookie_spec.html
-      @require_three_periods_in_domain = true
+      @netscape_rule = false
     end
 
     def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
@@ -339,15 +339,15 @@ class WebAgent
 	  domain = '.'+domain
 	end
 
-	## [NETSCAPE] rule
 	n = total_dot_num(domain)
 	if n < 2
 	  cookie_error(SpecialError.new(), override)
-	elsif n == 2
+	elsif @netscape_rule and n == 2
+          ## [NETSCAPE] rule
 	  ok = SPECIAL_DOMAIN.select{|sdomain|
 	    sdomain == domain[-(sdomain.length)..-1]
 	  }
-	  if ok.empty? and @require_three_periods_in_domain
+	  if ok.empty?
 	    cookie_error(SpecialError.new(), override)
 	  end
 	end
