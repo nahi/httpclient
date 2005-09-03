@@ -1188,7 +1188,6 @@ class Session	# :nodoc:
   # Send a request to the server
   def query(req)
     connect() if @state == :INIT
-
     begin
       timeout(@send_timeout) do
 	set_header(req)
@@ -1217,6 +1216,7 @@ class Session	# :nodoc:
 
   def close
     unless @socket.nil?
+      @socket.flush
       @socket.close unless @socket.closed?
     end
     @state = :INIT
@@ -1344,7 +1344,9 @@ private
           # => we need to to call explicitely flush on the socket
           @socket.sync = false
         else
-          # do not set sync property to true for ssl_socket
+          # do not set raw_socket.sync = false to avoid a bug in 
+          # openssl/buffering.rb ('@wbuffer = ""' must be
+          # '@buffer[0, nwrote] = ""' at the end of the method do_write)
 	  @socket = create_ssl_socket(@socket)
 	  connect_ssl_proxy(@socket) if @proxy
 	  @socket.ssl_connect
@@ -1452,7 +1454,7 @@ private
 	  end
 	  if StatusParseRegexp =~ initial_line
             @version, @status, @reason = $1, $2.to_i, $3
-            @next_connection = HTTP.keep_alive_enabled?(@version) ? true : false
+            @next_connection = HTTP.keep_alive_enabled?(@version)
           else
             @version = '0.9'
             @status = nil
