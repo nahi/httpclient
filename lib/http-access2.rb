@@ -22,7 +22,7 @@ require 'http-access2/cookie'
 
 
 module HTTPAccess2
-  VERSION = '2.0'
+  VERSION = '2.0.6'
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
   s = %w$Id$
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
