@@ -40,6 +40,18 @@ class TestSSL < Test::Unit::TestCase
     assert_instance_of(OpenSSL::X509::Store, cfg.cert_store)
   end
 
+  def test_sync
+    cfg = @client.ssl_config
+    cfg.set_client_cert_file('client.cert', 'client.key')
+    cfg.set_trust_ca("ca.cert")
+    cfg.set_trust_ca("subca.cert")
+    assert_equal("hello", @client.get_content(@url))
+
+    @client.socket_sync = false
+    @client.reset_all
+    assert_equal("hello", @client.get_content(@url))
+  end
+
   def test_verification
     cfg = @client.ssl_config
     cfg.verify_callback = method(:verify_callback).to_proc

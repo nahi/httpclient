@@ -188,6 +188,12 @@ class Client
     reset_all
   end
 
+  # if your ruby is older than 2005-09-06, do not set socket_sync = false to
+  # avoid an SSL socket blocking bug in openssl/buffering.rb.
+  def socket_sync=(socket_sync)
+    @session_manager.socket_sync = socket_sync
+  end
+
   def set_basic_auth(uri, user_id, passwd)
     unless uri.is_a?(URI)
       uri = URI.parse(uri)
@@ -328,11 +334,11 @@ class Client
   # Management interface.
 
   def reset(uri)
-    @session_manager.reset(uri) if @session_manager
+    @session_manager.reset(uri)
   end
 
   def reset_all
-    @session_manager.reset_all if @session_manager
+    @session_manager.reset_all
   end
 
 private
@@ -631,22 +637,22 @@ class SSLConfig	# :nodoc:
   end
 
   # Default callback for verification: only dumps error.
-  def default_verify_callback(ok, ctx)
+  def default_verify_callback(is_ok, ctx)
     if $DEBUG
-      puts "#{ ok ? 'ok' : 'ng' }: #{ctx.current_cert.subject}"
+      puts "#{ is_ok ? 'ok' : 'ng' }: #{ctx.current_cert.subject}"
     end
-    if !ok
+    if !is_ok
       depth = ctx.error_depth
       code = ctx.error
       msg = ctx.error_string
       STDERR.puts "at depth #{depth} - #{code}: #{msg}"
     end
-    ok
+    is_ok
   end
 
   # Sample callback method:  CAUTION: does not check CRL/ARL.
-  def sample_verify_callback(ok, ctx)
-    unless ok
+  def sample_verify_callback(is_ok, ctx)
+    unless is_ok
       depth = ctx.error_depth
       code = ctx.error
       msg = ctx.error_string
@@ -831,6 +837,7 @@ class SessionManager	# :nodoc:
   attr_accessor :protocol_version	# Requested protocol version
   attr_accessor :chunk_size		# Chunk size for chunked request
   attr_accessor :debug_dev		# Device for dumping log for debugging
+  attr_accessor :socket_sync            # Boolean value for Socket#sync
 
   # These parameters are not used now...
   attr_accessor :connect_timeout
@@ -849,6 +856,7 @@ class SessionManager	# :nodoc:
 
     @protocol_version = nil
     @debug_dev = nil
+    @socket_sync = true
     @chunk_size = 4096
 
     @connect_timeout = 60
@@ -914,6 +922,7 @@ private
     else
       sess = Session.new(dest, @agent_name, @from)
       sess.proxy = proxy
+      sess.socket_sync = @socket_sync
       sess.requested_version = @protocol_version if @protocol_version
       sess.connect_timeout = @connect_timeout
       sess.connect_retry = @connect_retry
@@ -1050,6 +1059,14 @@ class SSLSocketWrap
     @ssl_socket.flush
   end
 
+  def sync
+    @ssl_socket.sync
+  end
+
+  def sync=(sync)
+    @ssl_socket.sync = sync
+  end
+
 private
 
   def check_mask(value, mask)
@@ -1142,6 +1159,7 @@ class Session	# :nodoc:
   attr_reader :dest			# Destination site
   attr_reader :src			# Source site
   attr_accessor :proxy			# Proxy site
+  attr_accessor :socket_sync            # Boolean value for Socket#sync
 
   attr_accessor :requested_version	# Requested protocol version
 
@@ -1160,6 +1178,7 @@ class Session	# :nodoc:
     @dest = dest
     @src = Site.new
     @proxy = nil
+    @socket_sync = true
     @requested_version = nil
 
     @debug_dev = nil
@@ -1193,7 +1212,7 @@ class Session	# :nodoc:
 	set_header(req)
 	req.dump(@socket)
         # flush the IO stream as IO::sync mode is false
-        @socket.flush
+        @socket.flush unless @socket_sync
       end
     rescue Errno::ECONNABORTED
       close
@@ -1338,20 +1357,16 @@ private
           # to avoid IPSocket#addr problem on Mac OS X 10.3 + ruby-1.8.1.
           # cf. [ruby-talk:84909], [ruby-talk:95827]
         end
-	if @dest.scheme != 'https'
-          # Use Ruby internal buffering instead of passing data immediatly
-          # to the underlying layer
-          # => we need to to call explicitely flush on the socket
-          @socket.sync = false
-        else
-          # do not set raw_socket.sync = false to avoid a bug in 
-          # openssl/buffering.rb ('@wbuffer = ""' must be
-          # '@buffer[0, nwrote] = ""' at the end of the method do_write)
+	if @dest.scheme == 'https'
 	  @socket = create_ssl_socket(@socket)
 	  connect_ssl_proxy(@socket) if @proxy
 	  @socket.ssl_connect
 	  @socket.post_connection_check(@dest)
 	end
+        # Use Ruby internal buffering instead of passing data immediatly
+        # to the underlying layer
+        # => we need to to call explicitely flush on the socket
+        @socket.sync = @socket_sync
       end
     rescue TimeoutError
       if @connect_retry == 0
