@@ -37,6 +37,17 @@ module HTTPAccess2
   DEBUG_SSL = true
 
 
+module Util
+  def urify(uri)
+    if uri.is_a?(URI)
+      uri
+    else
+      URI.parse(uri.to_s)
+    end
+  end
+end
+
+
 # DESCRIPTION
 #   HTTPAccess2::Client -- Client to retrieve web resources via HTTP.
 #
@@ -65,6 +76,8 @@ module HTTPAccess2
 #     res = clnt.get|post|head(uri, proxy)
 #
 class Client
+  include Util
+
   attr_reader :agent_name
   attr_reader :from
   attr_reader :ssl_config
@@ -165,11 +178,7 @@ class Client
     if proxy.nil?
       @proxy = nil
     else
-      if proxy.is_a?(URI)
-        @proxy = proxy
-      else
-        @proxy = URI.parse(proxy)
-      end
+      @proxy = urify(proxy)
       if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
           @proxy.host == nil or @proxy.port == nil
         raise ArgumentError.new("unsupported proxy `#{proxy}'")
@@ -195,9 +204,7 @@ class Client
   end
 
   def set_basic_auth(uri, user_id, passwd)
-    unless uri.is_a?(URI)
-      uri = URI.parse(uri)
-    end
+    uri = urify(uri)
     @basic_auth.set(uri, user_id, passwd)
   end
 
@@ -245,10 +252,23 @@ class Client
     }.content
   end
 
-  def default_redirect_uri_callback(res)
-    uri = res.header['location'][0]
-    puts "Redirect to: #{uri}" if $DEBUG
-    uri
+  def strict_redirect_uri_callback(uri, res)
+    newuri = URI.parse(res.header['location'][0])
+    puts "Redirect to: #{newuri}" if $DEBUG
+    newuri
+  end
+
+  def default_redirect_uri_callback(uri, res)
+    newuri = URI.parse(res.header['location'][0])
+    unless newuri.is_a?(URI::HTTP)
+      newuri = uri + newuri
+      STDERR.puts(
+        "could be a relative URI in location header which is not recommended")
+      STDERR.puts(
+        "'The field value consists of a single absolute URI' in HTTP spec")
+    end
+    puts "Redirect to: #{newuri}" if $DEBUG
+    newuri
   end
 
   def head(uri, query = nil, extheader = {})
@@ -333,6 +353,7 @@ class Client
   # Management interface.
 
   def reset(uri)
+    uri = urify(uri)
     @session_manager.reset(uri)
   end
 
@@ -349,7 +370,7 @@ private
       if res.status == HTTP::Status::OK
         return res
       elsif HTTP::Status.redirect?(res.status)
-        uri = @redirect_uri_callback.call(res)
+        uri = @redirect_uri_callback.call(uri, res)
         query = nil
         retry_number += 1
       else
@@ -360,9 +381,7 @@ private
   end
 
   def conn_request(conn, method, uri, query, body, extheader, &block)
-    unless uri.is_a?(URI)
-      uri = URI.parse(uri)
-    end
+    uri = urify(uri)
     proxy = no_proxy?(uri) ? nil : @proxy
     begin
       req = create_request(method, uri, query, body, extheader, !proxy.nil?)
@@ -897,9 +916,6 @@ class SessionManager    # :nodoc:
   end
 
   def reset(uri)
-    unless uri.is_a?(URI)
-      uri = URI.parse(uri.to_s)
-    end
     site = Site.new(uri)
     close(site)
   end

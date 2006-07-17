@@ -127,7 +127,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("no ciphers available", ssle.message)
+      assert_equal("SSL_CTX_set_cipher_list:: no cipher match", ssle.message)
     end
     #
     cfg.ciphers = "ALL"
