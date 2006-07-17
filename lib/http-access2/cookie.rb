@@ -36,7 +36,7 @@ class WebAgent
       when '.' 
 	return true
       when /^\./
-	return tail_match?(domain, host)
+	return tail_match?(host, domain)
       else
 	return (host == domain)
       end
