@@ -1275,8 +1275,8 @@ class Session   # :nodoc:
   end
 
   def eof?
-    if @content_length == 0
-      true
+    if !@content_length.nil?
+      @content_length == 0
     elsif @readbuf.length > 0
       false
     else
