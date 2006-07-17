@@ -85,16 +85,16 @@ class Client
   #   Client.new(proxy = nil, agent_name = nil, from = nil)
   #
   # ARGS
-  #   proxy		A String of HTTP proxy URL. ex. "http://proxy:8080".
-  #   agent_name	A String for "User-Agent" HTTP request header.
-  #   from		A String for "From" HTTP request header.
+  #   proxy             A String of HTTP proxy URL. ex. "http://proxy:8080".
+  #   agent_name        A String for "User-Agent" HTTP request header.
+  #   from              A String for "From" HTTP request header.
   #
   # DESCRIPTION
   #   Create an instance.
   #   SSLConfig cannot be re-initialized.  Create new client.
   #
   def initialize(proxy = nil, agent_name = nil, from = nil)
-    @proxy = nil	# assigned later.
+    @proxy = nil        # assigned later.
     @no_proxy = nil
     @agent_name = agent_name
     @from = from
@@ -171,8 +171,8 @@ class Client
         @proxy = URI.parse(proxy)
       end
       if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
-	  @proxy.host == nil or @proxy.port == nil
-	raise ArgumentError.new("unsupported proxy `#{proxy}'")
+          @proxy.host == nil or @proxy.port == nil
+        raise ArgumentError.new("unsupported proxy `#{proxy}'")
       end
     end
     reset_all
@@ -221,15 +221,14 @@ class Client
   #   Client#get_content(uri, query = nil, extheader = {}, &block = nil)
   #
   # ARGS
-  #   uri	an_URI or a_string of uri to connect.
-  #   query	a_hash or an_array of query part.  e.g. { "a" => "b" }.
-  #   		Give an array to pass multiple value like
-  #   		[["a" => "b"], ["a" => "c"]].
-  #   extheader
-  #   		a_hash of extra headers like { "SOAPAction" => "urn:foo" }.
-  #   &block	Give a block to get chunked message-body of response like
-  #   		get_content(uri) { |chunked_body| ... }
-  #   		Size of each chunk may not be the same.
+  #   uri       an_URI or a_string of uri to connect.
+  #   query     a_hash or an_array of query part.  e.g. { "a" => "b" }.
+  #             Give an array to pass multiple value like
+  #             [["a" => "b"], ["a" => "c"]].
+  #   extheader a_hash of extra headers like { "SOAPAction" => "urn:foo" }.
+  #   &block    Give a block to get chunked message-body of response like
+  #             get_content(uri) { |chunked_body| ... }
+  #             Size of each chunk may not be the same.
   #
   # DESCRIPTION
   #   Get a_sring of message-body of response.
@@ -348,13 +347,13 @@ private
     while retry_number < 10
       res = yield(uri, query)
       if res.status == HTTP::Status::OK
-	return res.content
+        return res.content
       elsif HTTP::Status.redirect?(res.status)
-	uri = @redirect_uri_callback.call(res)
-	query = nil
-	retry_number += 1
+        uri = @redirect_uri_callback.call(res)
+        query = nil
+        retry_number += 1
       else
-	raise RuntimeError.new("Unexpected response: #{res.header.inspect}")
+        raise RuntimeError.new("Unexpected response: #{res.header.inspect}")
       end
     end
     raise RuntimeError.new("Retry count exceeded.")
@@ -413,8 +412,8 @@ private
     end
     @no_proxy.scan(/([^:,]+)(?::(\d+))?/) do |host, port|
       if /(\A|\.)#{Regexp.quote(host)}\z/i =~ uri.host &&
-	  (!port || uri.port == port.to_i)
-	return true
+          (!port || uri.port == port.to_i)
+        return true
       end
     end
     false
@@ -466,13 +465,13 @@ private
     res.version, res.status, res.reason = sess.get_status
     sess.get_header().each do |line|
       unless /^([^:]+)\s*:\s*(.*)$/ =~ line
-	raise RuntimeError.new("Unparsable header: '#{line}'.") if $DEBUG
+        raise RuntimeError.new("Unparsable header: '#{line}'.") if $DEBUG
       end
       res.header.set($1, $2)
     end
     if res.header['set-cookie']
       res.header['set-cookie'].each do |cookie|
-	@cookie_manager.parse(cookie, req.header.request_uri)
+        @cookie_manager.parse(cookie, req.header.request_uri)
       end
     end
   end
@@ -488,7 +487,7 @@ end
 
 # HTTPAccess2::SSLConfig -- SSL configuration of a client.
 #
-class SSLConfig	# :nodoc:
+class SSLConfig # :nodoc:
   attr_reader :client_cert
   attr_reader :client_key
   attr_reader :client_ca
@@ -501,7 +500,7 @@ class SSLConfig	# :nodoc:
   attr_reader :options
   attr_reader :ciphers
 
-  attr_reader :cert_store	# don't use if you don't know what it is.
+  attr_reader :cert_store       # don't use if you don't know what it is.
 
   def initialize(client)
     return unless SSLEnabled
@@ -671,20 +670,20 @@ class SSLConfig	# :nodoc:
     cert.extensions.each do |ex|
       case ex.oid
       when 'basicConstraints'
-	/CA:(TRUE|FALSE), pathlen:(\d+)/ =~ ex.value
-	ca = ($1 == 'TRUE')
-	pathlen = $2.to_i
+        /CA:(TRUE|FALSE), pathlen:(\d+)/ =~ ex.value
+        ca = ($1 == 'TRUE')
+        pathlen = $2.to_i
       when 'keyUsage'
-	usage = ex.value.split(/\s*,\s*/)
-	ca = usage.include?('Certificate Sign')
-	server_auth = usage.include?('Key Encipherment')
+        usage = ex.value.split(/\s*,\s*/)
+        ca = usage.include?('Certificate Sign')
+        server_auth = usage.include?('Key Encipherment')
       when 'extendedKeyUsage'
-	usage = ex.value.split(/\s*,\s*/)
-	server_auth = usage.include?('Netscape Server Gated Crypto')
+        usage = ex.value.split(/\s*,\s*/)
+        server_auth = usage.include?('Netscape Server Gated Crypto')
       when 'nsCertType'
-	usage = ex.value.split(/\s*,\s*/)
-	ca = usage.include?('SSL CA')
-	server_auth = usage.include?('SSL Server')
+        usage = ex.value.split(/\s*,\s*/)
+        ca = usage.include?('SSL CA')
+        server_auth = usage.include?('SSL Server')
       end
     end
 
@@ -712,7 +711,7 @@ end
 
 # HTTPAccess2::BasicAuth -- BasicAuth repository.
 #
-class BasicAuth	# :nodoc:
+class BasicAuth # :nodoc:
   def initialize(client)
     @client = client
     @auth = {}
@@ -728,10 +727,10 @@ class BasicAuth	# :nodoc:
   def get(uri)
     @auth.each do |realm_uri, cred|
       if ((realm_uri.host == uri.host) and
-	  (realm_uri.scheme == uri.scheme) and
-  	  (realm_uri.port == uri.port) and
-  	  uri.path.upcase.index(realm_uri.path.upcase) == 0)
-	return cred
+          (realm_uri.scheme == uri.scheme) and
+          (realm_uri.port == uri.port) and
+          uri.path.upcase.index(realm_uri.path.upcase) == 0)
+        return cred
       end
     end
     nil
@@ -741,7 +740,7 @@ end
 
 # HTTPAccess2::Site -- manage a site(host and port)
 #
-class Site	# :nodoc:
+class Site      # :nodoc:
   attr_accessor :scheme
   attr_accessor :host
   attr_reader :port
@@ -786,7 +785,7 @@ end
 
 # HTTPAccess2::Connection -- magage a connection(one request and response to it).
 #
-class Connection	# :nodoc:
+class Connection        # :nodoc:
   attr_accessor :async_thread
 
   def initialize(header_queue = [], body_queue = [])
@@ -830,18 +829,18 @@ end
 
 # HTTPAccess2::SessionManager -- manage several sessions.
 #
-class SessionManager	# :nodoc:
-  attr_accessor :agent_name	# Name of this client.
-  attr_accessor :from		# Owner of this client.
+class SessionManager    # :nodoc:
+  attr_accessor :agent_name     # Name of this client.
+  attr_accessor :from           # Owner of this client.
 
-  attr_accessor :protocol_version	# Requested protocol version
-  attr_accessor :chunk_size		# Chunk size for chunked request
-  attr_accessor :debug_dev		# Device for dumping log for debugging
+  attr_accessor :protocol_version       # Requested protocol version
+  attr_accessor :chunk_size             # Chunk size for chunked request
+  attr_accessor :debug_dev              # Device for dumping log for debugging
   attr_accessor :socket_sync            # Boolean value for Socket#sync
 
   # These parameters are not used now...
   attr_accessor :connect_timeout
-  attr_accessor :connect_retry		# Maximum retry count.  0 for infinite.
+  attr_accessor :connect_retry          # Maximum retry count.  0 for infinite.
   attr_accessor :send_timeout
   attr_accessor :receive_timeout
   attr_accessor :read_block_size
@@ -862,7 +861,7 @@ class SessionManager	# :nodoc:
     @connect_timeout = 60
     @connect_retry = 1
     @send_timeout = 120
-    @receive_timeout = 60	# For each read_block_size bytes
+    @receive_timeout = 60       # For each read_block_size bytes
     @read_block_size = 8192
 
     @ssl_config = nil
@@ -883,9 +882,9 @@ class SessionManager	# :nodoc:
     req.body.chunk_size = @chunk_size
     dest_site = Site.new(req.header.request_uri)
     proxy_site = if proxy
-  	Site.new(proxy)
+        Site.new(proxy)
       else
-	@proxy
+        @proxy
       end
     sess = open(dest_site, proxy_site)
     begin
@@ -956,11 +955,11 @@ private
     @sess_pool_mutex.synchronize do
       new_pool = []
       @sess_pool.each do |s|
-	if s.dest == dest
-	  cached = s
-	else
-	  new_pool << s
-	end
+        if s.dest == dest
+          cached = s
+        else
+          new_pool << s
+        end
       end
       @sess_pool = new_pool
     end
@@ -976,7 +975,7 @@ private
   def each_sess
     @sess_pool_mutex.synchronize do
       @sess_pool.each do |sess|
-	yield(sess)
+        yield(sess)
       end
     end
   end
@@ -1142,28 +1141,28 @@ end
 #   One or more TCP sessions with the site may be created.
 #   Only 1 TCP session is live at the same time.
 #
-class Session	# :nodoc:
+class Session   # :nodoc:
 
-  class Error < StandardError	# :nodoc:
+  class Error < StandardError   # :nodoc:
   end
 
-  class InvalidState < Error	# :nodoc:
+  class InvalidState < Error    # :nodoc:
   end
 
-  class BadResponse < Error	# :nodoc:
+  class BadResponse < Error     # :nodoc:
   end
 
-  class KeepAliveDisconnected < Error	# :nodoc:
+  class KeepAliveDisconnected < Error   # :nodoc:
   end
 
-  attr_reader :dest			# Destination site
-  attr_reader :src			# Source site
-  attr_accessor :proxy			# Proxy site
+  attr_reader :dest                     # Destination site
+  attr_reader :src                      # Source site
+  attr_accessor :proxy                  # Proxy site
   attr_accessor :socket_sync            # Boolean value for Socket#sync
 
-  attr_accessor :requested_version	# Requested protocol version
+  attr_accessor :requested_version      # Requested protocol version
 
-  attr_accessor :debug_dev		# Device for dumping log for debugging
+  attr_accessor :debug_dev              # Device for dumping log for debugging
 
   # These session parameters are not used now...
   attr_accessor :connect_timeout
@@ -1209,8 +1208,8 @@ class Session	# :nodoc:
     connect() if @state == :INIT
     begin
       timeout(@send_timeout) do
-	set_header(req)
-	req.dump(@socket)
+        set_header(req)
+        req.dump(@socket)
         # flush the IO stream as IO::sync mode is false
         @socket.flush unless @socket_sync
       end
@@ -1219,12 +1218,12 @@ class Session	# :nodoc:
       raise KeepAliveDisconnected.new
     rescue
       if SSLEnabled and $!.is_a?(OpenSSL::SSL::SSLError)
-	raise KeepAliveDisconnected.new
+        raise KeepAliveDisconnected.new
       elsif $!.is_a?(TimeoutError)
-	close
-	raise
+        close
+        raise
       else
-	raise
+        raise
       end
     end
 
@@ -1249,7 +1248,7 @@ class Session	# :nodoc:
     version = status = reason = nil
     begin
       if @state != :META
-	raise RuntimeError.new("get_status must be called at the beginning of a session.")
+        raise RuntimeError.new("get_status must be called at the beginning of a session.")
       end
       version, status, reason = read_header()
     rescue
@@ -1268,7 +1267,7 @@ class Session	# :nodoc:
     end
     if block
       @headers.each do |line|
-	block.call(line)
+        block.call(line)
       end
     else
       @headers
@@ -1290,29 +1289,29 @@ class Session	# :nodoc:
       read_header() if @state == :META
       return nil if @state != :DATA
       unless @state == :DATA
-	raise InvalidState.new('state != DATA')
+        raise InvalidState.new('state != DATA')
       end
       data = nil
       if block
-	until eof?
-	  begin
-	    timeout(@receive_timeout) do
-	      data = read_body()
-	    end
-	  rescue TimeoutError
-	    raise
-	  end
-	  block.call(data) if data
-	end
-	data = nil	# Calling with block returns nil.
+        until eof?
+          begin
+            timeout(@receive_timeout) do
+              data = read_body()
+            end
+          rescue TimeoutError
+            raise
+          end
+          block.call(data) if data
+        end
+        data = nil      # Calling with block returns nil.
       else
-	begin
-	  timeout(@receive_timeout) do
-	    data = read_body()
-	  end
-	rescue TimeoutError
-	  raise
-	end
+        begin
+          timeout(@receive_timeout) do
+            data = read_body()
+          end
+        rescue TimeoutError
+          raise
+        end
       end
     rescue
       close
@@ -1320,9 +1319,9 @@ class Session	# :nodoc:
     end
     if eof?
       if @next_connection
-	@state = :WAIT
+        @state = :WAIT
       else
-	close
+        close
       end
     end
     data
@@ -1349,7 +1348,7 @@ private
     begin
       retry_number = 0
       timeout(@connect_timeout) do
-	@socket = create_socket(site)
+        @socket = create_socket(site)
         begin
           @src.host = @socket.addr[3]
           @src.port = @socket.addr[1]
@@ -1357,12 +1356,12 @@ private
           # to avoid IPSocket#addr problem on Mac OS X 10.3 + ruby-1.8.1.
           # cf. [ruby-talk:84909], [ruby-talk:95827]
         end
-	if @dest.scheme == 'https'
-	  @socket = create_ssl_socket(@socket)
-	  connect_ssl_proxy(@socket) if @proxy
-	  @socket.ssl_connect
-	  @socket.post_connection_check(@dest)
-	end
+        if @dest.scheme == 'https'
+          @socket = create_ssl_socket(@socket)
+          connect_ssl_proxy(@socket) if @proxy
+          @socket.ssl_connect
+          @socket.post_connection_check(@dest)
+        end
         # Use Ruby internal buffering instead of passing data immediatly
         # to the underlying layer
         # => we need to to call explicitely flush on the socket
@@ -1370,10 +1369,10 @@ private
       end
     rescue TimeoutError
       if @connect_retry == 0
-	retry
+        retry
       else
-	retry_number += 1
-	retry if retry_number < @connect_retry
+        retry_number += 1
+        retry if retry_number < @connect_retry
       end
       close
       raise
@@ -1385,7 +1384,7 @@ private
 
   def create_socket(site)
     begin
-      if @debug_dev	
+      if @debug_dev
         DebugSocket.create_socket(site.host, site.port, @debug_dev)
       else
         TCPSocket.new(site.host, site.port)
@@ -1406,7 +1405,7 @@ private
     parse_header(socket)
     unless @status == 200
       raise BadResponse.new(
-	"connect to ssl proxy failed with status #{@status} #{@reason}")
+        "connect to ssl proxy failed with status #{@status} #{@reason}")
     end
   end
 
@@ -1425,20 +1424,20 @@ private
     @headers.each do |line|
       case line
       when /^Content-Length:\s+(\d+)/i
-	@content_length = $1.to_i
+        @content_length = $1.to_i
       when /^Transfer-Encoding:\s+chunked/i
-	@chunked = true
-	@content_length = true  # how?
-	@chunk_length = 0
+        @chunked = true
+        @content_length = true  # how?
+        @chunk_length = 0
       when /^Connection:\s+([\-\w]+)/i, /^Proxy-Connection:\s+([\-\w]+)/i
-	case $1
-	when /^Keep-Alive$/i
-	  @next_connection = true
-	when /^close$/i
-	  @next_connection = false
-	end
+        case $1
+        when /^Keep-Alive$/i
+          @next_connection = true
+        when /^close$/i
+          @next_connection = false
+        end
       else
-	# Nothing to parse.
+        # Nothing to parse.
       end
     end
 
@@ -1462,12 +1461,12 @@ private
   def parse_header(socket)
     begin
       timeout(@receive_timeout) do
-	begin
+        begin
           initial_line = socket.gets("\n")
-	  if initial_line.nil?
-	    raise KeepAliveDisconnected.new
-	  end
-	  if StatusParseRegexp =~ initial_line
+          if initial_line.nil?
+            raise KeepAliveDisconnected.new
+          end
+          if StatusParseRegexp =~ initial_line
             @version, @status, @reason = $1, $2.to_i, $3
             @next_connection = HTTP.keep_alive_enabled?(@version)
           else
@@ -1478,21 +1477,21 @@ private
             @readbuf = initial_line
             break
           end
-	  @headers = []
+          @headers = []
           while true
             line = socket.gets("\n")
-	    unless line
-	      raise BadResponse.new('Unexpected EOF.')
-	    end
+            unless line
+              raise BadResponse.new('Unexpected EOF.')
+            end
             line.sub!(/\r?\n\z/, '')
             break if line.empty?
-	    if line.sub!(/^\t/, '')
-      	      @headers[-1] << line
-	    else
-      	      @headers.push(line)
-      	    end
-	  end
-	end while (@version == '1.1' && @status == 100)
+            if line.sub!(/^\t/, '')
+              @headers[-1] << line
+            else
+              @headers.push(line)
+            end
+          end
+        end while (@version == '1.1' && @status == 100)
       end
     rescue TimeoutError
       raise
@@ -1508,13 +1507,13 @@ private
       return read_body_length()
     else
       if @readbuf.length > 0
-	data = @readbuf
-	@readbuf = ''
-	return data
+        data = @readbuf
+        @readbuf = ''
+        return data
       else
-	data = @socket.read(@read_block_size)
-	data = nil if data.empty?	# Absorbing interface mismatch.
-	return data
+        data = @socket.read(@read_block_size)
+        data = nil if data.empty?       # Absorbing interface mismatch.
+        return data
       end
     end
   end
@@ -1543,16 +1542,16 @@ private
   def read_body_chunked
     if @chunk_length == 0
       until (i = @readbuf.index(RS))
-	@readbuf << @socket.gets(RS)
+        @readbuf << @socket.gets(RS)
       end
       i += 2
       if @readbuf[0, i] == ChunkDelimiter
-	@content_length = 0
-	unless @readbuf[0, 5] == ChunkTrailer
-	  @readbuf << @socket.gets(RS)
-	end
-	@readbuf[0, 5] = ''
-	return nil
+        @content_length = 0
+        unless @readbuf[0, 5] == ChunkTrailer
+          @readbuf << @socket.gets(RS)
+        end
+        @readbuf[0, 5] = ''
+        return nil
       end
       @chunk_length = @readbuf[0, i].hex
       @readbuf[0, i] = ''
@@ -1569,13 +1568,13 @@ private
   def check_state
     if @state == :DATA
       if eof?
-	if @next_connection
-	  if @requests.empty?
-	    @state = :WAIT
-	  else
-	    @state = :META
-	  end
-	end
+        if @next_connection
+          if @requests.empty?
+            @state = :WAIT
+          else
+            @state = :META
+          end
+        end
       end
     end
   end
