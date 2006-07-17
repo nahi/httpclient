@@ -1355,7 +1355,7 @@ private
     if @from
       req.header.set('From', @from)
     end
-    req.header.set('Date', Time.now)
+    req.header.set('Date', HTTP.http_date(Time.now))
   end
 
   # Connect to the server
