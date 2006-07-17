@@ -872,7 +872,7 @@ class SessionManager    # :nodoc:
 
   def proxy=(proxy)
     if proxy.nil?
-      @proxy = nil 
+      @proxy = nil
     else
       @proxy = Site.new(proxy)
     end
@@ -1103,7 +1103,7 @@ class DebugSocket < TCPSocket
 
     private :new
   end
-  
+
   def initialize(*args)
     super
     @debug_dev = nil
@@ -1448,7 +1448,7 @@ private
     if req.header.request_method == 'HEAD'
       @content_length = 0
       if @next_connection
-        @state = :WAIT 
+        @state = :WAIT
       else
         close
       end
