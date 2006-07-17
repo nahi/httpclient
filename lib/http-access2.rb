@@ -1457,7 +1457,7 @@ private
     return [@version, @status, @reason]
   end
 
-  StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d+)(?:\s+(.*))?\r?\n\z)
+  StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d+)(?:\s+([^\r\n]+))?\r?\n\z)
   def parse_header(socket)
     begin
       timeout(@receive_timeout) do
