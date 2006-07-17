@@ -234,15 +234,15 @@ class Client
   #   Get a_sring of message-body of response.
   #
   def get_content(uri, query = nil, extheader = {}, &block)
-    retry_connect(uri, query) do |uri, query|
+    retry_connect(uri, query) { |uri, query|
       get(uri, query, extheader, &block)
-    end
+    }.content
   end
 
   def post_content(uri, body = nil, extheader = {}, &block)
-    retry_connect(uri, nil) do |uri, query|
+    retry_connect(uri, nil) { |uri, query|
       post(uri, body, extheader, &block)
-    end
+    }.content
   end
 
   def default_redirect_uri_callback(res)
@@ -347,7 +347,7 @@ private
     while retry_number < 10
       res = yield(uri, query)
       if res.status == HTTP::Status::OK
-        return res.content
+        return res
       elsif HTTP::Status.redirect?(res.status)
         uri = @redirect_uri_callback.call(res)
         query = nil
