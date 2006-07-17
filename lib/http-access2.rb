@@ -1229,7 +1229,7 @@ class Session   # :nodoc:
         # flush the IO stream as IO::sync mode is false
         @socket.flush unless @socket_sync
       end
-    rescue Errno::ECONNABORTED
+    rescue Errno::ECONNABORTED, Errno::ECONNRESET
       close
       raise KeepAliveDisconnected.new
     rescue
@@ -1249,9 +1249,9 @@ class Session   # :nodoc:
   end
 
   def close
-    unless @socket.nil?
+    if !@socket.nil? and !@socket.closed?
       @socket.flush
-      @socket.close unless @socket.closed?
+      @socket.close
     end
     @state = :INIT
   end
