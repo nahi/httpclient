@@ -451,6 +451,16 @@ class Message
   end
 
   class << self
+    @@mime_type_func = nil
+
+    def set_mime_type_func(val)
+      @@mime_type_func = val
+    end
+
+    def get_mime_type_func
+      @@mime_type_func
+    end
+
     def create_query_part_str(query)
       if multiparam_query?(query)
 	escape_query(query)
@@ -463,9 +473,10 @@ class Message
       if multiparam_query?(query)
         query.collect { |attr, value|
           value ||= ''
+          extra_content_disposition = content_type = content = nil
           if value.is_a? File
             params = {
-              'filename' => value.path,
+              'filename' => File.basename(value.path),
               # Creation time is not available from File::Stat
               # 'creation-date' => value.ctime.rfc822,
               'modification-date' => value.mtime.rfc822,
@@ -474,15 +485,21 @@ class Message
             param_str = params.to_a.collect { |k, v|
               "#{k}=\"#{v}\""
             }.join("; ")
-            "--#{boundary}\n" +
-              %{Content-Disposition: form-data; name="#{attr.to_s}"; #{param_str}\n} +
-              "Content-Type: #{mime_type(value.path)}\n\n#{value.read}\n"
+            extra_content_disposition = " #{param_str}"
+            content_type = mime_type(value.path)
+            content = value.read
           else
-            "--#{boundary}\n" +
-              %{Content-Disposition: form-data; name="#{attr.to_s}"\n} +
-              "\n#{value.to_s}\n"
+            extra_content_disposition = ''
+            content_type = mime_type(nil)
+            content = value.to_s
           end
-        }.join('') + "--#{boundary}--\n"
+          "--#{boundary}" + CRLF +
+            %{Content-Disposition: form-data; name="#{attr.to_s}";} +
+              extra_content_disposition + CRLF +
+            "Content-Type: " + content_type + CRLF +
+            CRLF +
+            content + CRLF
+        }.join('') + "--#{boundary}--" + CRLF
       else
         query.to_s
       end
@@ -506,13 +523,34 @@ class Message
     end
 
     def mime_type(path)
-      case path
-      when /.(htm|html)$/
-        'text/html'
-      when /.doc$/
-        'application/msword'
+      if @@mime_type_func
+        res = @@mime_type_func.call(path)
+        if !res || res.to_s == ''
+          return 'application/octet-stream'
+        else
+          return res
+        end
       else
+        internal_mime_type(path)
+      end
+    end
+
+    def internal_mime_type(path)
+      case path
+      when /\.txt$/i
         'text/plain'
+      when /\.(htm|html)$/i
+        'text/html'
+      when /\.doc$/i
+        'application/msword'
+      when /\.png$/i
+        'image/png'
+      when /\.gif$/i
+        'image/gif'
+      when /\.(jpg|jpeg)$/i
+        'image/jpeg'
+      else
+        'application/octet-stream'
       end
     end
   end
