@@ -108,6 +108,7 @@ class Client
   #
   def initialize(proxy = nil, agent_name = nil, from = nil)
     @proxy = nil        # assigned later.
+    @proxy_auth = nil
     @no_proxy = nil
     @agent_name = agent_name
     @from = from
@@ -183,6 +184,7 @@ class Client
           @proxy.host == nil or @proxy.port == nil
         raise ArgumentError.new("unsupported proxy `#{proxy}'")
       end
+      @proxy_auth = [@proxy.user, @proxy.password]
     end
     reset_all
     @proxy
@@ -395,6 +397,10 @@ private
   def create_request(method, uri, query, body, extheader, proxy)
     if extheader.is_a?(Hash)
       extheader = extheader.to_a
+    end
+    if @proxy_auth
+      proxy_cred = ["#{@proxy_auth[0]}:#{@proxy_auth[1]}"].pack('m').strip
+      extheader << ['Proxy-Authorization', "Basic " << proxy_cred]
     end
     cred = @basic_auth.get(uri)
     if cred
