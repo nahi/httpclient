@@ -176,10 +176,9 @@ class Client
   end
 
   def proxy=(proxy)
-    if proxy.nil?
-      @proxy = nil
-      @proxy_auth = nil
-    else
+    @proxy = nil
+    @proxy_auth = nil
+    unless @proxy.nil?
       @proxy = urify(proxy)
       if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
           @proxy.host == nil or @proxy.port == nil

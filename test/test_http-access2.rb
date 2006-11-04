@@ -395,6 +395,20 @@ class TestClient < Test::Unit::TestCase
     assert_equal('hello', @client.get_content(@url + 'sleep?sec=2'))
   end
 
+  def test_cookies
+    cookiefile = File.join(File.dirname(File.expand_path(__FILE__)),
+      'test_cookies_file')
+    # from [ruby-talk:164079]
+    File.open(cookiefile, "wb") do |f|
+      f << "http://rubyforge.org//account/login.php	session_ser	LjEwMy45Ni40Ni0q%2A-fa0537de8cc31	1131676286	.rubyforge.org	/	13\n"
+    end
+    cm = WebAgent::CookieManager::new(cookiefile)
+    cm.load_cookies
+    cookie = cm.cookies.first
+    url = cookie.url
+    assert(cookie.domain_match(url.host, cookie.domain))
+  end
+
 private
 
   def check_query_get(query)
