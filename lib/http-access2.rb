@@ -185,7 +185,9 @@ class Client
           @proxy.host == nil or @proxy.port == nil
         raise ArgumentError.new("unsupported proxy `#{proxy}'")
       end
-      @proxy_auth = [@proxy.user, @proxy.password]
+      if @proxy.user || @proxy.password
+        @proxy_auth = [@proxy.user, @proxy.password]
+      end
     end
     reset_all
     @proxy
