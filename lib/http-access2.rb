@@ -656,8 +656,9 @@ class SSLConfig # :nodoc:
     }
     if check_common_name
       cert.subject.to_a.each{|oid, value|
-        if oid == "CN" && value.casecmp(hostname) == 0
-          return true
+        if oid == "CN"
+          reg = Regexp.escape(value).gsub(/\\\*/, "[^.]+")
+          return true if /\A#{reg}\z/i =~ hostname
         end
       }
     end
@@ -1037,8 +1038,9 @@ class SSLSocketWrap
     hostname = host.host
     if @ssl_socket.respond_to?(:post_connection_check)
       @ssl_socket.post_connection_check(hostname)
+    else
+      @context.post_connection_check(@ssl_socket.peer_cert, hostname)
     end
-    @context.post_connection_check(@ssl_socket.peer_cert, hostname)
   end
 
   def peer_cert
