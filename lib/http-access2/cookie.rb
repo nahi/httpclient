@@ -36,7 +36,7 @@ class WebAgent
       when '.' 
 	return true
       when /^\./
-	return tail_match?(host, domain)
+	return tail_match?(domain, host)
       else
 	return (host == domain)
       end
@@ -339,18 +339,20 @@ class WebAgent
 	  domain = '.'+domain
 	end
 
-	n = total_dot_num(domain)
-	if n < 2
-	  cookie_error(SpecialError.new(), override)
-	elsif @netscape_rule and n == 2
-          ## [NETSCAPE] rule
-	  ok = SPECIAL_DOMAIN.select{|sdomain|
-	    sdomain == domain[-(sdomain.length)..-1]
-	  }
-	  if ok.empty?
-	    cookie_error(SpecialError.new(), override)
-	  end
-	end
+        if @netscape_rule
+          n = total_dot_num(domain)
+          if n < 2
+            cookie_error(SpecialError.new(), override)
+          elsif n == 2
+            ## [NETSCAPE] rule
+            ok = SPECIAL_DOMAIN.select{|sdomain|
+              sdomain == domain[-(sdomain.length)..-1]
+            }
+            if ok.empty?
+              cookie_error(SpecialError.new(), override)
+            end
+          end
+        end
 
       end
 
