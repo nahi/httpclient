@@ -1260,7 +1260,7 @@ class Session   # :nodoc:
 
   def close
     if !@socket.nil? and !@socket.closed?
-      @socket.flush
+      @socket.flush rescue nil  # try to rescue OpenSSL::SSL::SSLError: cf. #120
       @socket.close
     end
     @state = :INIT
