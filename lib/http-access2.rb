@@ -176,14 +176,16 @@ class Client
   end
 
   def proxy=(proxy)
-    @proxy = nil
-    @proxy_auth = nil
-    unless @proxy.nil?
+    if proxy.nil?
+      @proxy = nil
+      @proxy_auth = nil
+    else
       @proxy = urify(proxy)
       if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
           @proxy.host == nil or @proxy.port == nil
         raise ArgumentError.new("unsupported proxy `#{proxy}'")
       end
+      @proxy_auth = nil
       if @proxy.user || @proxy.password
         @proxy_auth = [@proxy.user, @proxy.password]
       end
@@ -1561,24 +1563,19 @@ private
   end
 
   RS = "\r\n"
-  ChunkDelimiter = "0#{RS}"
-  ChunkTrailer = "0#{RS}#{RS}"
   def read_body_chunked
     if @chunk_length == 0
       until (i = @readbuf.index(RS))
         @readbuf << @socket.gets(RS)
       end
       i += 2
-      if @readbuf[0, i] == ChunkDelimiter
-        @content_length = 0
-        unless @readbuf[0, 5] == ChunkTrailer
-          @readbuf << @socket.gets(RS)
-        end
-        @readbuf[0, 5] = ''
-        return nil
-      end
       @chunk_length = @readbuf[0, i].hex
       @readbuf[0, i] = ''
+      if @chunk_length == 0
+        @content_length = 0
+        @socket.gets(RS)
+        return nil
+      end
     end
     while @readbuf.length < @chunk_length + 2
       @readbuf << @socket.read(@chunk_length + 2 - @readbuf.length)
