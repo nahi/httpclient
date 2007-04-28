@@ -230,7 +230,7 @@ class Message
     end
 
     def set_header
-      if defined?(Apache)
+      if defined?(Apache) && !self['Date']
 	set('Date', HTTP.http_date(Time.now))
       end
 
