@@ -355,8 +355,12 @@ class Message
     end
   end
 
+  attr_reader :header
+  attr_reader :body
+  attr_accessor :peer_cert
+
   def initialize
-    @body = @header = nil
+    @body = @header = @peer_cert = nil
   end
 
   class << self
@@ -396,10 +400,6 @@ class Message
     end
   end
 
-  def header
-    @header
-  end
-
   def header=(header)
     @header = header
     sync_body
@@ -407,10 +407,6 @@ class Message
 
   def content
     @body.content
-  end
-
-  def body
-    @body
   end
 
   def body=(body)

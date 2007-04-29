@@ -11,10 +11,11 @@ if ENV['HTTP_PROXY']
 else
   h = HTTPAccess2::Client.new()
 end
-  
+
 while urlstr = ARGV.shift
   response = h.get(urlstr){ |data|
     print data
   }
   p response.contenttype
+  p response.peer_cert if /^https/i =~ urlstr
 end

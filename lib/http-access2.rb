@@ -76,6 +76,29 @@ end
 #     res = clnt.get|post|head(uri, proxy)
 #
 class Client
+  # requires openssl
+  DIST_CERT = <<__DIST_CERT__
+-----BEGIN CERTIFICATE-----
+MIIC/jCCAmegAwIBAgIBADANBgkqhkiG9w0BAQUFADBNMQswCQYDVQQGEwJKUDER
+MA8GA1UECgwIY3Rvci5vcmcxFDASBgNVBAsMC0RldmVsb3BtZW50MRUwEwYDVQQD
+DAxodHRwLWFjY2VzczIwHhcNMDcwNDI4MjM1NTI0WhcNMDkwNDI3MjM1NTI0WjBN
+MQswCQYDVQQGEwJKUDERMA8GA1UECgwIY3Rvci5vcmcxFDASBgNVBAsMC0RldmVs
+b3BtZW50MRUwEwYDVQQDDAxodHRwLWFjY2VzczIwgZ8wDQYJKoZIhvcNAQEBBQAD
+gY0AMIGJAoGBALi66ujWtUCQm5HpMSyr/AAIFYVXC/dmn7C8TR/HMiUuW3waY4uX
+LFqCDAGOX4gf177pX+b99t3mpaiAjJuqc858D9xEECzhDWgXdLbhRqWhUOble4RY
+c1yWYC990IgXJDMKx7VAuZ3cBhdBxtlE9sb1ZCzmHQsvTy/OoRzcJCrTAgMBAAGj
+ge0wgeowDwYDVR0TAQH/BAUwAwEB/zAxBglghkgBhvhCAQ0EJBYiUnVieS9PcGVu
+U1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQUJNE0GGaRKmN2qhnO
+FyBWVl4Qj6owDgYDVR0PAQH/BAQDAgEGMHUGA1UdIwRuMGyAFCTRNBhmkSpjdqoZ
+zhcgVlZeEI+qoVGkTzBNMQswCQYDVQQGEwJKUDERMA8GA1UECgwIY3Rvci5vcmcx
+FDASBgNVBAsMC0RldmVsb3BtZW50MRUwEwYDVQQDDAxodHRwLWFjY2VzczKCAQAw
+DQYJKoZIhvcNAQEFBQADgYEAcBAe+z1vn9CnrN8zZkb+mN1Uw3S0vUeebHtlXNUa
+orzaGDx5uOiisUyAgTAlnDYQJ0i5M2tQVCAazicAo1dbEM+F2pvhJfRrDJic+rR+
+tmZsdMCfuxCsy8gnYUT9PXbO/RMz7nvXZqxAcW5Ks1Stv0cTVjxL5IjCkfvAr/fj
+XQ0=
+-----END CERTIFICATE-----
+__DIST_CERT__
+
   include Util
 
   attr_reader :agent_name
@@ -114,13 +137,12 @@ class Client
     @from = from
     @basic_auth = BasicAuth.new(self)
     @debug_dev = nil
-    @ssl_config = SSLConfig.new(self)
     @redirect_uri_callback = method(:default_redirect_uri_callback)
     @test_loopback_response = []
     @session_manager = SessionManager.new
     @session_manager.agent_name = @agent_name
     @session_manager.from = @from
-    @session_manager.ssl_config = @ssl_config
+    @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
     @cookie_manager = WebAgent::CookieManager.new
     self.proxy = proxy
   end
@@ -460,6 +482,7 @@ private
     res = HTTP::Message.new_response(content)
     @debug_dev << "= Request\n\n" if @debug_dev
     sess = @session_manager.query(req, proxy)
+    res.peer_cert = sess.ssl_peer_cert
     @debug_dev << "\n\n= Response\n\n" if @debug_dev
     do_get_header(req, res, sess)
     conn.push(res)
@@ -480,6 +503,7 @@ private
     res = HTTP::Message.new_response(piper)
     @debug_dev << "= Request\n\n" if @debug_dev
     sess = @session_manager.query(req, proxy)
+    res.peer_cert = sess.ssl_peer_cert
     @debug_dev << "\n\n= Response\n\n" if @debug_dev
     do_get_header(req, res, sess)
     conn.push(res)
@@ -545,6 +569,7 @@ class SSLConfig # :nodoc:
     @options = defined?(OpenSSL::SSL::OP_ALL) ?
       OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2 : nil
     @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"
+    load_cacerts
   end
 
   def set_client_cert_file(cert_file, key_file)
@@ -735,6 +760,22 @@ private
 
   def change_notify
     @client.reset_all
+  end
+
+  def load_cacerts
+    file = File.join(File.dirname(__FILE__), 'http-access2', 'cacert.p7s')
+    if File.exist?(file)
+      require 'openssl'
+      p7 = OpenSSL::PKCS7.read_smime(File.open(file) { |f| f.read })
+      selfcert = OpenSSL::X509::Certificate.new(Client::DIST_CERT)
+      store = OpenSSL::X509::Store.new
+      store.add_cert(selfcert)
+      if (p7.verify(nil, store, p7.data, 0))
+        set_trust_ca(file)
+      else
+        STDERR.puts("cacerts: #{file} loading failed")
+      end
+    end
   end
 end
 
@@ -1200,6 +1241,7 @@ class Session   # :nodoc:
   attr_accessor :read_block_size
 
   attr_accessor :ssl_config
+  attr_reader :ssl_peer_cert
 
   def initialize(dest, user_agent, from)
     @dest = dest
@@ -1217,6 +1259,7 @@ class Session   # :nodoc:
     @read_block_size = nil
 
     @ssl_config = nil
+    @ssl_peer_cert = nil
 
     @user_agent = user_agent
     @from = from
@@ -1389,6 +1432,7 @@ private
           connect_ssl_proxy(@socket) if @proxy
           @socket.ssl_connect
           @socket.post_connection_check(@dest)
+          @ssl_peer_cert = @socket.peer_cert
         end
         # Use Ruby internal buffering instead of passing data immediatly
         # to the underlying layer
