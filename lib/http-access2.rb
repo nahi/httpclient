@@ -789,7 +789,7 @@ class BasicAuth # :nodoc:
   def set(uri, user_id, passwd)
     uri = uri.clone
     uri.path = uri.path.sub(/\/[^\/]*$/, '/')
-    @auth[uri] = ["#{user_id}:#{passwd}"].pack('m').strip
+    @auth[uri] = ["#{user_id}:#{passwd}"].pack('m').tr("\n", '')
     @client.reset_all
   end
 
@@ -1460,6 +1460,9 @@ private
         TCPSocket.new(site.host, site.port)
       end
     rescue SystemCallError => e
+      e.message << " (#{site.host}, ##{site.port})"
+      raise
+    rescue SocketError => e
       e.message << " (#{site.host}, ##{site.port})"
       raise
     end
