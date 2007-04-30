@@ -1362,7 +1362,7 @@ class Session   # :nodoc:
       end
       data = nil
       if block
-        until eof?
+        while true
           begin
             timeout(@receive_timeout) do
               data = read_body()
@@ -1371,6 +1371,7 @@ class Session   # :nodoc:
             raise
           end
           block.call(data) if data
+          break if eof?
         end
         data = nil      # Calling with block returns nil.
       else
