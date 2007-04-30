@@ -4,8 +4,8 @@
 require 'rubygems'
 HTTPACCESS2_SPEC = Gem::Specification.new do |s|
   s.name = "http-access"
-  s.version = "2.0.6.99.20070429"
-  s.date = "2007-04-29"
+  s.version = "2.0.6.99.20070430"
+  s.date = "2007-04-30"
   s.author = "NAKAMURA, Hiroshi"
   s.email = "nahi@ruby-lang.org"
   s.homepage = "http://dev.ctor.org/http-access2"

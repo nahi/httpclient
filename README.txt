@@ -1,5 +1,5 @@
 http-access2 - HTTP accessing library.
-Copyright (C) 2000-2005  NAKAMURA, Hiroshi  <nakahiro@sarion.co.jp>.
+Copyright (C) 2000-2007  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
 This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 redistribute it and/or modify it under the same terms of Ruby's license;
@@ -53,7 +53,7 @@ thanks to Maehashi-san.
 - Author
 
   Name: NAKAMURA, Hiroshi
-  E-mail: nakahiro@sarion.co.jp
+  E-mail: nahi@ruby-lang.org
 
 
 - Changes
