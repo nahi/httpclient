@@ -36,7 +36,8 @@ class WebAgent
       when '.' 
 	return true
       when /^\./
-	return tail_match?(domain, host)
+        # allows; host == rubyforge.org, domain == .rubyforge.org
+	return tail_match?(domain, host) || (domain == '.' + host)
       else
 	return (host == domain)
       end
