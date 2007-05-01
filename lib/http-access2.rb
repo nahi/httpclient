@@ -555,6 +555,11 @@ class SSLConfig # :nodoc:
     change_notify
   end
 
+  def clear_cert_store
+    @cert_store = OpenSSL::X509::Store.new
+    change_notify
+  end
+
   def set_trust_ca(trust_ca_file_or_hashed_dir)
     if FileTest.directory?(trust_ca_file_or_hashed_dir)
       @cert_store.add_path(trust_ca_file_or_hashed_dir)
