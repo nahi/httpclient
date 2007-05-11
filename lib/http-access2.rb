@@ -1591,7 +1591,7 @@ private
         return data
       else
         data = @socket.read(@read_block_size)
-        data = nil if data.empty?       # Absorbing interface mismatch.
+        data = nil if data and data.empty?       # Absorbing interface mismatch.
         return data
       end
     end
