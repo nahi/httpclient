@@ -58,6 +58,39 @@ thanks to Maehashi-san.
 
 - Changes
 
+  May 13, 2007 - version 2.0.7
+
+    * HTTP
+      * added proxyauth support. (#6)
+      * let developer allow to rescue a redirect with relative URI. (#28)
+      * changed last-chunk condition statement to allow "0000\r\n" marker from
+        WebLogic Server 7.0 SP5 instead of "0\r\n". (#30)
+      * fixed multipart form submit. (#29, #116)
+      * use http_date format as a date in a request header. (#35)
+      * avoid duplicated Date header when running under mod_ruby. (#127)
+      * reason phrase in Message#reason contains \r. (#122)
+      * trim "\n"s in base64 encoded BasicAuth value for interoperability.
+        (#149)
+      * let retry_connect return a Message not a content. (#119)
+      * rescue SocketError and dump a message when a wrong address given. (#152)
+
+    * HTTP-Cookies
+      * changed "domain" parameter matching condition statement to allow
+        followings; (#24, #32, #118, #147)
+        * [host, domain] = [rubyforge.com, .rubyforge.com]
+        * [host, domain] = [reddit.com, reddit.com]
+
+    * SSL
+      * bundles CA certificates as trust anchors.
+      * allow user to get peer_cert. (#117, #123)
+      * added wildcard certificate support. (#151)
+      * SSL + HTTP keep-alive + long wait causes uncaught exception.  fixed.
+        (#120)
+
+    * Connection
+      * fixed a loop condition bug that caused intermittent empty response.
+        (#150, #26, #125)
+
   September 16, 2005 - version 2.0.6
 
     * HTTP
