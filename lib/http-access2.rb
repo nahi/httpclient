@@ -470,27 +470,6 @@ private
     @session_manager.keep(sess) unless sess.closed?
   end
 
-  def do_get_stream(req, proxy, conn)
-    if str = @test_loopback_response.shift
-      dump_dummy_request_response(req.body.dump, str) if @debug_dev
-      conn.push(HTTP::Message.new_response(str))
-      return
-    end
-    piper, pipew = IO.pipe
-    res = HTTP::Message.new_response(piper)
-    @debug_dev << "= Request\n\n" if @debug_dev
-    sess = @session_manager.query(req, proxy)
-    res.peer_cert = sess.ssl_peer_cert
-    @debug_dev << "\n\n= Response\n\n" if @debug_dev
-    do_get_header(req, res, sess)
-    conn.push(res)
-    sess.get_data() do |str|
-      pipew.syswrite(str)
-    end
-    pipew.close
-    @session_manager.keep(sess) unless sess.closed?
-  end
-
   def do_get_header(req, res, sess)
     res.version, res.status, res.reason = sess.get_status
     sess.get_header().each do |line|
@@ -821,10 +800,12 @@ class Site      # :nodoc:
 
   def initialize(uri = nil)
     if uri
+      @uri = uri
       @scheme = uri.scheme
       @host = uri.host
       @port = uri.port.to_i
     else
+      @uri = nil
       @scheme = 'tcp'
       @host = '0.0.0.0'
       @port = 0
@@ -852,7 +833,7 @@ class Site      # :nodoc:
   end
 
   def inspect
-    sprintf("#<%s:0x%x %s>", self.class.name, __id__, addr)
+    sprintf("#<%s:0x%x %s>", self.class.name, __id__, @uri || addr)
   end
 end
 
@@ -1466,10 +1447,10 @@ private
         TCPSocket.new(site.host, site.port)
       end
     rescue SystemCallError => e
-      e.message << " (#{site.host}, ##{site.port})"
+      e.message << " (#{site})"
       raise
     rescue SocketError => e
-      e.message << " (#{site.host}, ##{site.port})"
+      e.message << " (#{site})"
       raise
     end
   end

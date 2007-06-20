@@ -267,8 +267,8 @@ class Message
     end
 
     def create_query_uri(uri, query)
-      path = uri.path.dup
-      path = '/' if path.empty?
+      path = uri.path
+      path = '/' if path.nil? or path.empty?
       query_str = nil
       if uri.query
 	query_str = uri.query
@@ -281,7 +281,7 @@ class Message
 	end
       end
       if query_str
-	path << '?' << query_str
+	path += "?#{query_str}"
       end
       path
     end
