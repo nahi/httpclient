@@ -495,7 +495,7 @@ class Message
             "Content-Type: " + content_type + CRLF +
             CRLF +
             content + CRLF
-        }.join('') + "--#{boundary}--" + CRLF
+        }.join('') + "--#{boundary}--" + CRLF + CRLF # empty epilogue
       else
         query.to_s
       end
