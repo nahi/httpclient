@@ -15,6 +15,7 @@ require 'timeout'
 require 'uri'
 require 'socket'
 require 'thread'
+require 'digest/md5'
 
 # Extra library
 require 'http-access2/http'
@@ -45,6 +46,14 @@ module Util
       URI.parse(uri.to_s)
     end
   end
+
+  def uri_part_of(uri, part)
+    ((uri.scheme == part.scheme) and
+      (uri.host == part.host) and
+      (uri.port == part.port) and
+      uri.path.upcase.index(part.path.upcase) == 0)
+  end
+  module_function :uri_part_of
 end
 
 
@@ -83,6 +92,10 @@ class Client
   attr_reader :ssl_config
   attr_accessor :cookie_manager
   attr_reader :test_loopback_response
+  attr_reader :request_filter
+  attr_reader :proxy_auth
+  attr_reader :basic_auth
+  attr_reader :digest_auth
 
   class << self
     %w(get_content head get post put delete options trace).each do |name|
@@ -93,6 +106,10 @@ class Client
       EOD
     end
   end
+
+  class RetryableResponse < StandardError   # :nodoc:
+  end
+
 
   # SYNOPSIS
   #   Client.new(proxy = nil, agent_name = nil, from = nil)
@@ -108,11 +125,13 @@ class Client
   #
   def initialize(proxy = nil, agent_name = nil, from = nil)
     @proxy = nil        # assigned later.
-    @proxy_auth = nil
     @no_proxy = nil
     @agent_name = agent_name
     @from = from
+    @proxy_auth = ProxyAuth.new
     @basic_auth = BasicAuth.new(self)
+    @digest_auth = DigestAuth.new(self)
+    @request_filter = [@proxy_auth, @basic_auth, @digest_auth]
     @debug_dev = nil
     @redirect_uri_callback = method(:default_redirect_uri_callback)
     @test_loopback_response = []
@@ -177,16 +196,16 @@ class Client
   def proxy=(proxy)
     if proxy.nil?
       @proxy = nil
-      @proxy_auth = nil
+      @proxy_auth.clear
     else
       @proxy = urify(proxy)
       if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
           @proxy.host == nil or @proxy.port == nil
         raise ArgumentError.new("unsupported proxy `#{proxy}'")
       end
-      @proxy_auth = nil
+      @proxy_auth.clear
       if @proxy.user || @proxy.password
-        @proxy_auth = [@proxy.user, @proxy.password]
+        @proxy_auth.set(@proxy.user, @proxy.password)
       end
     end
     reset_all
@@ -208,10 +227,12 @@ class Client
     @session_manager.socket_sync = socket_sync
   end
 
-  def set_basic_auth(uri, user_id, passwd)
+  def set_auth(uri, user, passwd)
     uri = urify(uri)
-    @basic_auth.set(uri, user_id, passwd)
+    @basic_auth.set(uri, user, passwd)
+    @digest_auth.set(uri, user, passwd)
   end
+  alias set_basic_auth set_auth
 
   def set_cookie_store(filename)
     if @cookie_manager.cookies_file
@@ -305,8 +326,18 @@ class Client
   end
 
   def request(method, uri, query = nil, body = nil, extheader = {}, &block)
+    uri = urify(uri)
     conn = Connection.new
-    conn_request(conn, method, uri, query, body, extheader, &block)
+    begin
+      prepare_request(method, uri, query, body, extheader) do |req, proxy|
+        do_get_block(req, proxy, conn, &block)
+      end
+    rescue Client::RetryableResponse
+      res = conn.pop
+      prepare_request(method, uri, query, body, extheader) do |req, proxy|
+        do_get_block(req, proxy, conn, &block)
+      end
+    end
     conn.pop
   end
 
@@ -341,9 +372,12 @@ class Client
   end
 
   def request_async(method, uri, query = nil, body = nil, extheader = {})
+    uri = urify(uri)
     conn = Connection.new
     t = Thread.new(conn) { |tconn|
-      conn_request(tconn, method, uri, query, body, extheader)
+      prepare_request(method, uri, query, body, extheader) do |req, proxy|
+        do_get_stream(req, proxy, tconn)
+      end
     }
     conn.async_thread = t
     conn
@@ -385,29 +419,20 @@ private
     raise RuntimeError.new("Retry count exceeded.")
   end
 
-  def conn_request(conn, method, uri, query, body, extheader, &block)
-    uri = urify(uri)
+  def prepare_request(method, uri, query, body, extheader)
     proxy = no_proxy?(uri) ? nil : @proxy
     begin
       req = create_request(method, uri, query, body, extheader, !proxy.nil?)
-      do_get_block(req, proxy, conn, &block)
+      yield(req, proxy)
     rescue Session::KeepAliveDisconnected
       req = create_request(method, uri, query, body, extheader, !proxy.nil?)
-      do_get_block(req, proxy, conn, &block)
+      yield(req, proxy)
     end
   end
 
   def create_request(method, uri, query, body, extheader, proxy)
     if extheader.is_a?(Hash)
       extheader = extheader.to_a
-    end
-    if @proxy_auth
-      proxy_cred = ["#{@proxy_auth[0]}:#{@proxy_auth[1]}"].pack('m').strip
-      extheader << ['Proxy-Authorization', "Basic " << proxy_cred]
-    end
-    cred = @basic_auth.get(uri)
-    if cred
-      extheader << ['Authorization', "Basic " << cred]
     end
     if cookies = @cookie_manager.find(uri)
       extheader << ['Cookie', cookies]
@@ -450,6 +475,9 @@ private
   # !! CAUTION !!
   #   Method 'do_get*' runs under MT conditon. Be careful to change.
   def do_get_block(req, proxy, conn, &block)
+    @request_filter.each do |filter|
+      filter.filter_request(req)
+    end
     if str = @test_loopback_response.shift
       dump_dummy_request_response(req.body.dump, str) if @debug_dev
       conn.push(HTTP::Message.new_response(str))
@@ -468,6 +496,40 @@ private
       content << str
     end
     @session_manager.keep(sess) unless sess.closed?
+    commands = @request_filter.collect { |filter|
+      filter.filter_response(req, res)
+    }
+    if commands.find { |command| command == :retry }
+      raise Client::RetryableResponse.new
+    end
+  end
+
+  def do_get_stream(req, proxy, conn)
+    @request_filter.each do |filter|
+      filter.filter_request(req)
+    end
+    if str = @test_loopback_response.shift
+      dump_dummy_request_response(req.body.dump, str) if @debug_dev
+      conn.push(HTTP::Message.new_response(str))
+      return
+    end
+    piper, pipew = IO.pipe
+    res = HTTP::Message.new_response(piper)
+    @debug_dev << "= Request\n\n" if @debug_dev
+    sess = @session_manager.query(req, proxy)
+    res.peer_cert = sess.ssl_peer_cert
+    @debug_dev << "\n\n= Response\n\n" if @debug_dev
+    do_get_header(req, res, sess)
+    conn.push(res)
+    sess.get_data() do |str|
+      pipew.syswrite(str)
+    end
+    pipew.close
+    @session_manager.keep(sess) unless sess.closed?
+    commands = @request_filter.collect { |filter|
+      filter.filter_response(req, res)
+    }
+    # ignore commands (not retryable in async mode)
   end
 
   def do_get_header(req, res, sess)
@@ -762,31 +824,258 @@ __DIST_CERT__
 end
 
 
-# HTTPAccess2::BasicAuth -- BasicAuth repository.
+# HTTPAccess2::AuthBase -- Authentication repository base.
 #
-class BasicAuth # :nodoc:
+class AuthBase # :nodoc:
   def initialize(client)
     @client = client
-    @auth = {}
+    @challengeable = {}
   end
 
-  def set(uri, user_id, passwd)
-    uri = uri.clone
-    uri.path = uri.path.sub(/\/[^\/]*$/, '/')
-    @auth[uri] = ["#{user_id}:#{passwd}"].pack('m').tr("\n", '')
+  def reset_challenge
+    @challengeable.clear
+  end
+
+private
+
+  def reset_all
     @client.reset_all
   end
 
-  def get(uri)
-    @auth.each do |realm_uri, cred|
-      if ((realm_uri.host == uri.host) and
-          (realm_uri.scheme == uri.scheme) and
-          (realm_uri.port == uri.port) and
-          uri.path.upcase.index(realm_uri.path.upcase) == 0)
-        return cred
+  def parse_authentication_header(res, tag)
+    challenge = res.header[tag]
+    unless challenge
+      raise RuntimeError.new("no #{tag} header exists: #{res}")
+    end
+    if challenge.size != 1
+      raise RuntimeError.new("multiple #{tag} header exists: #{res}")
+    end
+    parse_challenge_header(challenge.first)
+  end
+
+  def parse_challenge_header(challenge)
+    scheme, param_str = challenge.scan(/\A(\S+)\s+(.*)\z/)[0]
+    if scheme.nil?
+      raise RuntimeError.new("unsupported challenge: #{challenge}")
+    end
+    param = {}
+    param_str.scan(/\s*([^\,]+(?:\\.[^\,]*)*)/).each do |str|
+      key, value = str[0].scan(/\A([^=]+)=(.*)\z/)[0]
+      if /\A"(.*)"\z/ =~ value
+        value = $1.gsub(/\\(.)/, '\1')
+      end
+      param[key] = value
+    end
+    return scheme, param
+  end
+end
+
+
+# HTTPAccess2::BasicAuth -- BasicAuth repository.
+#
+class BasicAuth < AuthBase # :nodoc:
+  def initialize(client)
+    super(client)
+    @auth = {}
+  end
+
+  def set(uri, user, passwd)
+    uri = uri.clone
+    uri.path = uri.path.sub(/\/[^\/]*$/, '/')
+    @auth[uri] = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
+    reset_all
+  end
+
+  # send cred only when a given uri is;
+  #   - child page of challengeable(got WWW-Authenticate before) uri and,
+  #   - child page of defined credential
+  def get(req)
+    target_uri = req.header.request_uri
+    return nil unless @challengeable.find { |uri, ok|
+      Util.uri_part_of(target_uri, uri) and ok
+    }
+    found = @auth.find { |uri, cred|
+      Util.uri_part_of(target_uri, uri)
+    }
+    return found.last if found
+  end
+
+  def filter_request(req)
+    if cred = get(req)
+      req.header.set('Authorization', "Basic " + cred)
+    end
+  end
+
+  def filter_response(req, res)
+    if res.status == HTTP::Status::UNAUTHORIZED
+      if challenge = parse_authentication_header(res, 'www-authenticate')
+        scheme, param = challenge
+        if scheme == "Basic"
+          challengeable = challenge(req.header.request_uri, param)
+          return :retry if challengeable
+        end
       end
     end
     nil
+  end
+
+private
+
+  def challenge(uri, param)
+    @challengeable[uri] = true
+    true
+  end
+end
+
+
+# HTTPAccess2::DigestAuth 
+#
+class DigestAuth < AuthBase # :nodoc:
+  def initialize(client)
+    super(client)
+    @auth = {}
+    @challenge = {}
+    @nonce_count = 0
+  end
+
+  def set(uri, user, passwd)
+    uri = uri.clone
+    uri.path = uri.path.sub(/\/[^\/]*$/, '/')
+    @auth[uri] = [user, passwd]
+    reset_all
+  end
+
+  # send cred only when a given uri is;
+  #   - child page of challengeable(got WWW-Authenticate before) uri and,
+  #   - child page of defined credential
+  def get(req)
+    target_uri = req.header.request_uri
+    found = @challenge.find { |uri, param|
+      Util.uri_part_of(target_uri, uri)
+    }
+    return nil unless found
+    param = found.last
+    found = @auth.find { |uri, auth_data|
+      Util.uri_part_of(target_uri, uri)
+    }
+    return nil unless found
+    user, passwd = found.last
+    uri = req.header.request_uri
+    calc_cred(req.header.request_method, uri, user, passwd, param)
+  end
+
+  def filter_request(req)
+    if cred = get(req)
+      req.header.set('Authorization', "Digest " + cred)
+    end
+  end
+
+  def filter_response(req, res)
+    if res.status == HTTP::Status::UNAUTHORIZED
+      if challenge = parse_authentication_header(res, 'www-authenticate')
+        scheme, param = challenge
+        if scheme == "Digest"
+          challengeable = challenge(req.header.request_uri, param)
+          return :retry if challengeable
+        end
+      end
+    end
+    nil
+  end
+
+private
+
+  def challenge(uri, param)
+    @challenge[uri] = param
+    true
+  end
+
+  # this method is implemented by sromano and posted to
+  # http://tools.assembla.com/breakout/wiki/DigestForSoap
+  # Thanks!
+  def calc_cred(method, uri, user, passwd, param)
+    a_1 = "#{user}:#{param['realm']}:#{passwd}"
+    a_2 = "#{method}:#{uri.path}"
+    @nonce_count += 1
+    message_digest = []
+    message_digest << Digest::MD5.hexdigest(a_1)
+    message_digest << param['nonce']
+    message_digest << ('%08x' % @nonce_count)
+    message_digest << param['nonce']
+    message_digest << param['qop']
+    message_digest << Digest::MD5.hexdigest(a_2)
+    header = []
+    header << "username=\"#{user}\""
+    header << "realm=\"#{param['realm']}\""
+    header << "nonce=\"#{param['nonce']}\""
+    header << "uri=\"#{uri.path}\""
+    header << "cnonce=\"#{param['nonce']}\""
+    header << "nc=#{'%08x' % @nonce_count}"
+    header << "qop=\"#{param['qop']}\""
+    header << "response=\"#{Digest::MD5.hexdigest(message_digest.join(":"))}\""
+    #header << "algorithm=\"#{param['algorithm']}\""
+    header << "algorithm=\"MD5\""
+    header << "opaque=\"#{param['opaque']}\"" if param.key?('opaque')
+    header.join(", ")
+  end
+end
+
+
+# HTTPAccess2::ProxyAuth -- ProxyAuth repository.
+#
+class ProxyAuth # :nodoc:
+  def initialize
+    @cred = nil
+    @challengeable = {}
+  end
+
+  def clear
+    @cred = nil
+  end
+
+  def set(user, passwd)
+    @cred = ["#{user}:#{passwd}"].pack('m').strip
+  end
+
+  def reset_challenge
+    @challengeable.clear
+  end
+
+  # send cred only when a given uri is;
+  #   - child page of challengeable(got Proxy-Authenticate before) uri
+  def get(req)
+    target_uri = req.header.request_uri
+    return nil unless @cred
+    return nil unless @challengeable.find { |uri, ok|
+      Util.uri_part_of(target_uri, uri) and ok
+    }
+    @cred
+  end
+
+  def filter_request(req)
+    if cred = get(req)
+      req.header.set('Proxy-Authorization', "Basic " + cred)
+    end
+  end
+
+  def filter_response(req, res)
+    if res.status == HTTP::Status::PROXY_AUTHENTICATE_REQUIRED
+      if challenge = parse_authentication_header(res, 'proxy-authenticate')
+        scheme, param = challenge
+        if scheme == "Basic"
+          challengeable = challenge(req.header.request_uri, param)
+          return :retry if challengeable
+        end
+      end
+    end
+    nil
+  end
+
+private
+
+  def challenge(uri, param)
+    @challengeable[uri] = true
+    true
   end
 end
 
