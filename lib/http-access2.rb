@@ -1649,7 +1649,7 @@ class Session   # :nodoc:
         # flush the IO stream as IO::sync mode is false
         @socket.flush unless @socket_sync
       end
-    rescue Errno::ECONNABORTED, Errno::ECONNRESET
+    rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE
       close
       raise KeepAliveDisconnected.new
     rescue
