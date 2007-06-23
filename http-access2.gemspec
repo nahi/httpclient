@@ -1,8 +1,8 @@
 require 'rubygems'
 SPEC = Gem::Specification.new do |s|
   s.name = "http-access"
-  s.version = "2.0.7"
-  s.date = "2007-05-13"
+  s.version = "2.0.7.20070623"
+  s.date = "2007-06-23"
   s.author = "NAKAMURA, Hiroshi"
   s.email = "nahi@ruby-lang.org"
   s.homepage = "http://dev.ctor.org/http-access2"
