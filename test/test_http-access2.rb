@@ -203,39 +203,6 @@ class TestClient < Test::Unit::TestCase
     end
   end
 
-  def test_basic_auth
-    str = ""
-    @client.debug_dev = str
-    @client.set_basic_auth("http://notlocalhost/foo/", "foo", "bar")
-    @client.head(@url)
-    lines = str.split(/(?:\r?\n)+/)
-    assert_equal("= Request", lines[0])
-    assert_match(/^Date/, lines[4])
-    #
-    @client.set_basic_auth(@url + "bar/", "foo", "bar")
-    str = ""
-    @client.debug_dev = str
-    @client.head(@url + "foo/")
-    lines = str.split(/(?:\r?\n)+/)
-    assert_equal("= Request", lines[0])
-    assert_match(/^Date/, lines[4])
-    #
-    @client.set_basic_auth(@url + "foo/bar", "foo", "bar")
-    str = ""
-    @client.debug_dev = str
-    @client.head(@url + "foo/")
-    lines = str.split(/(?:\r?\n)+/)
-    assert_equal("= Request", lines[0])
-    assert_equal("Authorization: Basic Zm9vOmJhcg==", lines[4])
-    #
-    str = ""
-    @client.debug_dev = str
-    @client.head(@url + "foo/baz/baz.txt")
-    lines = str.split(/(?:\r?\n)+/)
-    assert_equal("= Request", lines[0])
-    assert_equal("Authorization: Basic Zm9vOmJhcg==", lines[4])
-  end
-
   def test_get_content
     assert_equal('hello', @client.get_content(@url + 'hello'))
     assert_equal('hello', @client.get_content(@url + 'redirect1'))
