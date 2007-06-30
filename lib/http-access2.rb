@@ -161,8 +161,8 @@ class Client
     @no_proxy = nil
     @agent_name = agent_name
     @from = from
-    @www_auth = WWWAuth.new(self)
-    @proxy_auth = ProxyAuth.new(self)
+    @www_auth = WWWAuth.new
+    @proxy_auth = ProxyAuth.new
     @request_filter = [@proxy_auth, @www_auth]
     @debug_dev = nil
     @redirect_uri_callback = method(:default_redirect_uri_callback)
@@ -262,13 +262,20 @@ class Client
   def set_auth(uri, user, passwd)
     uri = urify(uri)
     @www_auth.set_auth(uri, user, passwd)
+    reset_all
   end
+
   # for backward compatibility
-  alias set_basic_auth set_auth
+  def set_basic_auth(uri, user, passwd)
+    uri = urify(uri)
+    @www_auth.basic_auth.set(uri, user, passwd)
+    reset_all
+  end
 
   def set_proxy_auth(user, passwd)
     uri = urify(uri)
     @proxy_auth.set_auth(user, passwd)
+    reset_all
   end
 
   def set_cookie_store(filename)
@@ -1068,8 +1075,7 @@ class WWWAuth < AuthFilterBase # :nodoc:
   attr_reader :digest_auth
   attr_reader :negotiate_auth
 
-  def initialize(client)
-    @client = client
+  def initialize
     @basic_auth = BasicAuth.new
     @digest_auth = DigestAuth.new
     @negotiate_auth = NegotiateAuth.new
@@ -1086,7 +1092,6 @@ class WWWAuth < AuthFilterBase # :nodoc:
   def set_auth(uri, user, passwd)
     @basic_auth.set(uri, user, passwd)
     @digest_auth.set(uri, user, passwd)
-    @client.reset_all
   end
 
   def filter_request(req)
@@ -1123,8 +1128,7 @@ class ProxyAuth < AuthFilterBase # :nodoc:
   attr_reader :basic_auth
   attr_reader :negotiate_auth
 
-  def initialize(client)
-    @client = client
+  def initialize
     @basic_auth = BasicAuth.new
     @negotiate_auth = NegotiateAuth.new
     # sort authenticators by priority
@@ -1139,7 +1143,6 @@ class ProxyAuth < AuthFilterBase # :nodoc:
 
   def set_auth(user, passwd)
     @basic_auth.set(nil, user, passwd)
-    @client.reset_all
   end
 
   def filter_request(req)
