@@ -200,6 +200,11 @@ class Message
       end
     end
 
+    def delete(key)
+      key = key.upcase
+      @header_item.delete_if { |k, v| k.upcase == key }
+    end
+
     def []=(key, value)
       set(key, value)
     end
