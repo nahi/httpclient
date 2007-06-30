@@ -58,6 +58,28 @@ thanks to Maehashi-san.
 
 - Changes
 
+  Jun 30, 2007 - version 2.0.8
+
+    * HTTP
+      * added request/response filter interface and implemented DigestAuth
+        based on the filter interface.  DigestAuth calc engine is based on
+        http://tools.assembla.com/breakout/wiki/DigestForSoap
+        Thanks to sromano. (#155)
+      * re-implemented BasicAuth based on the filter interface.  send BasicAuth
+        header only if it's needed. (#31)
+      * handle a response which has 2XX status code as a successfull response
+        while retry check.  applied the patch from Micah Wedemeyer.
+        Thanks! (#158)
+
+    * Connection
+      * show more friendly error message for unconnectable URL. (#156)
+
+    * bug fixes
+      * to avoid MIME format incompatibility, add empty epilogue chunk
+        explicitly.  Thanks to the anonymous user who reported #154 (#154)
+      * rescue EPIPE for keep-alive reconnecting.  Thanks to anonymous user
+        who posted a patch at #124. (#124)
+
   May 13, 2007 - version 2.0.7
 
     * HTTP
