@@ -454,7 +454,7 @@ private
     retry_number = 0
     while retry_number < 10
       res = yield(uri, query)
-      if res.status == HTTP::Status::OK
+      if HTTP::Status.successful?(res.status)
         return res
       elsif HTTP::Status.redirect?(res.status)
         uri = @redirect_uri_callback.call(uri, res)

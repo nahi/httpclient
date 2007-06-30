@@ -12,6 +12,12 @@ module HTTP
 
 module Status
   OK = 200
+  CREATED = 201
+  ACCEPTED = 202
+  NON_AUTHORITATIVE_INFORMATION = 203
+  NO_CONTENT = 204
+  RESET_CONTENT = 205
+  PARTIAL_CONTENT = 206
   MOVED_PERMANENTLY = 301
   FOUND = 302
   SEE_OTHER = 303
@@ -20,6 +26,14 @@ module Status
   UNAUTHORIZED = 401
   PROXY_AUTHENTICATE_REQUIRED = 407
   INTERNAL = 500
+
+  def self.successful?(status)
+    [
+      OK, CREATED, ACCEPTED,
+      NON_AUTHORITATIVE_INFORMATION, NO_CONTENT,
+      RESET_CONTENT, PARTIAL_CONTENT
+    ].include?(status)
+  end
 
   def self.redirect?(status)
     [
@@ -89,6 +103,11 @@ class Message
 
     StatusCodeMap = {
       Status::OK => 'OK',
+      Status::CREATED => "Created",
+      Status::NON_AUTHORITATIVE_INFORMATION => "Non-Authoritative Information",
+      Status::NO_CONTENT => "No Content",
+      Status::RESET_CONTENT => "Reset Content",
+      Status::PARTIAL_CONTENT => "Partial Content",
       Status::MOVED_PERMANENTLY => 'Moved Permanently',
       Status::FOUND => 'Found',
       Status::SEE_OTHER => 'See Other',
