@@ -875,14 +875,13 @@ end
 # HTTPAccess2::BasicAuth -- BasicAuth repository.
 #
 class BasicAuth # :nodoc:
+  attr_reader :scheme
+
   def initialize
     @cred = nil
     @auth = {}
     @challengeable = {}
-  end
-
-  def scheme
-    "Basic"
+    @scheme = "Basic"
   end
 
   def reset_challenge
@@ -923,14 +922,13 @@ end
 # HTTPAccess2::DigestAuth 
 #
 class DigestAuth # :nodoc:
+  attr_reader :scheme
+
   def initialize
     @auth = {}
     @challenge = {}
     @nonce_count = 0
-  end
-
-  def scheme
-    "Digest"
+    @scheme = "Digest"
   end
 
   def reset_challenge
@@ -1000,12 +998,11 @@ end
 # HTTPAccess2::NegotiateAuth 
 #
 class NegotiateAuth # :nodoc:
+  attr_reader :scheme
+
   def initialize
     @challenge = {}
-  end
-
-  def scheme
-    "Negotiate"
+    @scheme = "Negotiate"
   end
 
   def reset_challenge
@@ -1110,7 +1107,7 @@ class WWWAuth < AuthFilterBase # :nodoc:
       if challenge = parse_authentication_header(res, 'www-authenticate')
         challenge.each do |scheme, param_str|
           @authenticator.each do |auth|
-            if scheme == auth.scheme
+            if scheme.downcase == auth.scheme.downcase
               challengeable = auth.challenge(uri, param_str)
               command = :retry if challengeable
             end
@@ -1161,7 +1158,7 @@ class ProxyAuth < AuthFilterBase # :nodoc:
       if challenge = parse_authentication_header(res, 'proxy-authenticate')
         challenge.each do |scheme, param_str|
           @authenticator.each do |auth|
-            if scheme == auth.scheme
+            if scheme.downcase == auth.scheme.downcase
               challengeable = auth.challenge(uri, param_str)
               command = :retry if challengeable
             end

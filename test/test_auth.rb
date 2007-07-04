@@ -91,6 +91,21 @@ class TestAuth < Test::Unit::TestCase
     assert_equal('basic_auth OK', c.get_content("http://localhost:#{Port}/basic_auth"))
   end
 
+  def test_BASIC_auth
+    c = HTTPAccess2::Client.new
+    webrick_backup = @basic_auth.instance_eval { @auth_scheme }
+    httpaccess2_backup = c.www_auth.basic_auth.instance_eval { @scheme }
+    begin
+      @basic_auth.instance_eval { @auth_scheme = "BASIC" }
+      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
+      c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
+      assert_equal('basic_auth OK', c.get_content("http://localhost:#{Port}/basic_auth"))
+    ensure
+      @basic_auth.instance_eval { @auth_scheme = webrick_backup }
+      c.www_auth.basic_auth.instance_eval { @scheme = httpaccess2_backup }
+    end
+  end
+
   def test_digest_auth
     c = HTTPAccess2::Client.new
     c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
