@@ -58,6 +58,13 @@ thanks to Maehashi-san.
 
 - Changes
 
+  Jul 4, 2007 - version 2.0.9
+    * bug fix
+      * fix the BasicAuth regression problem in 2.0.8.  A server may return
+        "BASIC" as an authenticate scheme label instead of "Basic".  It must be
+        treated as a case-insensitive token according to RFC2617 section 1.2.
+        Thanks to mwedeme for contributing the patch. (#159)
+
   Jun 30, 2007 - version 2.0.8
 
     * HTTP
