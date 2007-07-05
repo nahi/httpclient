@@ -27,13 +27,14 @@ def install(*path)
       install_file(name, to_path_sitelib)
     end
   else
-    install_file(from_path, SITELIBDIR)
+    install_file(from_path, File.join(SITELIBDIR, *path))
   end
 end
 
 begin
   install('http-access2.rb')
   install('http-access2')
+  install('http-access2', 'cacert.p7s')
 
   puts "install succeed!"
 
