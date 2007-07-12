@@ -1,5 +1,5 @@
 require 'uri'
-require 'http-access2'
+require 'httpclient'
 
 class DAV
   attr_reader :headers
@@ -9,7 +9,7 @@ class DAV
     @headers = {}
     open(uri) if uri
     proxy = ENV['HTTP_PROXY'] || ENV['http_proxy'] || nil
-    @client = HTTPAccess2::Client.new(proxy)
+    @client = HTTPClient.new(proxy)
   end
 
   def out

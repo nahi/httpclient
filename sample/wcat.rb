@@ -4,12 +4,12 @@
 # Copyright (C) 2001 TAKAHASHI Masayoshi
 
 $:.unshift(File.join('..', 'lib'))
-require 'http-access2'
+require 'httpclient'
 
 if ENV['HTTP_PROXY']
-  h = HTTPAccess2::Client.new(ENV['HTTP_PROXY'])
+  h = HTTPClient.new(ENV['HTTP_PROXY'])
 else
-  h = HTTPAccess2::Client.new()
+  h = HTTPClient.new()
 end
 
 while urlstr = ARGV.shift

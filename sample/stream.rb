@@ -1,5 +1,5 @@
 $:.unshift(File.join('..', 'lib'))
-require "http-access2"
+require "httpclient"
 
 c = HTTPClient.new
 

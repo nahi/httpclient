@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 $:.unshift(File.join('..', '..', 'lib'))
-require 'http-access2'
+require 'httpclient'
 
 url = ARGV.shift || 'https://localhost:8808/'
 uri = URI.parse(url)

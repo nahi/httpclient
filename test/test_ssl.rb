@@ -1,8 +1,5 @@
 require 'test/unit'
-require 'http-access2'
-
-
-module HTTPAccess2
+require 'httpclient'
 
 
 class TestSSL < Test::Unit::TestCase
@@ -161,7 +158,7 @@ private
   end
 
   def setup_client
-    @client = HTTPAccess2::Client.new
+    @client = HTTPClient.new
     @client.debug_dev = STDOUT if $DEBUG
   end
 
@@ -181,7 +178,4 @@ private
     p ["client", ok, cert] if $DEBUG
     ok
   end
-end
-
-
 end

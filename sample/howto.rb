@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 
 $:.unshift(File.join('..', 'lib'))
-require 'http-access2'
+require 'httpclient'
 
 proxy = ENV['HTTP_PROXY']
-clnt = HTTPAccess2::Client.new(proxy)
+clnt = HTTPClient.new(proxy)
 clnt.set_cookie_store("cookie.dat")
 target = ARGV.shift || "http://localhost/foo.cgi"
 

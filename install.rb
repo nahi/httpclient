@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Installer for http-access2
+# Installer for httpclient
 
 require "rbconfig"
 require "ftools"
@@ -32,9 +32,11 @@ def install(*path)
 end
 
 begin
+  install('httpclient.rb')
+  install('httpclient')
+  install('httpclient', 'cacert.p7s')
   install('http-access2.rb')
   install('http-access2')
-  install('http-access2', 'cacert.p7s')
 
   puts "install succeed!"
 

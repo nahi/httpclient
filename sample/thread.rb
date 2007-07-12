@@ -1,10 +1,10 @@
 $:.unshift(File.join('..', 'lib'))
-require 'http-access2'
+require 'httpclient'
 
 urlstr = ARGV.shift
 
 proxy = ENV['HTTP_PROXY'] || ENV['http_proxy']
-h = HTTPAccess2::Client.new(proxy)
+h = HTTPClient.new(proxy)
 
 count = 20
 
