@@ -1585,7 +1585,8 @@ end
     @session_manager.from = @from
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
     @cookie_manager = WebAgent::CookieManager.new
-    self.proxy = proxy
+    load_environment
+    self.proxy = proxy if proxy
   end
 
   def debug_dev
@@ -1862,6 +1863,24 @@ end
   end
 
 private
+
+  def load_environment
+    # http_proxy
+    if getenv('REQUEST_METHOD')
+      # HTTP_PROXY conflicts with the environment variable usage in CGI where
+      # HTTP_* is used for HTTP header information.  Unlike open-uri, we
+      # simpley ignore http_proxy in CGI env and use cgi_http_proxy instead.
+      self.proxy = getenv('cgi_http_proxy')
+    else
+      self.proxy = getenv('http_proxy')
+    end
+    # no_proxy
+    self.no_proxy = getenv('no_proxy')
+  end
+
+  def getenv(name)
+    ENV[name.downcase] || ENV[name.upcase]
+  end
 
   def follow_redirect(uri, query = nil)
     retry_number = 0
