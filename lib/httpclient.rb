@@ -51,7 +51,7 @@ require 'httpclient/cookie'
 #
 class HTTPClient
 
-  VERSION = '2.1.0-SNAPSHOT'
+  VERSION = '2.1.0'
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
   s = %w$Id$
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]

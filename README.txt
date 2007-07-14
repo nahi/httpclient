@@ -1,11 +1,11 @@
-http-access2 - HTTP accessing library.
+httpclient - HTTP accessing library.
 Copyright (C) 2000-2007  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
 This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 redistribute it and/or modify it under the same terms of Ruby's license;
 either the dual license version in 2003, or any later version.
 
-http-access2.rb is based on http-access.rb in http-access/0.0.4.  Some part
+httpclient.rb is based on http-access.rb in http-access/0.0.4.  Some part
 of code in http-access.rb was recycled in http-access2.rb.  Those part is
 copyrighted by Maehashi-san who made and distributed http-access/0.0.4. Many
 thanks to Maehashi-san.
@@ -13,31 +13,35 @@ thanks to Maehashi-san.
 
 - Introduction
 
-  http-access2 gives something like the functionality of libwww-perl (LWP) in
-  Ruby.
+  'httpclient' gives something like the functionality of libwww-perl (LWP) in
+  Ruby.  'httpclient' formerly known as 'http-access2'.
 
   Features;
-  * methods like GET/HEAD/POST via HTTP/1.1.
+  * methods like GET/HEAD/POST/* via HTTP/1.1.
+  * HTTPS(SSL), Cookies, proxy, authentication, etc.
   * asynchronous HTTP request
-  * HTTPS(SSL)
+
   * by contrast with net/http in standard distribution;
-    * you don't have to care HTTP/1.1 persistent connection (http-access2 cares
-      instead of you). 
+    * Cookies support
     * MT-safe
     * streaming POST
-    * Cookies
+    * DigestAuth
+    * extensible with filter interface
+    * you don't have to care HTTP/1.1 persistent connection (httpclient cares
+    * instead of you).
 
-  Not supported now;
-  * Cache
-  * Rather advanced HTTP/1.1 usage such as Range, deflate, etc. (of cource you
-    can set it in header by yourself)
+  * Not supported now
+    * Cache
+    * Rather advanced HTTP/1.1 usage such as Range, deflate, etc. (of course
+    * you can set it in header by yourself
 
 
 - Install
 
   $ ruby install.rb
-  It will install lib/http-access2.rb and lib/http-access2/http.rb to your
-  site_ruby directory such as /usr/local/lib/ruby/site_ruby/1.8/.
+
+  It will install lib/* to your site_ruby directory such as
+  /usr/local/lib/ruby/site_ruby/1.8/.
 
 
 - Uninstall
@@ -58,7 +62,23 @@ thanks to Maehashi-san.
 
 - Changes
 
+  Jul 14, 2007 - version 2.1.0
+
+    * program/project renamed from 'http-access2' to 'httpclient'.
+      there's compatibility layer included so existing programs for
+      http-access2 which uses HTTPAccess2::Client should work with
+      httpclient/2.1.0 correctly.
+
+    * misc
+      * install.rb did not install cacerts.p7s.  Thanks to knu.
+      * now HTTPClient loads http_proxy/HTTP_PROXY and no_proxy/NO_PROXY
+        environment variable at initialization time. bear in mind that it
+        doesn't load http_proxy/HTTP_PROXY when a library is considered to be
+        running under CGI environment (checked by ENVREQUEST_METHOD existence.
+        cgi_http_proxy/CGI_HTTP_PROXY is loaded instead.
+
   Jul 4, 2007 - version 2.0.9
+
     * bug fix
       * fix the BasicAuth regression problem in 2.0.8.  A server may return
         "BASIC" as an authenticate scheme label instead of "Basic".  It must be
