@@ -15,6 +15,7 @@ require 'timeout'
 require 'uri'
 require 'socket'
 require 'thread'
+require 'stringio'
 require 'digest/md5'
 
 # Extra library
@@ -800,6 +801,8 @@ class SessionManager    # :nodoc:
 
   attr_accessor :ssl_config
 
+  attr_reader :test_loopback_http_response
+
   def initialize
     @proxy = nil
 
@@ -818,6 +821,7 @@ class SessionManager    # :nodoc:
     @read_block_size = 8192
 
     @ssl_config = nil
+    @test_loopback_http_response = []
 
     @sess_pool = []
     @sess_pool_mutex = Mutex.new
@@ -880,6 +884,7 @@ private
       sess.read_block_size = @read_block_size
       sess.ssl_config = @ssl_config
       sess.debug_dev = @debug_dev
+      sess.test_loopback_http_response = @test_loopback_http_response
     end
     sess
   end
@@ -1038,52 +1043,111 @@ private
 end
 
 
+module SocketWrap
+  def initialize(socket, *args)
+    super(*args)
+    @socket = socket
+  end
+
+  def addr
+    @socket.addr
+  end
+
+  def close
+    @socket.close
+  end
+
+  def closed?
+    @socket.closed?
+  end
+
+  def eof?
+    @socket.eof?
+  end
+
+  def gets(*args)
+    @socket.gets(*args)
+  end
+
+  def read(*args)
+    @socket.read(*args)
+  end
+
+  def <<(str)
+    @socket << str
+  end
+
+  def flush
+    @socket.flush
+  end
+
+  def sync
+    @socket.sync
+  end
+
+  def sync=(sync)
+    @socket.sync = sync
+  end
+end
+
+
 # HTTPClient::DebugSocket -- debugging support
 #
-class DebugSocket < TCPSocket
-  attr_accessor :debug_dev     # Device for logging.
+class DebugSocket
+  include SocketWrap
 
-  class << self
-    def create_socket(host, port, debug_dev)
-      debug_dev << "! CONNECT TO #{host}:#{port}\n"
-      socket = new(host, port)
-      socket.debug_dev = debug_dev
-      socket.log_connect
-      socket
-    end
-
-    private :new
-  end
-
-  def initialize(*args)
-    super
-    @debug_dev = nil
-  end
-
-  def log_connect
-    @debug_dev << '! CONNECTION ESTABLISHED' << "\n"
+  def initialize(socket, debug_dev)
+    super(socket)
+    @debug_dev = debug_dev
   end
 
   def close
     super
-    @debug_dev << '! CONNECTION CLOSED' << "\n"
+    debug("! CONNECTION CLOSED\n")
   end
 
   def gets(*args)
     str = super
-    @debug_dev << str if str
+    debug(str)
     str
   end
 
   def read(*args)
     str = super
-    @debug_dev << str if str
+    debug(str)
     str
   end
 
   def <<(str)
     super
-    @debug_dev << str
+    debug(str)
+  end
+
+private
+
+  def debug(str)
+    @debug_dev << str if @debug_dev
+  end
+end
+
+
+# HTTPClient::LoopBackSocket -- dummy socket for dummy response
+#
+class LoopBackSocket
+  include SocketWrap
+
+  def initialize(host, port, response)
+    super(StringIO.new(response))
+    @host = host
+    @port = port
+  end
+
+  def addr
+    [nil, @port, @host, @host]
+  end
+
+  def <<(str)
+    # ignored
   end
 end
 
@@ -1124,6 +1188,7 @@ class Session   # :nodoc:
 
   attr_accessor :ssl_config
   attr_reader :ssl_peer_cert
+  attr_accessor :test_loopback_http_response
 
   def initialize(dest, user_agent, from)
     @dest = dest
@@ -1142,6 +1207,8 @@ class Session   # :nodoc:
 
     @ssl_config = nil
     @ssl_peer_cert = nil
+
+    @test_loopback_http_response = nil
 
     @user_agent = user_agent
     @from = from
@@ -1338,11 +1405,17 @@ private
   end
 
   def create_socket(site)
+    socket = nil
     begin
-      if @debug_dev
-        DebugSocket.create_socket(site.host, site.port, @debug_dev)
+      @debug_dev << "! CONNECT TO #{site.host}:#{site.port}\n" if @debug_dev
+      if str = @test_loopback_http_response.shift
+        socket = LoopBackSocket.new(site.host, site.port, str)
       else
-        TCPSocket.new(site.host, site.port)
+        socket = TCPSocket.new(site.host, site.port)
+      end
+      if @debug_dev
+        @debug_dev << "! CONNECTION ESTABLISHED\n"
+        socket = DebugSocket.new(socket, @debug_dev)
       end
     rescue SystemCallError => e
       e.message << " (#{site})"
@@ -1351,6 +1424,7 @@ private
       e.message << " (#{site})"
       raise
     end
+    socket
   end
 
   # wrap socket with OpenSSL.
@@ -1706,6 +1780,10 @@ end
 
   def redirect_uri_callback=(redirect_uri_callback)
     @redirect_uri_callback = redirect_uri_callback
+  end
+
+  def test_loopback_http_response
+    @session_manager.test_loopback_http_response
   end
 
   # SYNOPSIS
