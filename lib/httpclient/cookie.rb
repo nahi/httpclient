@@ -30,6 +30,8 @@ class WebAgent
     end
 
     def domain_match(host, domain)
+      domain = domain.downcase
+      host = host.downcase
       case domain
       when /\d+\.\d+\.\d+\.\d+/
 	return (host == domain)
