@@ -964,7 +964,7 @@ class SSLSocketWrap
       raise OpenSSL::SSL::SSLError, "no peer cert"
     end
     hostname = host.host
-    if @ssl_socket.respond_to?(:post_connection_check)
+    if @ssl_socket.respond_to?(:post_connection_check) and RUBY_VERSION > "1.8.4"
       @ssl_socket.post_connection_check(hostname)
     else
       @context.post_connection_check(@ssl_socket.peer_cert, hostname)
