@@ -62,6 +62,19 @@ thanks to Maehashi-san.
 
 - Changes
 
+  Aug 28, 2007 - version 2.1.1
+
+    * bug fix
+      * domain_match should be case insensitive. thanks to Brian for the patch.
+      * before calling SSLSocket#post_connection_check, check if
+        RUBY_VERSION > "1.8.4" for CN based wildcard certificate. when
+        RUBY_VERSION <= "1.8.4",  it fallbacks to the post_connection_check method in
+        HTTPClient so httpclient should run on 1.8.4 fine as before.
+
+    * misc
+      * added HTTPClient#test_loopback_http_response which accepts test loopback
+        response which contains HTTP header. 
+
   Jul 14, 2007 - version 2.1.0
 
     * program/project renamed from 'http-access2' to 'httpclient'.
