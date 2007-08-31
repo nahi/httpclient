@@ -49,6 +49,17 @@ class TestSSL < Test::Unit::TestCase
     assert_equal("hello", @client.get_content(@url))
   end
 
+  def test_debug_dev
+    str = @client.debug_dev = ''
+    cfg = @client.ssl_config
+    cfg.client_cert = cert("client.cert")
+    cfg.client_key = key("client.key")
+    cfg.set_trust_ca("ca.cert")
+    cfg.set_trust_ca("subca.cert")
+    assert_equal("hello", @client.get_content(@url))
+    assert(str.scan(/^hello$/)[0])
+  end
+
   def test_verification
     cfg = @client.ssl_config
     cfg.verify_callback = method(:verify_callback).to_proc

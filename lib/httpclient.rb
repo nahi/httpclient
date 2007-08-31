@@ -1093,11 +1093,10 @@ end
 
 # HTTPClient::DebugSocket -- debugging support
 #
-class DebugSocket
-  include SocketWrap
+module DebugSocket
+  extend SocketWrap
 
-  def initialize(socket, debug_dev)
-    super(socket)
+  def debug_dev=(debug_dev)
     @debug_dev = debug_dev
   end
 
@@ -1415,7 +1414,8 @@ private
       end
       if @debug_dev
         @debug_dev << "! CONNECTION ESTABLISHED\n"
-        socket = DebugSocket.new(socket, @debug_dev)
+        socket.extend(DebugSocket)
+        socket.debug_dev = @debug_dev
       end
     rescue SystemCallError => e
       e.message << " (#{site})"
