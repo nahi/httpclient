@@ -75,7 +75,7 @@ class TestHTTPClient < Test::Unit::TestCase
     @client.protocol_version = 'HTTP/0.9'
     str = ""
     @client.debug_dev = str
-    @client.get(@url + 'hello')
+    res = @client.get(@url + 'hello')
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
@@ -83,6 +83,9 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("Connection: close", lines[5])
     assert_equal("= Response", lines[6])
     assert_match(/^hello/, lines[7])
+    assert_equal('0.9', res.version)
+    assert_equal(nil, res.status)
+    assert_equal(nil, res.reason)
   end
 
   def test_protocol_version_http10

@@ -10,7 +10,7 @@ cert.subject = cert.issuer = X509::Name.new(name)
 cert.not_before = now
 cert.not_after = now + 2 * 365 * 24 * 60 * 60
 cert.public_key = keypair.public_key
-cert.serial = 0x0
+cert.serial = 0x1
 cert.version = 2 # X509v3
 
 key_usage = ["cRLSign", "keyCertSign"]
