@@ -196,14 +196,16 @@ class Message
 
     def dump(dev = '')
       set_header
+      str = nil
       if @is_request
-	dev << request_line
+	str = request_line
       else
-	dev << response_status_line
+	str = response_status_line
       end
-      dev << @header_item.collect { |key, value|
+      str += @header_item.collect { |key, value|
 	  dump_line("#{ key }: #{ value }")
 	}.join
+      dev << str
       dev
     end
 
