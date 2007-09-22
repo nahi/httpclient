@@ -64,6 +64,13 @@ class HTTPClient
       false
     end
 
+  NTLMEnabled = begin
+      require 'net/ntlm'
+      true
+    rescue LoadError
+      false
+    end
+
   SSPIEnabled = begin
       require 'win32/sspi'
       true
@@ -152,7 +159,7 @@ class SSLConfig # :nodoc:
     @timeout = nil
     @options = defined?(OpenSSL::SSL::OP_ALL) ?
       OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2 : nil
-    @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"
+    @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
     load_cacerts
   end
 
@@ -517,6 +524,79 @@ end
 #
 class NegotiateAuth # :nodoc:
   attr_reader :scheme
+  attr_reader :ntlm_opt
+
+  def initialize
+    @auth = {}
+    @auth_default = nil
+    @challenge = {}
+    @scheme = "Negotiate"
+    @ntlm_opt = {
+      :ntlmv2 => true
+    }
+  end
+
+  def reset_challenge
+    @challenge.clear
+  end
+
+  def set(uri, user, passwd)
+    if uri
+      uri = Util.uri_dirname(uri)
+      @auth[uri] = [user, passwd]
+    else
+      @auth_default = [user, passwd]
+    end
+  end
+
+  def get(req)
+    return nil unless NTLMEnabled
+    target_uri = req.header.request_uri
+    param = Util.hash_find_value(@challenge) { |uri, param|
+      Util.uri_part_of(target_uri, uri)
+    }
+    return nil unless param
+    user, passwd = Util.hash_find_value(@auth) { |uri, auth_data|
+      Util.uri_part_of(target_uri, uri)
+    }
+    unless user
+      user, passwd = @auth_default
+    end
+    return nil unless user
+    state = param[:state]
+    authphrase = param[:authphrase]
+    case state
+    when :init
+      t1 = Net::NTLM::Message::Type1.new
+      return t1.encode64
+    when :response
+      t2 = Net::NTLM::Message.decode64(authphrase)
+      t3 = t2.response({:user => user, :password => passwd}, @ntlm_opt)
+      return t3.encode64
+    end
+    nil
+  end
+
+  def challenge(uri, param_str)
+    return false unless NTLMEnabled
+    if param_str.nil? or @challenge[uri].nil?
+      c = @challenge[uri] = {}
+      c[:state] = :init
+      c[:authphrase] = ""
+    else
+      c = @challenge[uri]
+      c[:state] = :response
+      c[:authphrase] = param_str
+    end
+    true
+  end
+end
+
+
+# HTTPClient::SSPINegotiateAuth 
+#
+class SSPINegotiateAuth # :nodoc:
+  attr_reader :scheme
 
   def initialize
     @challenge = {}
@@ -607,6 +687,7 @@ class WWWAuth < AuthFilterBase # :nodoc:
   def set_auth(uri, user, passwd)
     @basic_auth.set(uri, user, passwd)
     @digest_auth.set(uri, user, passwd)
+    @negotiate_auth.set(uri, user, passwd)
   end
 
   def filter_request(req)
@@ -642,12 +723,14 @@ end
 class ProxyAuth < AuthFilterBase # :nodoc:
   attr_reader :basic_auth
   attr_reader :negotiate_auth
+  attr_reader :sspi_negotiate_auth
 
   def initialize
     @basic_auth = BasicAuth.new
     @negotiate_auth = NegotiateAuth.new
+    @sspi_negotiate_auth = SSPINegotiateAuth.new
     # sort authenticators by priority
-    @authenticator = [@negotiate_auth, @basic_auth]
+    @authenticator = [@negotiate_auth, @sspi_negotiate_auth, @basic_auth]
   end
 
   def reset_challenge
@@ -658,6 +741,7 @@ class ProxyAuth < AuthFilterBase # :nodoc:
 
   def set_auth(user, passwd)
     @basic_auth.set(nil, user, passwd)
+    @negotiate_auth.set(nil, user, passwd)
   end
 
   def filter_request(req)
