@@ -33,7 +33,7 @@ class TestSSL < Test::Unit::TestCase
     assert_nil(cfg.verify_callback)
     assert_nil(cfg.timeout)
     assert_equal(OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2, cfg.options)
-    assert_equal("ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH", cfg.ciphers)
+    assert_equal("ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH", cfg.ciphers)
     assert_instance_of(OpenSSL::X509::Store, cfg.cert_store)
   end
 
@@ -68,7 +68,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("certificate verify failed", ssle.message)
+      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -79,7 +79,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("certificate verify failed", ssle.message)
+      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -89,7 +89,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("certificate verify failed", ssle.message)
+      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -104,7 +104,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("certificate verify failed", ssle.message)
+      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -115,7 +115,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get_content(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("certificate verify failed", ssle.message)
+      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
     end
     #
     cfg.verify_mode = nil
@@ -139,6 +139,9 @@ class TestSSL < Test::Unit::TestCase
     end
     #
     cfg.ciphers = "ALL"
+    assert_equal("hello", @client.get_content(@url))
+    #
+    cfg.ciphers = "DEFAULT"
     assert_equal("hello", @client.get_content(@url))
   end
 
