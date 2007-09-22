@@ -18,22 +18,23 @@ thanks to Maehashi-san.
 
   Features;
   * methods like GET/HEAD/POST/* via HTTP/1.1.
-  * HTTPS(SSL), Cookies, proxy, authentication, etc.
+  * HTTPS(SSL), Cookies, proxy, authentication(Digest, NTLM, Basic), etc.
   * asynchronous HTTP request
 
   * by contrast with net/http in standard distribution;
     * Cookies support
     * MT-safe
     * streaming POST
-    * DigestAuth
+    * Digest auth
+    * NTLM auth for WWW-Authenticate
     * extensible with filter interface
-    * you don't have to care HTTP/1.1 persistent connection (httpclient cares
-    * instead of you).
+    * you don't have to care HTTP/1.1 persistent connection
+      (httpclient cares instead of you).
 
   * Not supported now
     * Cache
-    * Rather advanced HTTP/1.1 usage such as Range, deflate, etc. (of course
-    * you can set it in header by yourself
+    * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.
+      (of course you can set it in header by yourself
 
 
 - Install
@@ -62,18 +63,39 @@ thanks to Maehashi-san.
 
 - Changes
 
+  Sep 22, 2007 - version 2.1.2
+
+    * HTTP
+      * implemented Negotiate authentication with a support from exterior
+        modules. 'rubyntlm' module is required for Negotiate auth with IIS.
+        'win32/sspi' module is required for Negotiate auth with ISA.
+      * a workaround for Ubuntu + SonicWALL timeout problem. try to send HTTP
+        request in one chunk.
+
+    * SSL
+      * create new self-signing dist-cert which has serial number 0x01 and
+        embed it in httpclient.rb.
+      * update cacert.p7s. certificates are imported from cacerts in JRE 6
+        Update 2. 1 expired CA certificate
+        'C=US, O=GTE Corporation, CN=GTE CyberTrust Root' is removed.
+
+    * Bug fix
+      * [BUG] SSL + debug_dev didn't work under version 2.1.1.
+      * [BUG] Reason-Phrase of HTTP response status line can be empty according
+      * to RFC2616.
+
   Aug 28, 2007 - version 2.1.1
 
     * bug fix
       * domain_match should be case insensitive. thanks to Brian for the patch.
       * before calling SSLSocket#post_connection_check, check if
         RUBY_VERSION > "1.8.4" for CN based wildcard certificate. when
-        RUBY_VERSION <= "1.8.4",  it fallbacks to the post_connection_check method in
-        HTTPClient so httpclient should run on 1.8.4 fine as before.
+        RUBY_VERSION <= "1.8.4",  it fallbacks to the post_connection_check
+        method in HTTPClient so httpclient should run on 1.8.4 fine as before.
 
     * misc
-      * added HTTPClient#test_loopback_http_response which accepts test loopback
-        response which contains HTTP header. 
+      * added HTTPClient#test_loopback_http_response which accepts test
+        loopback response which contains HTTP header. 
 
   Jul 14, 2007 - version 2.1.0
 
