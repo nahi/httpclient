@@ -283,7 +283,7 @@ class SSLConfig # :nodoc:
         end
       }
     end
-    raise OpenSSL::SSL::SSLError, "hostname not match"
+    raise OpenSSL::SSL::SSLError, "hostname was not match with the server certificate"
   end
 
   # Default callback for verification: only dumps error.
@@ -470,7 +470,7 @@ class DigestAuth # :nodoc:
   #   - child page of defined credential
   def get(req)
     target_uri = req.header.request_uri
-    param = Util.hash_find_value(@challenge) { |uri, param|
+    param = Util.hash_find_value(@challenge) { |uri, v|
       Util.uri_part_of(target_uri, uri)
     }
     return nil unless param
@@ -552,7 +552,7 @@ class NegotiateAuth # :nodoc:
   def get(req)
     return nil unless NTLMEnabled
     target_uri = req.header.request_uri
-    param = Util.hash_find_value(@challenge) { |uri, param|
+    param = Util.hash_find_value(@challenge) { |uri, v|
       Util.uri_part_of(target_uri, uri)
     }
     return nil unless param
@@ -610,7 +610,7 @@ class SSPINegotiateAuth # :nodoc:
   def get(req)
     return nil unless SSPIEnabled
     target_uri = req.header.request_uri
-    param = Util.hash_find_value(@challenge) { |uri, param|
+    param = Util.hash_find_value(@challenge) { |uri, v|
       Util.uri_part_of(target_uri, uri)
     }
     return nil unless param
@@ -1887,14 +1887,14 @@ end
   #   Get a_sring of message-body of response.
   #
   def get_content(uri, query = nil, extheader = {}, &block)
-    follow_redirect(uri, query) { |uri, query|
-      get(uri, query, extheader, &block)
+    follow_redirect(uri, query) { |new_uri, new_query|
+      get(new_uri, query, extheader, &block)
     }.content
   end
 
   def post_content(uri, body = nil, extheader = {}, &block)
-    follow_redirect(uri, nil) { |uri, query|
-      post(uri, body, extheader, &block)
+    follow_redirect(uri, nil) { |new_uri, new_query|
+      post(new_uri, body, extheader, &block)
     }.content
   end
 
@@ -2133,9 +2133,9 @@ private
     @debug_dev << "\n\n= Response\n\n" if @debug_dev
     do_get_header(req, res, sess)
     conn.push(res)
-    sess.get_data() do |str|
-      block.call(str) if block
-      content << str
+    sess.get_data() do |part|
+      block.call(part) if block
+      content << part
     end
     @session_manager.keep(sess) unless sess.closed?
     commands = @request_filter.collect { |filter|
@@ -2163,8 +2163,8 @@ private
     @debug_dev << "\n\n= Response\n\n" if @debug_dev
     do_get_header(req, res, sess)
     conn.push(res)
-    sess.get_data() do |str|
-      pipew.syswrite(str)
+    sess.get_data() do |part|
+      pipew.syswrite(part)
     end
     pipew.close
     @session_manager.keep(sess) unless sess.closed?
