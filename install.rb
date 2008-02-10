@@ -3,18 +3,20 @@
 # Installer for httpclient
 
 require "rbconfig"
-require "ftools"
+require "fileutils"
 
 include Config
 
-RV = CONFIG["MAJOR"] + "." + CONFIG["MINOR"]
-SITELIBDIR = CONFIG["sitedir"] + "/" +  RV 
+SITELIBDIR = CONFIG["sitelibdir"]
 SRCPATH = File.join(File.dirname($0), 'lib')
 
 def install_file(from, to)
-  to_path = File.catname(from, to)
-  unless FileTest.exist?(to_path) and File.compare(from, to_path)
-    File.install(from, to_path, 0644, true)
+  unless File.directory?(to)
+    to = File.dirname(to)
+  end
+  to_path = File.join(to, File.basename(from))
+  unless FileTest.exist?(to_path) and FileUtils.compare_file(from, to_path)
+    FileUtils.install(from, to_path, :mode => 0644, :preserve => true, :verbose => true)
   end
 end
 
@@ -23,7 +25,7 @@ def install(*path)
   if FileTest.directory?(from_path)
     to_path_sitelib = File.join(SITELIBDIR, *path)
     Dir[File.join(from_path, '*.rb')].each do |name|
-      File.mkpath(to_path_sitelib, true)
+      FileUtils.mkdir_p(to_path_sitelib)
       install_file(name, to_path_sitelib)
     end
   else
