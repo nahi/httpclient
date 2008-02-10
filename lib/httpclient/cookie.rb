@@ -54,9 +54,6 @@ class WebAgent
   class Cookie
     include CookieUtils
 
-    require 'parsedate'
-    include ParseDate
-
     attr_accessor :name, :value
     attr_accessor :domain, :path
     attr_accessor :expires      ## for Netscape Cookie
