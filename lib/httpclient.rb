@@ -1337,7 +1337,8 @@ class Session   # :nodoc:
 
   def close
     if !@socket.nil? and !@socket.closed?
-      @socket.flush rescue nil  # try to rescue OpenSSL::SSL::SSLError: cf. #120
+      # @socket.flush may block when it the socket is already closed by
+      # foreign host and the client runs under MT-condition.
       @socket.close
     end
     @state = :INIT
@@ -2076,7 +2077,7 @@ private
     if extheader.is_a?(Hash)
       extheader = extheader.to_a
     end
-    if cookies = @cookie_manager.find(uri)
+    if @cookie_manager && cookies = @cookie_manager.find(uri)
       extheader << ['Cookie', cookies]
     end
     boundary = nil
@@ -2182,7 +2183,7 @@ private
       end
       res.header.set($1, $2)
     end
-    if res.header['set-cookie']
+    if @cookie_manager && res.header['set-cookie']
       res.header['set-cookie'].each do |cookie|
         @cookie_manager.parse(cookie, req.header.request_uri)
       end
