@@ -325,7 +325,7 @@ class WebAgent
       use_security = override
 
       if !domainname
-	cookie_error(NodotError.new(), override)
+	cookie_error(NoDotError.new(), override)
       end
 
       if domain
