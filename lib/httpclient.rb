@@ -887,7 +887,8 @@ class SessionManager    # :nodoc:
 
   attr_reader :test_loopback_http_response
 
-  def initialize
+  def initialize(client)
+    @client = client
     @proxy = nil
 
     @agent_name = nil
@@ -957,7 +958,7 @@ private
     if cached = get_cached_session(dest)
       sess = cached
     else
-      sess = Session.new(dest, @agent_name, @from)
+      sess = Session.new(@client, dest, @agent_name, @from)
       sess.proxy = proxy
       sess.socket_sync = @socket_sync
       sess.requested_version = @protocol_version if @protocol_version
@@ -1273,7 +1274,8 @@ class Session   # :nodoc:
   attr_reader :ssl_peer_cert
   attr_accessor :test_loopback_http_response
 
-  def initialize(dest, user_agent, from)
+  def initialize(client, dest, user_agent, from)
+    @client = client
     @dest = dest
     @src = Site.new
     @proxy = nil
@@ -1450,8 +1452,8 @@ private
   # Connect to the server
   def connect
     site = @proxy || @dest
+    retry_number = 0
     begin
-      retry_number = 0
       timeout(@connect_timeout) do
         @socket = create_socket(site)
         begin
@@ -1463,7 +1465,7 @@ private
         end
         if @dest.scheme == 'https'
           @socket = create_ssl_socket(@socket)
-          connect_ssl_proxy(@socket) if @proxy
+          connect_ssl_proxy(@socket, @dest) if @proxy
           @socket.ssl_connect
           @socket.post_connection_check(@dest)
           @ssl_peer_cert = @socket.peer_cert
@@ -1473,6 +1475,13 @@ private
         # => we need to to call explicitely flush on the socket
         @socket.sync = @socket_sync
       end
+    rescue RetryableResponse
+      retry_number += 1
+      if retry_number < 5
+        retry
+      end
+      raise BadResponse.new(
+        "connect to the server failed with status #{@status} #{@reason}")
     rescue TimeoutError
       if @connect_retry == 0
         retry
@@ -1517,9 +1526,29 @@ private
     SSLSocketWrap.new(raw_socket, @ssl_config, (DEBUG_SSL ? @debug_dev : nil))
   end
 
-  def connect_ssl_proxy(socket)
-    socket << sprintf("CONNECT %s:%s HTTP/1.1\r\n\r\n", @dest.host, @dest.port)
-    parse_header(socket)
+  def connect_ssl_proxy(socket, uri)
+    req = HTTP::Message.new_connect_request(uri, "#{@dest.host}:#{@dest.port}")
+    @client.request_filter.each do |filter|
+      filter.filter_request(req)
+    end
+    set_header(req)
+    req.dump(@socket)
+    @socket.flush unless @socket_sync
+    res = HTTP::Message.new_response('')
+    parse_header(@socket)
+    res.version, res.status, res.reason = @version, @status, @reason
+    @headers.each do |line|
+      unless /^([^:]+)\s*:\s*(.*)$/ =~ line
+        raise RuntimeError.new("Unparsable header: '#{line}'.") if $DEBUG
+      end
+      res.header.set($1, $2)
+    end
+    commands = @client.request_filter.collect { |filter|
+      filter.filter_response(req, res)
+    }
+    if commands.find { |command| command == :retry }
+      raise RetryableResponse.new
+    end
     unless @status == 200
       raise BadResponse.new(
         "connect to ssl proxy failed with status #{@status} #{@reason}")
@@ -1739,7 +1768,7 @@ end
     @debug_dev = nil
     @redirect_uri_callback = method(:default_redirect_uri_callback)
     @test_loopback_response = []
-    @session_manager = SessionManager.new
+    @session_manager = SessionManager.new(self)
     @session_manager.agent_name = @agent_name
     @session_manager.from = @from
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)

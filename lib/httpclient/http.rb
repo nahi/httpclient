@@ -151,6 +151,18 @@ class Message
       @request_via_proxy = nil
     end
 
+    def init_connect_request(uri, hostport)
+      @is_request = true
+      @request_method = 'CONNECT'
+      @request_uri = if uri.is_a?(URI)
+	  uri
+	else
+	  URI.parse(uri.to_s)
+	end
+      @request_query = hostport
+      @http_version = 'HTTP/1.0'
+    end
+
     def init_request(method, uri, query = nil, via_proxy = nil)
       @is_request = true
       @request_method = method
@@ -394,6 +406,14 @@ class Message
   class << self
     alias __new new
     undef new
+  end
+
+  def self.new_connect_request(uri, hostport)
+    m = self.__new
+    m.header = Headers.new
+    m.header.init_connect_request(uri, hostport)
+    m.body = nil
+    m
   end
 
   def self.new_request(method, uri, query = nil, body = nil, proxy = nil,
