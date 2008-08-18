@@ -356,7 +356,7 @@ class WebAgent
 
       end
 
-      path ||= url.path.sub!(%r|/[^/]*|, '')
+      path ||= url.path.sub(%r|/[^/]*|, '')
       domain ||= domainname
       cookie = find_cookie_info(domain, path, name)
 
