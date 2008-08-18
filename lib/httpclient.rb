@@ -2164,8 +2164,11 @@ private
     do_get_header(req, res, sess)
     conn.push(res)
     sess.get_data() do |part|
-      block.call(part) if block
-      content << part
+      if block
+        block.call(part)
+      else
+        content << part
+      end
     end
     @session_manager.keep(sess) unless sess.closed?
     commands = @request_filter.collect { |filter|
