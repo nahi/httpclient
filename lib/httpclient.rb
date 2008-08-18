@@ -2075,6 +2075,7 @@ private
   end
 
   def follow_redirect(uri, query = nil)
+    uri = urify(uri)
     retry_number = 0
     while retry_number < 10
       res = yield(uri, query)
