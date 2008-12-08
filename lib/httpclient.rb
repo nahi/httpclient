@@ -1,5 +1,5 @@
 # HTTPClient - HTTP client library.
-# Copyright (C) 2000-2007  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+# Copyright (C) 2000-2008  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;
@@ -83,7 +83,9 @@ class HTTPClient
 
 module Util
   def urify(uri)
-    if uri.is_a?(URI)
+    if uri.nil?
+      nil
+    elsif uri.is_a?(URI)
       uri
     else
       URI.parse(uri.to_s)
@@ -461,8 +463,10 @@ class DigestAuth # :nodoc:
   end
 
   def set(uri, user, passwd)
-    uri = Util.uri_dirname(uri)
-    @auth[uri] = [user, passwd]
+    if uri
+      uri = Util.uri_dirname(uri)
+      @auth[uri] = [user, passwd]
+    end
   end
 
   # send cred only when a given uri is;

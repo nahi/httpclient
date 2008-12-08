@@ -14,7 +14,7 @@ data = open(File::join(dir, "1000cert.pem")){|io| io.read }
 cert = OpenSSL::X509::Certificate.new(data)
 
 s = WEBrick::HTTPServer.new(
-  :BindAddress      => "0.0.0.0",
+  :BindAddress      => "localhost",
   :Port             => $OPT_p.to_i, 
   :Logger           => nil,
   :DocumentRoot     => $OPT_r || File::join(dir, "/htdocs"),
