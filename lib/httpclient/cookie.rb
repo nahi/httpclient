@@ -30,18 +30,18 @@ class WebAgent
     end
 
     def domain_match(host, domain)
-      domain = domain.downcase
-      host = host.downcase
+      domainname = domain.sub(/\.\z/, '').downcase
+      hostname = host.sub(/\.\z/, '').downcase
       case domain
       when /\d+\.\d+\.\d+\.\d+/
-	return (host == domain)
+	return (hostname == domainname)
       when '.' 
 	return true
       when /^\./
         # allows; host == rubyforge.org, domain == .rubyforge.org
-	return tail_match?(domain, host) || (domain == '.' + host)
+	return tail_match?(domainname, '.' + hostname)
       else
-	return (host == domain)
+	return (hostname == domainname)
       end
     end
 
@@ -53,6 +53,9 @@ class WebAgent
 
   class Cookie
     include CookieUtils
+
+    require 'parsedate'
+    include ParseDate
 
     attr_accessor :name, :value
     attr_accessor :domain, :path
@@ -70,6 +73,7 @@ class WebAgent
 
     def initialize()
       @discard = @use = @secure = @domain_orig = @path_orig = @override = nil
+      @path = nil
     end
 
     def discard?
@@ -205,14 +209,14 @@ class WebAgent
     class Error < StandardError; end
     class ErrorOverrideOK < Error; end
     class SpecialError < Error; end
-    class NoDotError < ErrorOverrideOK; end
-
-    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
 
     attr_accessor :cookies
     attr_accessor :cookies_file
     attr_accessor :accept_domains, :reject_domains
+
+    # for conformance to http://wp.netscape.com/newsref/std/cookie_spec.html
     attr_accessor :netscape_rule
+    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
 
     def initialize(file=nil)
       @cookies = Array.new()
@@ -220,7 +224,6 @@ class WebAgent
       @is_saved = true
       @reject_domains = Array.new()
       @accept_domains = Array.new()
-      # for conformance to http://wp.netscape.com/newsref/std/cookie_spec.html
       @netscape_rule = false
     end
 
@@ -303,8 +306,9 @@ class WebAgent
     end
     private :find_cookie_info
 
+    # not tested well; used only netscape_rule = true.
     def cookie_error(err, override)
-      if err.kind_of?(ErrorOverrideOK) || !override
+      if !err.kind_of?(ErrorOverrideOK) || !override
 	raise err
       end
     end
@@ -324,10 +328,6 @@ class WebAgent
       domain_orig, path_orig = domain, path
       use_security = override
 
-      if !domainname
-	cookie_error(NoDotError.new(), override)
-      end
-
       if domain
 
 	# [DRAFT 12] s. 4.2.2 (does not apply in the case that
@@ -339,6 +339,7 @@ class WebAgent
 	  domain = '.'+domain
 	end
 
+        # [NETSCAPE] rule
         if @netscape_rule
           n = total_dot_num(domain)
           if n < 2
@@ -354,6 +355,10 @@ class WebAgent
           end
         end
 
+        # this implementation does not check RFC2109 4.3.2 case 2;
+        # the portion of host not in domain does not contain a dot.
+        # according to nsCookieService.cpp in Firefox 3.0.4, Firefox 3.0.4
+        # and IE does not check, too.
       end
 
       path ||= url.path.sub(%r|/[^/]*|, '')
