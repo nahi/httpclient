@@ -1576,7 +1576,7 @@ private
       raise InvalidState, 'state != :META'
     end
     parse_header(@socket)
-    @content_length = nil
+    @content_length = 0
     @chunked = false
     @headers.each do |line|
       case line
@@ -1584,7 +1584,6 @@ private
         @content_length = $1.to_i
       when /^Transfer-Encoding:\s+chunked/i
         @chunked = true
-        @content_length = true  # how?
         @chunk_length = 0
       when /^Connection:\s+([\-\w]+)/i, /^Proxy-Connection:\s+([\-\w]+)/i
         case $1
