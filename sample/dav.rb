@@ -1,5 +1,5 @@
 require 'uri'
-require 'http-access2'
+require 'httpclient'
 
 class DAV
   attr_reader :headers
