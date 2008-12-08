@@ -611,6 +611,10 @@ class SSPINegotiateAuth # :nodoc:
     @challenge.clear
   end
 
+  def set(uri, user, passwd)
+    # not supported
+  end
+
   def get(req)
     return nil unless SSPIEnabled
     target_uri = req.header.request_uri
@@ -689,9 +693,10 @@ class WWWAuth < AuthFilterBase # :nodoc:
   end
 
   def set_auth(uri, user, passwd)
-    @basic_auth.set(uri, user, passwd)
-    @digest_auth.set(uri, user, passwd)
-    @negotiate_auth.set(uri, user, passwd)
+    @authenticator.each do |auth|
+      auth.set(uri, user, passwd)
+    end
+    reset_challenge
   end
 
   def filter_request(req)
@@ -744,8 +749,10 @@ class ProxyAuth < AuthFilterBase # :nodoc:
   end
 
   def set_auth(user, passwd)
-    @basic_auth.set(nil, user, passwd)
-    @negotiate_auth.set(nil, user, passwd)
+    @authenticator.each do |auth|
+      auth.set(nil, user, passwd)
+    end
+    reset_challenge
   end
 
   def filter_request(req)
