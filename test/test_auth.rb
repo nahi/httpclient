@@ -22,7 +22,7 @@ class TestAuth < Test::Unit::TestCase
 
   def setup_server
     @server = WEBrick::HTTPServer.new(
-      :BindAddress => "0.0.0.0",
+      :BindAddress => "localhost",
       :Logger => @logger,
       :Port => Port,
       :AccessLog => [],
@@ -97,7 +97,7 @@ class TestAuth < Test::Unit::TestCase
     #httpaccess2_backup = c.www_auth.basic_auth.instance_eval { @scheme }
     begin
       @basic_auth.instance_eval { @auth_scheme = "BASIC" }
-      #c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
+      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
       c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
       assert_equal('basic_auth OK', c.get_content("http://localhost:#{Port}/basic_auth"))
     ensure

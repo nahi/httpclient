@@ -26,7 +26,7 @@ logger = Logger.new(STDERR)
 logger.level = Logger::Severity::FATAL	# avoid logging SSLError (ERROR level)
 
 server = WEBrick::HTTPServer.new(
-  :BindAddress => "0.0.0.0",
+  :BindAddress => "localhost",
   :Logger => logger,
   :Port => PORT,
   :AccessLog => [],

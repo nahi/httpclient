@@ -178,8 +178,8 @@ private
 
   def teardown_server
     if @serverpid
-      Process.kill('KILL', @serverpid)
-      Process.waitpid(@serverpid)
+      Process.kill('KILL', @serverpid) rescue nil
+      Process.waitpid(@serverpid) rescue nil
     end
   end
 

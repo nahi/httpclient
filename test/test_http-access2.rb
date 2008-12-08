@@ -392,7 +392,7 @@ private
 
   def setup_server
     @server = WEBrick::HTTPServer.new(
-      :BindAddress => "0.0.0.0",
+      :BindAddress => "localhost",
       :Logger => @logger,
       :Port => Port,
       :AccessLog => [],
@@ -410,7 +410,7 @@ private
 
   def setup_proxyserver
     @proxyserver = WEBrick::HTTPProxyServer.new(
-      :BindAddress => "0.0.0.0",
+      :BindAddress => "localhost",
       :Logger => @proxylogger,
       :Port => ProxyPort,
       :AccessLog => []
