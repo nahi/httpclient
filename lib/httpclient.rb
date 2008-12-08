@@ -1744,7 +1744,7 @@ end
   attr_reader :www_auth
 
   class << self
-    %w(get_content head get post put delete options trace).each do |name|
+    %w(get_content head get post put delete options propfind trace).each do |name|
       eval <<-EOD
         def #{name}(*arg)
           new.#{name}(*arg)
@@ -1755,6 +1755,8 @@ end
 
   class RetryableResponse < StandardError   # :nodoc:
   end
+
+  PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }
 
   # SYNOPSIS
   #   Client.new(proxy = nil, agent_name = nil, from = nil)
@@ -1982,6 +1984,14 @@ end
     request('OPTIONS', uri, nil, nil, extheader, &block)
   end
 
+  def propfind(uri, query = nil, body = nil, extheader = PROPFIND_DEFAULT_EXTHEADER, &block)
+    request('PROPFIND', uri, query, body, extheader, &block)
+  end
+  
+  def proppatch(path, body, extheader = {}, &block)
+    request('PROPPATCH', uri, query, body, extheader, &block)
+  end
+  
   def trace(uri, query = nil, body = nil, extheader = {}, &block)
     request('TRACE', uri, query, body, extheader, &block)
   end
@@ -2032,6 +2042,14 @@ end
     request_async('OPTIONS', uri, nil, nil, extheader)
   end
 
+  def propfind_async(uri, query = nil, body = nil, extheader = PROPFIND_DEFAULT_EXTHEADER)
+    request_async('PROPFIND', uri, query, body, extheader)
+  end
+  
+  def proppatch_async(path, body, extheader = {})
+    request_async('PROPPATCH', uri, query, body, extheader)
+  end
+  
   def trace_async(uri, query = nil, body = nil, extheader = {})
     request_async('TRACE', uri, query, body, extheader)
   end
