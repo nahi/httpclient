@@ -575,7 +575,7 @@ class NegotiateAuth # :nodoc:
       return t1.encode64
     when :response
       t2 = Net::NTLM::Message.decode64(authphrase)
-      t3 = t2.response({:user => user, :password => passwd}, @ntlm_opt)
+      t3 = t2.response({:user => user, :password => passwd}, @ntlm_opt.dup)
       return t3.encode64
     end
     nil
