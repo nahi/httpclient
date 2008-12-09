@@ -556,7 +556,7 @@ class NegotiateAuth # :nodoc:
   def get(req)
     return nil unless NTLMEnabled
     target_uri = req.header.request_uri
-    param = Util.hash_find_value(@challenge) { |uri, v|
+    uri, param = @challenge.find { |uri, v|
       Util.uri_part_of(target_uri, uri)
     }
     return nil unless param
@@ -576,6 +576,7 @@ class NegotiateAuth # :nodoc:
     when :response
       t2 = Net::NTLM::Message.decode64(authphrase)
       t3 = t2.response({:user => user, :password => passwd}, @ntlm_opt.dup)
+      @challenge.delete(uri)
       return t3.encode64
     end
     nil
