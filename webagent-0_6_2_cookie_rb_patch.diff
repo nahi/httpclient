@@ -1,101 +1,161 @@
---- cookie.rb	2007-04-29 01:34:34.000000000 +0900
-+++ ../../webagent-0.6.2/lib/webagent/cookie.rb	2002-09-30 01:00:39.000000000 +0900
-@@ -1,8 +1,2 @@
--# cookie.rb is redistributed file which is originally included in Webagent
--# version 0.6.2 by TAKAHASHI `Maki' Masayoshi.  And it contains some bug fixes.
--# You can download the entire package of Webagent from
--# http://www.rubycolor.org/arc/.
--
--
+--- cookie.rb	2002-09-30 01:00:39.000000000 +0900
++++ ../../../lib/httpclient/cookie.rb	2008-12-08 17:06:48.000000000 +0900
+@@ -1,2 +1,8 @@
++# cookie.rb is redistributed file which is originally included in Webagent
++# version 0.6.2 by TAKAHASHI `Maki' Masayoshi.  And it contains some bug fixes.
++# You can download the entire package of Webagent from
++# http://www.rubycolor.org/arc/.
++
++
  # Cookie class
  #
-@@ -70,5 +64,4 @@ class WebAgent
+@@ -25,13 +31,16 @@ class WebAgent
+ 
+     def domain_match(host, domain)
++      domainname = domain.sub(/\.\z/, '').downcase
++      hostname = host.sub(/\.\z/, '').downcase
+       case domain
+       when /\d+\.\d+\.\d+\.\d+/
+-	return (host == domain)
++	return (hostname == domainname)
+       when '.' 
+ 	return true
+       when /^\./
+-	return tail_match?(domain, host)
++        # allows; host == rubyforge.org, domain == .rubyforge.org
++	return tail_match?(domainname, '.' + hostname)
+       else
+-	return (host == domain)
++	return (hostname == domainname)
+       end
+     end
+@@ -64,4 +73,6 @@ class WebAgent
  
      def initialize()
--      @discard = @use = @secure = @domain_orig = @path_orig = @override = nil
++      @discard = @use = @secure = @domain_orig = @path_orig = @override = nil
++      @path = nil
      end
  
-@@ -175,7 +168,8 @@ class WebAgent
+@@ -168,8 +179,7 @@ class WebAgent
  	key, value = pair.split(/=/)  ## value may nil
  	key.strip!
--        if value
--          value = value.strip.sub(/\A"(.*)"\z/) { $1 }
--        end
-+	value.strip!
-+	if value && value =~ /^"(.*)"$/
-+	  value = $1
-+	end
+-	value.strip!
+-	if value && value =~ /^"(.*)"$/
+-	  value = $1
+-	end
++        if value
++          value = value.strip.sub(/\A"(.*)"\z/) { $1 }
++        end
  	case key.downcase
  	when 'domain'
-@@ -213,5 +207,4 @@ class WebAgent
-     attr_accessor :cookies_file
-     attr_accessor :accept_domains, :reject_domains
--    attr_accessor :netscape_rule
+@@ -200,7 +210,4 @@ class WebAgent
+     class ErrorOverrideOK < Error; end
+     class SpecialError < Error; end
+-    class NoDotError < ErrorOverrideOK; end
+-
+-    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
  
+     attr_accessor :cookies
+@@ -208,4 +215,8 @@ class WebAgent
+     attr_accessor :accept_domains, :reject_domains
+ 
++    # for conformance to http://wp.netscape.com/newsref/std/cookie_spec.html
++    attr_accessor :netscape_rule
++    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
++
      def initialize(file=nil)
-@@ -221,16 +214,13 @@ class WebAgent
+       @cookies = Array.new()
+@@ -214,13 +225,15 @@ class WebAgent
        @reject_domains = Array.new()
        @accept_domains = Array.new()
--      # for conformance to http://wp.netscape.com/newsref/std/cookie_spec.html
--      @netscape_rule = false
++      @netscape_rule = false
      end
  
--    def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
--      if @is_saved and !force
-+    def save_cookies(force = nil)
-+      if @is_saved && !force
+-    def save_cookies(force = nil)
+-      if @is_saved && !force
++    def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
++      if @is_saved and !force
  	return
        end
--      File.open(@cookies_file, 'w') do |f|
--	@cookies.each do |cookie|
--          if (cookie.use? or save_unused) and
--              (!cookie.discard? or save_discarded)
-+      File.open(@cookies_file,'w'){|f|
-+	@cookies.each{|cookie|
-+	  if cookie.use? && (!cookie.discard?)
+-      File.open(@cookies_file,'w'){|f|
+-	@cookies.each{|cookie|
+-	  if cookie.use? && (!cookie.discard?)
++      File.open(@cookies_file, 'w') do |f|
++	@cookies.each do |cookie|
++          if (cookie.use? or save_unused) and
++              (!cookie.discard? or save_discarded)
  	    f.print(cookie.url.to_s,"\t",
  		    cookie.name,"\t",
-@@ -241,10 +231,6 @@ class WebAgent
+@@ -231,6 +244,10 @@ class WebAgent
  		    cookie.flag,"\n")
  	  end
--        end
--      end
--    end
--
--    def save_cookies(force = nil)
--      save_all_cookies(force, false, false)
-+	}
-+      }
+-	}
+-      }
++        end
++      end
++    end
++
++    def save_cookies(force = nil)
++      save_all_cookies(force, false, false)
      end
  
-@@ -340,18 +326,16 @@ class WebAgent
+@@ -290,6 +307,7 @@ class WebAgent
+     private :find_cookie_info
+ 
++    # not tested well; used only netscape_rule = true.
+     def cookie_error(err, override)
+-      if err.kind_of?(ErrorOverrideOK) || !override
++      if !err.kind_of?(ErrorOverrideOK) || !override
+ 	raise err
+       end
+@@ -311,8 +329,4 @@ class WebAgent
+       use_security = override
+ 
+-      if !domainname
+-	cookie_error(NodotError.new(), override)
+-      end
+-
+       if domain
+ 
+@@ -326,20 +340,27 @@ class WebAgent
  	end
  
--        if @netscape_rule
--          n = total_dot_num(domain)
--          if n < 2
--            cookie_error(SpecialError.new(), override)
--          elsif n == 2
--            ## [NETSCAPE] rule
--            ok = SPECIAL_DOMAIN.select{|sdomain|
--              sdomain == domain[-(sdomain.length)..-1]
--            }
--            if ok.empty?
--              cookie_error(SpecialError.new(), override)
--            end
--          end
--        end
-+	## [NETSCAPE] rule
-+	n = total_dot_num(domain)
-+	if n < 2
-+	  cookie_error(SpecialError.new(), override)
-+	elsif n == 2
-+	  ok = SPECIAL_DOMAIN.select{|sdomain|
-+	    sdomain == domain[-(sdomain.length)..-1]
-+	  }
-+	  if ok.empty?
-+	    cookie_error(SpecialError.new(), override)
-+	  end
-+	end
- 
+-	## [NETSCAPE] rule
+-	n = total_dot_num(domain)
+-	if n < 2
+-	  cookie_error(SpecialError.new(), override)
+-	elsif n == 2
+-	  ok = SPECIAL_DOMAIN.select{|sdomain|
+-	    sdomain == domain[-(sdomain.length)..-1]
+-	  }
+-	  if ok.empty?
+-	    cookie_error(SpecialError.new(), override)
+-	  end
+-	end
+-
++        # [NETSCAPE] rule
++        if @netscape_rule
++          n = total_dot_num(domain)
++          if n < 2
++            cookie_error(SpecialError.new(), override)
++          elsif n == 2
++            ## [NETSCAPE] rule
++            ok = SPECIAL_DOMAIN.select{|sdomain|
++              sdomain == domain[-(sdomain.length)..-1]
++            }
++            if ok.empty?
++              cookie_error(SpecialError.new(), override)
++            end
++          end
++        end
++
++        # this implementation does not check RFC2109 4.3.2 case 2;
++        # the portion of host not in domain does not contain a dot.
++        # according to nsCookieService.cpp in Firefox 3.0.4, Firefox 3.0.4
++        # and IE does not check, too.
        end
+ 
+-      path ||= url.path.sub!(%r|/[^/]*|, '')
++      path ||= url.path.sub(%r|/[^/]*|, '')
+       domain ||= domainname
+       cookie = find_cookie_info(domain, path, name)
