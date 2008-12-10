@@ -556,7 +556,7 @@ class NegotiateAuth # :nodoc:
   def get(req)
     return nil unless NTLMEnabled
     target_uri = req.header.request_uri
-    uri, param = @challenge.find { |uri, v|
+    domain_uri, param = @challenge.find { |uri, v|
       Util.uri_part_of(target_uri, uri)
     }
     return nil unless param
@@ -576,7 +576,7 @@ class NegotiateAuth # :nodoc:
     when :response
       t2 = Net::NTLM::Message.decode64(authphrase)
       t3 = t2.response({:user => user, :password => passwd}, @ntlm_opt.dup)
-      @challenge.delete(uri)
+      @challenge.delete(domain_uri)
       return t3.encode64
     end
     nil
@@ -619,7 +619,7 @@ class SSPINegotiateAuth # :nodoc:
   def get(req)
     return nil unless SSPIEnabled
     target_uri = req.header.request_uri
-    param = Util.hash_find_value(@challenge) { |uri, v|
+    domain_uri, param = @challenge.find { |uri, v|
       Util.uri_part_of(target_uri, uri)
     }
     return nil unless param
@@ -631,6 +631,7 @@ class SSPINegotiateAuth # :nodoc:
       authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
       return authenticator.get_initial_token
     when :response
+      @challenge.delete(domain_uri)
       return authenticator.complete_authentication(authphrase)
     end
     nil
