@@ -1490,7 +1490,7 @@ private
       end
     rescue RetryableResponse
       retry_number += 1
-      if retry_number < 5
+      if retry_number < @protocol_retry_count
         retry
       end
       raise BadResponse.new(
@@ -1744,6 +1744,9 @@ end
   attr_reader :proxy_auth
   attr_reader :www_auth
 
+  attr_accessor :follow_redirect_count
+  attr_accessor :protocol_retry_count
+
   class << self
     %w(get_content head get post put delete options propfind trace).each do |name|
       eval <<-EOD
@@ -1787,6 +1790,8 @@ end
     @session_manager.from = @from
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
     @cookie_manager = WebAgent::CookieManager.new
+    @follow_redirect_count = 10
+    @protocol_retry_count = 5
     load_environment
     self.proxy = proxy if proxy
   end
@@ -1931,14 +1936,27 @@ end
   #   Get a_sring of message-body of response.
   #
   def get_content(uri, query = nil, extheader = {}, &block)
-    follow_redirect(uri, query, block) { |new_uri, new_query, filtered_block|
-      do_request('GET', new_uri, query, nil, extheader, &filtered_block)
+    uri = urify(uri)
+    proxy = no_proxy?(uri) ? nil : @proxy
+    req = create_request('GET', uri, query, nil, extheader, !proxy.nil?)
+    follow_redirect(uri, block) { |new_uri, filtered_block|
+      req.header.init_request('GET', new_uri, query, !proxy.nil?)
+      do_request(req, proxy, &filtered_block)
     }.content
   end
 
+  # DESCRIPTION
+  #   POSTs a body.  Despite from post method, it follows redirect response
+  #   and posts the body to redirected site.  It's a security risk.  If you
+  #   don't understand it, do NOT use this method.
+  #
   def post_content(uri, body = nil, extheader = {}, &block)
-    follow_redirect(uri, nil, block) { |new_uri, new_query, filtered_block|
-      do_request('POST', new_uri, nil, body, extheader, &filtered_block)
+    uri = urify(uri)
+    proxy = no_proxy?(uri) ? nil : @proxy
+    req = create_request('POST', uri, nil, body, extheader, !proxy.nil?)
+    follow_redirect(uri, block) { |new_uri, filtered_block|
+      req.header.init_request('POST', new_uri, nil, !proxy.nil?)
+      do_request(req, proxy, &filtered_block)
     }.content
   end
 
@@ -1998,12 +2016,15 @@ end
   end
 
   def request(method, uri, query = nil, body = nil, extheader = {}, &block)
+    uri = urify(uri)
+    proxy = no_proxy?(uri) ? nil : @proxy
+    req = create_request(method, uri, query, body, extheader, !proxy.nil?)
     if block
       filtered_block = proc { |res, str|
         block.call(str)
       }
     end
-    do_request(method, uri, query, body, extheader, &filtered_block)
+    do_request(req, proxy, &filtered_block)
   end
 
   # Async interface.
@@ -2046,14 +2067,9 @@ end
 
   def request_async(method, uri, query = nil, body = nil, extheader = {})
     uri = urify(uri)
-    conn = Connection.new
-    t = Thread.new(conn) { |tconn|
-      prepare_request(method, uri, query, body, extheader) do |req, proxy|
-        do_get_stream(req, proxy, tconn)
-      end
-    }
-    conn.async_thread = t
-    conn
+    proxy = no_proxy?(uri) ? nil : @proxy
+    req = create_request(method, uri, query, body, extheader, !proxy.nil?)
+    do_request_async(req, proxy)
   end
 
   ##
@@ -2075,14 +2091,13 @@ end
 
 private
 
-  def do_request(method, uri, query = nil, body = nil, extheader = {}, &block)
-    uri = urify(uri)
+  def do_request(req, proxy, &block)
     conn = Connection.new
     res = nil
-    retry_count = 5
+    retry_count = @protocol_retry_count
     while retry_count > 0
       begin
-        prepare_request(method, uri, query, body, extheader) do |req, proxy|
+        protect_keep_alive_disconnected do
           do_get_block(req, proxy, conn, &block)
         end
         res = conn.pop
@@ -2093,6 +2108,25 @@ private
       end
     end
     res
+  end
+
+  def do_request_async(req, proxy)
+    conn = Connection.new
+    t = Thread.new(conn) { |tconn|
+      retry_count = @protocol_retry_count
+      while retry_count > 0
+        begin
+          protect_keep_alive_disconnected do
+            do_get_stream(req, proxy, tconn)
+          end
+          break
+        rescue RetryableResponse
+          retry_count -= 1
+        end
+      end
+    }
+    conn.async_thread = t
+    conn
   end
 
   def load_environment
@@ -2113,7 +2147,7 @@ private
     ENV[name.downcase] || ENV[name.upcase]
   end
 
-  def follow_redirect(uri, query, block = nil)
+  def follow_redirect(uri, block = nil)
     uri = urify(uri)
     retry_number = 0
     if block
@@ -2121,13 +2155,12 @@ private
         block.call(str) if HTTP::Status.successful?(res.status)
       }
     end
-    while retry_number < 10
-      res = yield(uri, query, filtered_block)
+    while retry_number < @follow_redirect_count
+      res = yield(uri, filtered_block)
       if HTTP::Status.successful?(res.status)
         return res
       elsif HTTP::Status.redirect?(res.status)
         uri = @redirect_uri_callback.call(uri, res)
-        query = nil
         retry_number += 1
       else
         raise RuntimeError.new("Unexpected response: #{res.header.inspect}")
@@ -2136,23 +2169,17 @@ private
     raise RuntimeError.new("Retry count exceeded.")
   end
 
-  def prepare_request(method, uri, query, body, extheader)
-    proxy = no_proxy?(uri) ? nil : @proxy
+  def protect_keep_alive_disconnected
     begin
-      req = create_request(method, uri, query, body, extheader, !proxy.nil?)
-      yield(req, proxy)
+      yield
     rescue Session::KeepAliveDisconnected
-      req = create_request(method, uri, query, body, extheader, !proxy.nil?)
-      yield(req, proxy)
+      yield
     end
   end
 
   def create_request(method, uri, query, body, extheader, proxy)
     if extheader.is_a?(Hash)
       extheader = extheader.to_a
-    end
-    if @cookie_manager && cookies = @cookie_manager.find(uri)
-      extheader << ['Cookie', cookies]
     end
     boundary = nil
     content_type = extheader.find { |key, value|
@@ -2164,6 +2191,9 @@ private
     req = HTTP::Message.new_request(method, uri, query, body, proxy, boundary)
     extheader.each do |key, value|
       req.header.set(key, value)
+    end
+    if @cookie_manager && cookies = @cookie_manager.find(uri)
+      req.header.set('Cookie', cookies)
     end
     if content_type.nil? and !body.nil?
       req.header.set('content-type', 'application/x-www-form-urlencoded')

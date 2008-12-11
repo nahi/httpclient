@@ -82,6 +82,7 @@ class TestAuth < Test::Unit::TestCase
   def do_digest_auth(req, res)
     @digest_auth.authenticate(req, res)
     res['content-type'] = 'text/plain'
+    res['x-query'] = req.body
     res.body = 'digest_auth OK'
   end
 
@@ -128,5 +129,16 @@ class TestAuth < Test::Unit::TestCase
       called = true
     end
     assert(called)
+  end
+
+  def test_digest_auth_with_post_io
+    c = HTTPClient.new
+    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
+    post_body = StringIO.new("1234567890")
+    assert_equal('1234567890', c.post("http://localhost:#{Port}/digest_auth", post_body).header['x-query'][0])
+    #
+    post_body = StringIO.new("1234567890")
+    post_body.read(5)
+    assert_equal('67890', c.post("http://localhost:#{Port}/digest_auth", post_body).header['x-query'][0])
   end
 end

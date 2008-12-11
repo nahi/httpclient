@@ -255,6 +255,17 @@ class TestHTTPClient < Test::Unit::TestCase
     assert(called)
   end
 
+  def test_post_content_io
+    post_body = StringIO.new("1234567890")
+    assert_equal('post,1234567890', @client.post_content(@url + 'servlet', post_body))
+    post_body = StringIO.new("1234567890")
+    assert_equal('post,1234567890', @client.post_content(@url + 'servlet_redirect', post_body))
+    #
+    post_body = StringIO.new("1234567890")
+    post_body.read(5)
+    assert_equal('post,67890', @client.post_content(@url + 'servlet_redirect', post_body))
+  end
+
   def test_head
     assert_equal("head", @client.head(@url + 'servlet').header["x-head"][0])
     res = @client.head(@url + 'servlet', {1=>2, 3=>4})

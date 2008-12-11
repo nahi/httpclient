@@ -333,6 +333,7 @@ class Message
     def initialize(body = nil, date = nil, type = nil, charset = nil,
         boundary = nil)
       @body = nil
+      @pos = nil
       @boundary = boundary
       set_content(body, boundary)
       @type = type
@@ -353,6 +354,7 @@ class Message
 
     def dump(dev = '')
       if @body.respond_to?(:read)
+        @body.pos = @pos if @pos
 	begin
 	  while true
 	    chunk = @body.read(@chunk_size)
@@ -377,6 +379,7 @@ class Message
         @body = nil
       elsif body.respond_to?(:read)
 	@body = body
+        @pos = @body.pos if @body.respond_to?(:pos) && @body.respond_to?(:pos=)
       elsif boundary
 	@body = Message.create_query_multipart_str(body, boundary)
       else
