@@ -223,6 +223,18 @@ class TestHTTPClient < Test::Unit::TestCase
     assert(called)
   end
 
+  def test_get_content_with_block
+    @client.get_content(@url + 'hello') do |str|
+      assert_equal('hello', str)
+    end
+    @client.get_content(@url + 'redirect1') do |str|
+      assert_equal('hello', str)
+    end
+    @client.get_content(@url + 'redirect2') do |str|
+      assert_equal('hello', str)
+    end
+  end
+
   def test_post_content
     assert_equal('hello', @client.post_content(@url + 'hello'))
     assert_equal('hello', @client.post_content(@url + 'redirect1'))

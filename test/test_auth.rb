@@ -111,4 +111,15 @@ class TestAuth < Test::Unit::TestCase
     c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
     assert_equal('digest_auth OK', c.get_content("http://localhost:#{Port}/digest_auth"))
   end
+
+  def test_digest_auth_with_block
+    c = HTTPClient.new
+    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
+    called = false
+    c.get_content("http://localhost:#{Port}/digest_auth") do |str|
+      assert_equal('digest_auth OK', str)
+      called = true
+    end
+    assert(called)
+  end
 end

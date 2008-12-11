@@ -1931,14 +1931,14 @@ end
   #   Get a_sring of message-body of response.
   #
   def get_content(uri, query = nil, extheader = {}, &block)
-    follow_redirect(uri, query) { |new_uri, new_query|
-      get(new_uri, query, extheader, &block)
+    follow_redirect(uri, query, block) { |new_uri, new_query, filtered_block|
+      get(new_uri, query, extheader, &filtered_block)
     }.content
   end
 
   def post_content(uri, body = nil, extheader = {}, &block)
-    follow_redirect(uri, nil) { |new_uri, new_query|
-      post(new_uri, body, extheader, &block)
+    follow_redirect(uri, nil, block) { |new_uri, new_query, filtered_block|
+      post(new_uri, body, extheader, &filtered_block)
     }.content
   end
 
@@ -2104,11 +2104,14 @@ private
     ENV[name.downcase] || ENV[name.upcase]
   end
 
-  def follow_redirect(uri, query = nil)
+  def follow_redirect(uri, query, block = nil)
     uri = urify(uri)
     retry_number = 0
+    filtered_block = block && proc { |res, str|
+      block.call(str) if HTTP::Status.successful?(res.status)
+    }
     while retry_number < 10
-      res = yield(uri, query)
+      res = yield(uri, query, filtered_block)
       if HTTP::Status.successful?(res.status)
         return res
       elsif HTTP::Status.redirect?(res.status)
@@ -2196,7 +2199,7 @@ private
     conn.push(res)
     sess.get_data() do |part|
       if block
-        block.call(part)
+        block.call(res, part)
       else
         content << part
       end
