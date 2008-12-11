@@ -1932,13 +1932,13 @@ end
   #
   def get_content(uri, query = nil, extheader = {}, &block)
     follow_redirect(uri, query, block) { |new_uri, new_query, filtered_block|
-      get(new_uri, query, extheader, &filtered_block)
+      do_request('GET', new_uri, query, nil, extheader, &filtered_block)
     }.content
   end
 
   def post_content(uri, body = nil, extheader = {}, &block)
     follow_redirect(uri, nil, block) { |new_uri, new_query, filtered_block|
-      post(new_uri, body, extheader, &filtered_block)
+      do_request('POST', new_uri, nil, body, extheader, &filtered_block)
     }.content
   end
 
@@ -1998,23 +1998,12 @@ end
   end
 
   def request(method, uri, query = nil, body = nil, extheader = {}, &block)
-    uri = urify(uri)
-    conn = Connection.new
-    res = nil
-    retry_count = 5
-    while retry_count > 0
-      begin
-        prepare_request(method, uri, query, body, extheader) do |req, proxy|
-          do_get_block(req, proxy, conn, &block)
-        end
-        res = conn.pop
-        break
-      rescue RetryableResponse
-        res = conn.pop
-        retry_count -= 1
-      end
+    if block
+      filtered_block = proc { |res, str|
+        block.call(str)
+      }
     end
-    res
+    do_request(method, uri, query, body, extheader, &filtered_block)
   end
 
   # Async interface.
@@ -2086,6 +2075,26 @@ end
 
 private
 
+  def do_request(method, uri, query = nil, body = nil, extheader = {}, &block)
+    uri = urify(uri)
+    conn = Connection.new
+    res = nil
+    retry_count = 5
+    while retry_count > 0
+      begin
+        prepare_request(method, uri, query, body, extheader) do |req, proxy|
+          do_get_block(req, proxy, conn, &block)
+        end
+        res = conn.pop
+        break
+      rescue RetryableResponse
+        res = conn.pop
+        retry_count -= 1
+      end
+    end
+    res
+  end
+
   def load_environment
     # http_proxy
     if getenv('REQUEST_METHOD')
@@ -2107,9 +2116,11 @@ private
   def follow_redirect(uri, query, block = nil)
     uri = urify(uri)
     retry_number = 0
-    filtered_block = block && proc { |res, str|
-      block.call(str) if HTTP::Status.successful?(res.status)
-    }
+    if block
+      filtered_block = proc { |res, str|
+        block.call(str) if HTTP::Status.successful?(res.status)
+      }
+    end
     while retry_number < 10
       res = yield(uri, query, filtered_block)
       if HTTP::Status.successful?(res.status)
@@ -2189,7 +2200,7 @@ private
       conn.push(HTTP::Message.new_response(str))
       return
     end
-    content = ''
+    content = block ? nil : ''
     res = HTTP::Message.new_response(content)
     @debug_dev << "= Request\n\n" if @debug_dev
     sess = @session_manager.query(req, proxy)

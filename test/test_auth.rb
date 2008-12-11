@@ -121,5 +121,12 @@ class TestAuth < Test::Unit::TestCase
       called = true
     end
     assert(called)
+    #
+    called = false
+    c.get("http://localhost:#{Port}/digest_auth") do |str|
+      assert_equal('digest_auth OK', str)
+      called = true
+    end
+    assert(called)
   end
 end

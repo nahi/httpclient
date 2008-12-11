@@ -267,10 +267,40 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
+  def test_get_with_block
+    called = false
+    res = @client.get(@url + 'servlet') { |str|
+      assert_equal('get', str)
+      called = true
+    }
+    assert(called)
+    # res does not have a content
+    assert_nil(res.content)
+  end
+
   def test_post
-    assert_equal("post", @client.post(@url + 'servlet').content)
-    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal("post", @client.post(@url + 'servlet').content[0, 4])
+    res = @client.post(@url + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
+  end
+
+  def test_post_with_block
+    called = false
+    res = @client.post(@url + 'servlet') { |str|
+      assert_equal('post,', str)
+      called = true
+    }
+    assert(called)
+    assert_nil(res.content)
+    #
+    called = false
+    res = @client.post(@url + 'servlet', {1=>2, 3=>4}) { |str|
+      assert_equal('post,1=2&3=4', str)
+      called = true
+    }
+    assert(called)
+    assert_equal('1=2&3=4', res.header["x-query"][0])
+    assert_nil(res.content)
   end
 
   def test_put
@@ -410,7 +440,7 @@ private
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
-    [:hello, :sleep, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect].each do |sym|
+    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect].each do |sym|
       @server.mount(
 	"/#{sym}",
 	WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
@@ -486,6 +516,10 @@ private
     res.body = "hello"
   end
 
+  def do_servlet_redirect(req, res)
+    res.set_redirect(WEBrick::HTTPStatus::Found, @url + "servlet") 
+  end
+
   def do_redirect1(req, res)
     res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, @url + "hello") 
   end
@@ -522,7 +556,7 @@ private
     end
 
     def do_POST(req, res)
-      res.body = 'post'
+      res.body = 'post,' + req.body.to_s
       res["x-query"] = body_response(req)
     end
 

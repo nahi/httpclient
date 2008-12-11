@@ -334,7 +334,7 @@ class Message
         boundary = nil)
       @body = nil
       @boundary = boundary
-      set_content(body || '', boundary)
+      set_content(body, boundary)
       @type = type
       @charset = charset
       @date = date
@@ -342,7 +342,9 @@ class Message
     end
 
     def size
-      if @body.respond_to?(:read)
+      if @body.nil?
+        nil
+      elsif @body.respond_to?(:read)
 	nil
       else
 	@body.size
@@ -361,7 +363,7 @@ class Message
 	end
 	dev << (dump_last_chunk + CRLF)
       else
-	dev << @body
+	dev << @body if @body
       end
       dev
     end
@@ -371,7 +373,9 @@ class Message
     end
 
     def set_content(body, boundary = nil)
-      if body.respond_to?(:read)
+      if body.nil?
+        @body = nil
+      elsif body.respond_to?(:read)
 	@body = body
       elsif boundary
 	@body = Message.create_query_multipart_str(body, boundary)
@@ -421,7 +425,7 @@ class Message
     m = self.__new
     m.header = Headers.new
     m.header.init_request(method, uri, query, proxy)
-    m.body = Body.new(body, nil, nil, nil, boundary)
+    m.body = Body.new(body || '', nil, nil, nil, boundary)
     m
   end
 
