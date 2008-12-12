@@ -51,9 +51,8 @@ class HTTPClient
 
   VERSION = '2.1.3-SNAPSHOT'
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
-  s = %w$Id$
-  RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
-  LIB_NAME = "(#{RCS_FILE}/#{RCS_REVISION}, #{RUBY_VERSION_STRING})"
+  /: (\S+) (\S+)/ =~ %q$Id$
+  LIB_NAME = "(#{$1}/#{$2}, #{RUBY_VERSION_STRING})"
 
   class ConfigurationError < StandardError
   end

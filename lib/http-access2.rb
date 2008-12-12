@@ -16,7 +16,6 @@ require 'httpclient'
 module HTTPAccess2
   VERSION = ::HTTPClient::VERSION
   RUBY_VERSION_STRING = ::HTTPClient::RUBY_VERSION_STRING
-  RCS_FILE, RCS_REVISION = ::HTTPClient::RCS_FILE, ::HTTPClient::RCS_REVISION
   SSLEnabled = ::HTTPClient::SSLEnabled
   SSPIEnabled = ::HTTPClient::SSPIEnabled
   DEBUG_SSL = ::HTTPClient::DEBUG_SSL
