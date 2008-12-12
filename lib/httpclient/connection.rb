@@ -30,7 +30,7 @@ class HTTPClient
         false
       else
         # Async thread have been finished.
-        @async_thread.join
+        join
         true
       end
     end
@@ -44,11 +44,10 @@ class HTTPClient
     end
 
     def join
-      unless @async_thread
-        false
-      else
+      if @async_thread
         @async_thread.join
       end
+      nil
     end
   end
 

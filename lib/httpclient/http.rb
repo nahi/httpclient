@@ -389,7 +389,9 @@ module HTTP
           @body = nil
         elsif body.respond_to?(:read)
           @body = body
-          @pos = @body.pos if @body.respond_to?(:pos) && @body.respond_to?(:pos=)
+          if @body.respond_to?(:pos) && @body.respond_to?(:pos=)
+            @pos = @body.pos rescue nil # IO may not support it (ex. IO.pipe)
+          end
         elsif boundary
           @body = Message.create_query_multipart_str(body, boundary)
         else

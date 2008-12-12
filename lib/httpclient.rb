@@ -8,6 +8,7 @@
 
 # Ruby standard library
 require 'uri'
+require 'stringio'
 
 # Extra library
 require 'httpclient/util'
@@ -221,9 +222,6 @@ class HTTPClient
   end
 
   def set_cookie_store(filename)
-    if @cookie_manager.cookies_file
-      raise RuntimeError.new("overriding cookie file location")
-    end
     @cookie_manager.cookies_file = filename
     @cookie_manager.load_cookies if filename
   end
@@ -283,6 +281,9 @@ class HTTPClient
 
   def strict_redirect_uri_callback(uri, res)
     newuri = URI.parse(res.header['location'][0])
+    unless newuri.is_a?(URI::HTTP)
+      raise RuntimeError.new("unexpected location: #{newuri}")
+    end
     puts "Redirect to: #{newuri}" if $DEBUG
     newuri
   end
@@ -291,10 +292,8 @@ class HTTPClient
     newuri = URI.parse(res.header['location'][0])
     unless newuri.is_a?(URI::HTTP)
       newuri = uri + newuri
-      STDERR.puts(
-        "could be a relative URI in location header which is not recommended")
-      STDERR.puts(
-        "'The field value consists of a single absolute URI' in HTTP spec")
+      STDERR.puts("could be a relative URI in location header which is not recommended")
+      STDERR.puts("'The field value consists of a single absolute URI' in HTTP spec")
     end
     puts "Redirect to: #{newuri}" if $DEBUG
     newuri
@@ -324,12 +323,12 @@ class HTTPClient
     request('OPTIONS', uri, nil, nil, extheader, &block)
   end
 
-  def propfind(uri, query = nil, body = nil, extheader = PROPFIND_DEFAULT_EXTHEADER, &block)
-    request('PROPFIND', uri, query, body, extheader, &block)
+  def propfind(uri, extheader = PROPFIND_DEFAULT_EXTHEADER, &block)
+    request('PROPFIND', uri, nil, nil, extheader, &block)
   end
   
-  def proppatch(path, body, extheader = {}, &block)
-    request('PROPPATCH', uri, query, body, extheader, &block)
+  def proppatch(uri, body = nil, extheader = {}, &block)
+    request('PROPPATCH', uri, nil, body, extheader, &block)
   end
   
   def trace(uri, query = nil, body = nil, extheader = {}, &block)
@@ -374,12 +373,12 @@ class HTTPClient
     request_async('OPTIONS', uri, nil, nil, extheader)
   end
 
-  def propfind_async(uri, query = nil, body = nil, extheader = PROPFIND_DEFAULT_EXTHEADER)
-    request_async('PROPFIND', uri, query, body, extheader)
+  def propfind_async(uri, extheader = PROPFIND_DEFAULT_EXTHEADER)
+    request_async('PROPFIND', uri, nil, nil, extheader)
   end
   
-  def proppatch_async(path, body, extheader = {})
-    request_async('PROPPATCH', uri, query, body, extheader)
+  def proppatch_async(uri, body = nil, extheader = {})
+    request_async('PROPPATCH', uri, nil, body, extheader)
   end
   
   def trace_async(uri, query = nil, body = nil, extheader = {})
@@ -581,7 +580,7 @@ private
     end
     if str = @test_loopback_response.shift
       dump_dummy_request_response(req.body.dump, str) if @debug_dev
-      conn.push(HTTP::Message.new_response(str))
+      conn.push(HTTP::Message.new_response(StringIO.new(str)))
       return
     end
     piper, pipew = IO.pipe
@@ -606,10 +605,11 @@ private
   def do_get_header(req, res, sess)
     res.version, res.status, res.reason = sess.get_status
     sess.get_header().each do |line|
-      unless /^([^:]+)\s*:\s*(.*)$/ =~ line
-        raise RuntimeError.new("Unparsable header: '#{line}'.") if $DEBUG
+      if /^([^:]+)\s*:\s*(.*)$/ =~ line
+        res.header.set($1, $2)
+      else
+        STDERR.puts("Unparsable header: '#{line}'.") if $DEBUG
       end
-      res.header.set($1, $2)
     end
     if @cookie_manager && res.header['set-cookie']
       res.header['set-cookie'].each do |cookie|

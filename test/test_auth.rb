@@ -92,6 +92,12 @@ class TestAuth < Test::Unit::TestCase
     assert_equal('basic_auth OK', c.get_content("http://localhost:#{Port}/basic_auth"))
   end
 
+  def test_basic_auth_compat
+    c = HTTPClient.new
+    c.set_basic_auth("http://localhost:#{Port}/", 'admin', 'admin')
+    assert_equal('basic_auth OK', c.get_content("http://localhost:#{Port}/basic_auth"))
+  end
+
   def test_BASIC_auth
     c = HTTPClient.new
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
@@ -140,5 +146,15 @@ class TestAuth < Test::Unit::TestCase
     post_body = StringIO.new("1234567890")
     post_body.read(5)
     assert_equal('67890', c.post("http://localhost:#{Port}/digest_auth", post_body).header['x-query'][0])
+  end
+
+  def test_proxy_auth
+    c = HTTPClient.new
+    c.set_proxy_auth('admin', 'admin')
+    c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Basic realm=\"foo\"\nContent-Length: 2\n\nNG"
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.debug_dev = str = ''
+    c.get_content('http://example.com/')
+    assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
 end

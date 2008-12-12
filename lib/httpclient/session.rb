@@ -57,11 +57,15 @@ class HTTPClient
     end
 
     def ==(rhs)
-      if rhs.is_a?(Site)
-        ((@scheme == rhs.scheme) and (@host == rhs.host) and (@port == rhs.port))
-      else
-        false
-      end
+      rhs.is_a?(Site) and (@scheme == rhs.scheme) and (@host == rhs.host) and (@port == rhs.port)
+    end
+
+    def eql?(rhs)
+      self == rhs
+    end
+
+    def hash
+      [@scheme, @host, @port].hash
     end
 
     def to_s
@@ -98,7 +102,6 @@ class HTTPClient
 
     def initialize(client)
       @client = client
-      @proxy = nil
 
       @agent_name = nil
       @from = nil
@@ -121,22 +124,10 @@ class HTTPClient
       @sess_pool_mutex = Mutex.new
     end
 
-    def proxy=(proxy)
-      if proxy.nil?
-        @proxy = nil
-      else
-        @proxy = Site.new(proxy)
-      end
-    end
-
     def query(req, proxy)
       req.body.chunk_size = @chunk_size
       dest_site = Site.new(req.header.request_uri)
-      proxy_site = if proxy
-                     Site.new(proxy)
-                   else
-                     @proxy
-                   end
+      proxy_site = proxy ? Site.new(proxy) : nil
       sess = open(dest_site, proxy_site)
       begin
         sess.query(req)
@@ -240,7 +231,7 @@ class HTTPClient
       end
       @context = context
       @socket = socket
-      @ssl_socket = create_ssl_socket(@socket)
+      @ssl_socket = create_openssl_socket(@socket)
       @debug_dev = debug_dev
     end
 
@@ -321,7 +312,7 @@ class HTTPClient
       value & mask == mask
     end
 
-    def create_ssl_socket(socket)
+    def create_openssl_socket(socket)
       ssl_socket = nil
       if OpenSSL::SSL.const_defined?("SSLContext")
         ctx = OpenSSL::SSL::SSLContext.new
@@ -518,7 +509,7 @@ class HTTPClient
 
     # Send a request to the server
     def query(req)
-      connect() if @state == :INIT
+      connect if @state == :INIT
       begin
         timeout(@send_timeout) do
           set_header(req)
@@ -564,7 +555,7 @@ class HTTPClient
         if @state != :META
           raise InvalidState.new("get_status must be called at the beginning of a session.")
         end
-        version, status, reason = read_header()
+        version, status, reason = read_header
       rescue
         close
         raise
@@ -574,7 +565,7 @@ class HTTPClient
 
     def get_header(&block)
       begin
-        read_header() if @state == :META
+        read_header if @state == :META
       rescue
         close
         raise
@@ -600,7 +591,7 @@ class HTTPClient
 
     def get_data(&block)
       begin
-        read_header() if @state == :META
+        read_header if @state == :META
         return nil if @state != :DATA
         unless @state == :DATA
           raise InvalidState.new('state != DATA')
@@ -610,7 +601,7 @@ class HTTPClient
           while true
             begin
               timeout(@receive_timeout) do
-                data = read_body()
+                data = read_body
               end
             rescue TimeoutError
               raise
@@ -622,7 +613,7 @@ class HTTPClient
         else
           begin
             timeout(@receive_timeout) do
-              data = read_body()
+              data = read_body
             end
           rescue TimeoutError
             raise
@@ -763,7 +754,7 @@ class HTTPClient
     def read_header
       if @state == :DATA
         get_data {}
-        check_state()
+        check_state
       end
       unless @state == :META
         raise InvalidState, 'state != :META'
@@ -849,11 +840,11 @@ class HTTPClient
 
     def read_body
       if @chunked
-        return read_body_chunked()
+        return read_body_chunked
       elsif @content_length == 0
         return nil
       elsif @content_length
-        return read_body_length()
+        return read_body_length
       else
         if @readbuf.length > 0
           data = @readbuf

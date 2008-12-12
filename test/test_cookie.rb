@@ -252,6 +252,13 @@ EOF
 	str2 = f.read()
       }
       assert_equal(str, str2)
+      #
+      assert(File.exist?('tmp_test2.tmp'))
+      File.unlink("tmp_test2.tmp")
+      @cm.save_cookies()
+      assert(!File.exist?('tmp_test2.tmp'))
+      @cm.save_cookies(true)
+      assert(File.exist?('tmp_test2.tmp'))
     ensure
       File.unlink("tmp_test.tmp")
       if FileTest.exist?("tmp_test2.tmp")
@@ -287,6 +294,7 @@ EOF
     assert_equal(true, check5)
     check6 = @cm.check_cookie_accept_domain("aa.www2.example.jp")
     assert_equal(true, check6)
+    assert_equal(false, @cm.check_cookie_accept_domain(nil))
   end
 
 end

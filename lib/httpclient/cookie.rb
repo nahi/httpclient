@@ -245,6 +245,7 @@ class WebAgent
 	  end
         end
       end
+      @is_saved = true
     end
 
     def save_cookies(force = nil)
