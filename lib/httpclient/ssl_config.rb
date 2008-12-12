@@ -20,6 +20,8 @@ class HTTPClient
   # HTTPClient::SSLConfig -- SSL configuration of a client.
   #
   class SSLConfig
+    include OpenSSL if SSLEnabled
+
     attr_reader :client_cert
     attr_reader :client_key
     attr_reader :client_ca
@@ -37,28 +39,26 @@ class HTTPClient
     def initialize(client)
       return unless SSLEnabled
       @client = client
-      @cert_store = OpenSSL::X509::Store.new
+      @cert_store = X509::Store.new
       @client_cert = @client_key = @client_ca = nil
-      @verify_mode = OpenSSL::SSL::VERIFY_PEER |
-        OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
+      @verify_mode = SSL::VERIFY_PEER | SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       @verify_depth = nil
       @verify_callback = nil
       @dest = nil
       @timeout = nil
-      @options = defined?(OpenSSL::SSL::OP_ALL) ?
-        OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2 : nil
+      @options = defined?(SSL::OP_ALL) ? SSL::OP_ALL | SSL::OP_NO_SSLv2 : nil
       @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
       load_cacerts
     end
 
     def set_client_cert_file(cert_file, key_file)
-      @client_cert = OpenSSL::X509::Certificate.new(File.open(cert_file).read)
-      @client_key = OpenSSL::PKey::RSA.new(File.open(key_file).read)
+      @client_cert = X509::Certificate.new(File.open(cert_file).read)
+      @client_key = PKey::RSA.new(File.open(key_file).read)
       change_notify
     end
 
     def clear_cert_store
-      @cert_store = OpenSSL::X509::Store.new
+      @cert_store = X509::Store.new
       change_notify
     end
 
@@ -72,9 +72,9 @@ class HTTPClient
     end
 
     def set_crl(crl_file)
-      crl = OpenSSL::X509::CRL.new(File.open(crl_file).read)
+      crl = X509::CRL.new(File.open(crl_file).read)
       @cert_store.add_crl(crl)
-      @cert_store.flags = OpenSSL::X509::V_FLAG_CRL_CHECK | OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
+      @cert_store.flags = X509::V_FLAG_CRL_CHECK | X509::V_FLAG_CRL_CHECK_ALL
       change_notify
     end
 
@@ -171,7 +171,7 @@ class HTTPClient
           end
         }
       end
-      raise OpenSSL::SSL::SSLError, "hostname was not match with the server certificate"
+      raise SSL::SSLError, "hostname was not match with the server certificate"
     end
 
     # Default callback for verification: only dumps error.
@@ -271,9 +271,9 @@ It5q1BW0PiAzT9LlEGoaiW0nw39so0Pr1whJDfc1t4fjdk+kSiMIzRHbTDvHWfpV
 nTA=
 -----END CERTIFICATE-----
 __DIST_CERT__
-        p7 = OpenSSL::PKCS7.read_smime(File.open(file) { |f| f.read })
-        selfcert = OpenSSL::X509::Certificate.new(dist_cert)
-        store = OpenSSL::X509::Store.new
+        p7 = PKCS7.read_smime(File.open(file) { |f| f.read })
+        selfcert = X509::Certificate.new(dist_cert)
+        store = X509::Store.new
         store.add_cert(selfcert)
         if (p7.verify(nil, store, p7.data, 0))
           set_trust_ca(file)
