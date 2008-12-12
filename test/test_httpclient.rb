@@ -262,8 +262,11 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal('hello', @client.get_content(@url + 'redirect1'))
     @client.reset_all
     @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: hello\n\n"
-    assert_raises(HTTPClient::BadResponse) do
-      assert_equal('hello', @client.get_content(@url + 'redirect1'))
+    begin
+      @client.get_content(@url + 'redirect1')
+      assert(false)
+    rescue HTTPClient::BadResponse => e
+      assert_equal(302, e.res.status)
     end
   end
 

@@ -58,6 +58,12 @@ class HTTPClient
   end
 
   class BadResponse < RuntimeError
+    attr_reader :res
+
+    def initialize(msg, res = nil)
+      super(msg)
+      @res = res
+    end
   end
 
   # for backward compatibility
@@ -289,7 +295,7 @@ class HTTPClient
   def strict_redirect_uri_callback(uri, res)
     newuri = URI.parse(res.header['location'][0])
     unless newuri.is_a?(URI::HTTP)
-      raise BadResponse.new("unexpected location: #{newuri}")
+      raise BadResponse.new("unexpected location: #{newuri}", res)
     end
     puts "Redirect to: #{newuri}" if $DEBUG
     newuri
@@ -496,10 +502,10 @@ private
         uri = @redirect_uri_callback.call(uri, res)
         retry_number += 1
       else
-        raise BadResponse.new("unexpected response: #{res.header.inspect}")
+        raise BadResponse.new("unexpected response: #{res.header.inspect}", res)
       end
     end
-    raise BadResponse.new("retry count exceeded")
+    raise BadResponse.new("retry count exceeded", res)
   end
 
   def protect_keep_alive_disconnected

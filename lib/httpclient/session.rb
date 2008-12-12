@@ -729,7 +729,7 @@ class HTTPClient
       res.version, res.status, res.reason = @version, @status, @reason
       @headers.each do |line|
         unless /^([^:]+)\s*:\s*(.*)$/ =~ line
-          raise BadResponse.new("unparsable header: '#{line}'") if $DEBUG
+          raise BadResponse.new("unparsable header: #{line}", res) if $DEBUG
         end
         res.header.set($1, $2)
       end
@@ -740,7 +740,7 @@ class HTTPClient
         raise RetryableResponse.new
       end
       unless @status == 200
-        raise BadResponse.new("connect to ssl proxy failed with status #{@status} #{@reason}")
+        raise BadResponse.new("connect to ssl proxy failed with status #{@status} #{@reason}", res)
       end
     end
 
@@ -815,7 +815,7 @@ class HTTPClient
             while true
               line = socket.gets("\n")
               unless line
-                raise BadResponse.new('Unexpected EOF')
+                raise BadResponse.new('unexpected EOF')
               end
               line.sub!(/\r?\n\z/, '')
               break if line.empty?

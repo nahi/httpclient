@@ -47,9 +47,6 @@ module HTTP
   end
 
 
-  class Error < StandardError; end
-  class BadResponseError < Error; end
-
   class << self
     def http_date(a_time)
       a_time.gmtime.strftime("%a, %d %b %Y %H:%M:%S GMT")
