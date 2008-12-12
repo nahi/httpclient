@@ -440,6 +440,7 @@ class HTTPClient
   #   Only 1 TCP session is live at the same time.
   #
   class Session
+    include HTTPClient::Timeout
 
     class Error < StandardError
     end

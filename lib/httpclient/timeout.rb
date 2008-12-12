@@ -1,7 +1,16 @@
+# HTTPClient - HTTP client library.
+# Copyright (C) 2000-2008  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+
+# This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
+# redistribute it and/or modify it under the same terms of Ruby's license;
+# either the dual license version in 2003, or any later version.
+
+
 require 'timeout'
 
 
-module Timeout
+class HTTPClient
+
 
   class TimeoutScheduler
     class Period
@@ -20,7 +29,7 @@ module Timeout
     end
 
     def register(thread, sec, ex)
-      period = Period.new(thread, Time.now + sec, ex || Timeout::Error)
+      period = Period.new(thread, Time.now + sec, ex || ::Timeout::Error)
       @pool[period] = period
       if @next.nil? or period.time < @next
         @thread.wakeup
@@ -61,14 +70,18 @@ module Timeout
   end
 
   TIMEOUT_SCHEDULER = TimeoutScheduler.new
-end
 
-def timeout(sec, ex = nil, &block)
-  return yield if sec == nil or sec.zero?
-  begin
-    period = Timeout::TIMEOUT_SCHEDULER.register(Thread.current, sec, ex)
-    yield(sec)
-  ensure
-    Timeout::TIMEOUT_SCHEDULER.cancel(period)
+  module Timeout
+    def timeout(sec, ex = nil, &block)
+      return yield if sec == nil or sec.zero?
+      begin
+        period = TIMEOUT_SCHEDULER.register(Thread.current, sec, ex)
+        yield(sec)
+      ensure
+        TIMEOUT_SCHEDULER.cancel(period)
+      end
+    end
   end
+
+
 end
