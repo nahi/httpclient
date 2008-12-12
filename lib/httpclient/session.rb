@@ -115,7 +115,7 @@ class HTTPClient
       @connect_retry = 1
       @send_timeout = 120
       @receive_timeout = 60       # For each read_block_size bytes
-      @read_block_size = 8192
+      @read_block_size = 1024 * 16 # follows net/http change in 1.8.7
 
       @ssl_config = nil
       @test_loopback_http_response = []
