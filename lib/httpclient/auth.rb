@@ -7,6 +7,7 @@
 
 
 require 'digest/md5'
+require 'httpclient/session'
 
 
 class HTTPClient
@@ -29,33 +30,17 @@ class HTTPClient
 
 
   class AuthFilterBase
-    def reset_challenge
-      raise NotImplementedError
-    end
-
-    def filter_request(req)
-      raise NotImplementedError
-    end
-
-    def filter_response(req, res)
-      raise NotImplementedError
-    end
-
   private
 
     def parse_authentication_header(res, tag)
       challenge = res.header[tag]
-      unless challenge
-        raise RuntimeError.new("no #{tag} header exists: #{res}")
-      end
-      challenge.collect { |c| parse_challenge_header(c) }
+      return nil unless challenge
+      challenge.collect { |c| parse_challenge_header(c) }.compact
     end
 
     def parse_challenge_header(challenge)
       scheme, param_str = challenge.scan(/\A(\S+)(?:\s+(.*))?\z/)[0]
-      if scheme.nil?
-        raise RuntimeError.new("unsupported challenge: #{challenge}")
-      end
+      return nil if scheme.nil?
       return scheme, param_str
     end
   end

@@ -49,13 +49,22 @@ require 'httpclient/cookie'
 #
 class HTTPClient
 
-  VERSION = '2.1.2'
+  VERSION = '2.1.3-SNAPSHOT'
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
   s = %w$Id$
   RCS_FILE, RCS_REVISION = s[1][/.*(?=,v$)/], s[2]
   LIB_NAME = "(#{RCS_FILE}/#{RCS_REVISION}, #{RUBY_VERSION_STRING})"
 
-  include Util
+  class ConfigurationError < StandardError
+  end
+
+  class BadResponse < RuntimeError
+  end
+
+  # for backward compatibility
+  class Session
+    BadResponse = ::HTTPClient::BadResponse
+  end
 
   attr_reader :agent_name
   attr_reader :from
@@ -69,6 +78,8 @@ class HTTPClient
   attr_accessor :follow_redirect_count
   attr_accessor :protocol_retry_count
 
+  include Util
+
   class << self
     %w(get_content head get post put delete options propfind trace).each do |name|
       eval <<-EOD
@@ -77,9 +88,6 @@ class HTTPClient
         end
       EOD
     end
-  end
-
-  class RetryableResponse < StandardError
   end
 
   PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }
@@ -176,7 +184,7 @@ class HTTPClient
       @proxy = urify(proxy)
       if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
           @proxy.host == nil or @proxy.port == nil
-        raise ArgumentError.new("unsupported proxy `#{proxy}'")
+        raise ArgumentError.new("unsupported proxy #{proxy}")
       end
       @proxy_auth.reset_challenge
       if @proxy.user || @proxy.password
@@ -282,7 +290,7 @@ class HTTPClient
   def strict_redirect_uri_callback(uri, res)
     newuri = URI.parse(res.header['location'][0])
     unless newuri.is_a?(URI::HTTP)
-      raise RuntimeError.new("unexpected location: #{newuri}")
+      raise BadResponse.new("unexpected location: #{newuri}")
     end
     puts "Redirect to: #{newuri}" if $DEBUG
     newuri
@@ -411,6 +419,12 @@ class HTTPClient
 
 private
 
+  class RetryableResponse < StandardError # :nodoc:
+  end
+
+  class KeepAliveDisconnected < StandardError # :nodoc:
+  end
+
   def do_request(req, proxy, &block)
     conn = Connection.new
     res = nil
@@ -483,16 +497,16 @@ private
         uri = @redirect_uri_callback.call(uri, res)
         retry_number += 1
       else
-        raise RuntimeError.new("Unexpected response: #{res.header.inspect}")
+        raise BadResponse.new("unexpected response: #{res.header.inspect}")
       end
     end
-    raise RuntimeError.new("Retry count exceeded.")
+    raise BadResponse.new("retry count exceeded")
   end
 
   def protect_keep_alive_disconnected
     begin
       yield
-    rescue Session::KeepAliveDisconnected
+    rescue KeepAliveDisconnected
       yield
     end
   end
@@ -608,7 +622,7 @@ private
       if /^([^:]+)\s*:\s*(.*)$/ =~ line
         res.header.set($1, $2)
       else
-        STDERR.puts("Unparsable header: '#{line}'.") if $DEBUG
+        STDERR.puts("Unparsable header: '#{line}'") if $DEBUG
       end
     end
     if @cookie_manager && res.header['set-cookie']

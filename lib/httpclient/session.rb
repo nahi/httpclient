@@ -227,7 +227,7 @@ class HTTPClient
   class SSLSocketWrap
     def initialize(socket, context, debug_dev = nil)
       unless SSLEnabled
-        raise RuntimeError.new("Ruby/OpenSSL module is required for httpclient.")
+        raise ConfigurationError.new('Ruby/OpenSSL module is required')
       end
       @context = context
       @socket = socket
@@ -245,7 +245,7 @@ class HTTPClient
         return
       elsif @ssl_socket.peer_cert.nil? and
         check_mask(verify_mode, OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT)
-        raise OpenSSL::SSL::SSLError, "no peer cert"
+        raise OpenSSL::SSL::SSLError.new('no peer cert')
       end
       hostname = host.host
       if @ssl_socket.respond_to?(:post_connection_check) and RUBY_VERSION > "1.8.4"
@@ -447,12 +447,6 @@ class HTTPClient
     class InvalidState < Error
     end
 
-    class BadResponse < Error
-    end
-
-    class KeepAliveDisconnected < Error
-    end
-
     attr_reader :dest                     # Destination site
     attr_reader :src                      # Source site
     attr_accessor :proxy                  # Proxy site
@@ -553,7 +547,7 @@ class HTTPClient
       version = status = reason = nil
       begin
         if @state != :META
-          raise InvalidState.new("get_status must be called at the beginning of a session.")
+          raise InvalidState.new("get_status must be called at the beginning of a session")
         end
         version, status, reason = read_header
       rescue
@@ -735,7 +729,7 @@ class HTTPClient
       res.version, res.status, res.reason = @version, @status, @reason
       @headers.each do |line|
         unless /^([^:]+)\s*:\s*(.*)$/ =~ line
-          raise BadResponse.new("unparsable header: '#{line}'.") if $DEBUG
+          raise BadResponse.new("unparsable header: '#{line}'") if $DEBUG
         end
         res.header.set($1, $2)
       end
@@ -821,7 +815,7 @@ class HTTPClient
             while true
               line = socket.gets("\n")
               unless line
-                raise BadResponse.new('Unexpected EOF.')
+                raise BadResponse.new('Unexpected EOF')
               end
               line.sub!(/\r?\n\z/, '')
               break if line.empty?

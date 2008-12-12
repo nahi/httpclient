@@ -262,7 +262,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal('hello', @client.get_content(@url + 'redirect1'))
     @client.reset_all
     @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: hello\n\n"
-    assert_raises(RuntimeError) do
+    assert_raises(HTTPClient::BadResponse) do
       assert_equal('hello', @client.get_content(@url + 'redirect1'))
     end
   end
@@ -279,10 +279,10 @@ class TestHTTPClient < Test::Unit::TestCase
     @client.reset(url)
     @client.reset(@url)
     @client.reset(url)
-    assert_raises(RuntimeError) do
+    assert_raises(HTTPClient::BadResponse) do
       @client.get_content(@url + 'notfound')
     end
-    assert_raises(RuntimeError) do
+    assert_raises(HTTPClient::BadResponse) do
       @client.get_content(@url + 'redirect_self')
     end
     called = false
@@ -311,10 +311,10 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal('hello', @client.post_content(@url + 'hello'))
     assert_equal('hello', @client.post_content(@url + 'redirect1'))
     assert_equal('hello', @client.post_content(@url + 'redirect2'))
-    assert_raises(RuntimeError) do
+    assert_raises(HTTPClient::BadResponse) do
       @client.post_content(@url + 'notfound')
     end
-    assert_raises(RuntimeError) do
+    assert_raises(HTTPClient::BadResponse) do
       @client.post_content(@url + 'redirect_self')
     end
     called = false
