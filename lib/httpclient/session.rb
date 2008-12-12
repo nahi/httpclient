@@ -11,12 +11,12 @@
 
 
 # Ruby standard library
-require 'timeout'
 require 'socket'
 require 'thread'
 require 'stringio'
 
 # Extra library
+require 'httpclient/timeout'
 require 'httpclient/ssl_config'
 require 'httpclient/http'
 
