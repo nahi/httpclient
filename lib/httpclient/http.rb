@@ -237,7 +237,8 @@ module HTTP
         if !key
           @header_item
         else
-          @header_item.find_all { |pair| pair[0].upcase == key.upcase }
+          key = key.upcase
+          @header_item.find_all { |pair| pair[0].upcase == key }
         end
       end
 

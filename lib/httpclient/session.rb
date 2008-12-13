@@ -801,29 +801,28 @@ class HTTPClient
             if initial_line.nil?
               raise KeepAliveDisconnected.new
             end
-            if StatusParseRegexp =~ initial_line
-              @version, @status, @reason = $1, $2.to_i, $3
-              @next_connection = HTTP.keep_alive_enabled?(@version)
-            else
+            if StatusParseRegexp !~ initial_line
               @version = '0.9'
               @status = nil
               @reason = nil
               @next_connection = false
               @readbuf = initial_line
               break
-            end
+	    end
+	    @version, @status, @reason = $1, $2.to_i, $3
+	    @next_connection = HTTP.keep_alive_enabled?(@version)
             @headers = []
             while true
               line = socket.gets("\n")
               unless line
                 raise BadResponse.new('unexpected EOF')
               end
-              line.sub!(/\r?\n\z/, '')
+              line.chomp!
               break if line.empty?
-              if line.sub!(/^\t/, '')
-                @headers[-1] << line
+              if line[0] == ?\t
+                @headers[-1] << line[1..-1]
               else
-                @headers.push(line)
+                @headers << line
               end
             end
           end while (@version == '1.1' && @status == 100)
