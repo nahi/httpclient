@@ -57,7 +57,7 @@ class HTTPClient
     end
 
     def ==(rhs)
-      rhs.is_a?(Site) and (@scheme == rhs.scheme) and (@host == rhs.host) and (@port == rhs.port)
+      (@scheme == rhs.scheme) and (@host == rhs.host) and (@port == rhs.port)
     end
 
     def eql?(rhs)
@@ -70,6 +70,10 @@ class HTTPClient
 
     def to_s
       addr
+    end
+    
+    def match(uri)
+      (@scheme == uri.scheme) and (@host == uri.host) and (@port == uri.port.to_i)
     end
 
     def inspect
@@ -102,6 +106,7 @@ class HTTPClient
 
     def initialize(client)
       @client = client
+      @proxy = nil
 
       @agent_name = nil
       @from = nil
@@ -124,11 +129,17 @@ class HTTPClient
       @sess_pool_mutex = Mutex.new
     end
 
-    def query(req, proxy)
+    def proxy=(proxy)
+      if proxy.nil?
+        @proxy = nil
+      else
+        @proxy = Site.new(proxy)
+      end
+    end
+
+    def query(req, via_proxy)
       req.body.chunk_size = @chunk_size
-      dest_site = Site.new(req.header.request_uri)
-      proxy_site = proxy ? Site.new(proxy) : nil
-      sess = open(dest_site, proxy_site)
+      sess = open(req.header.request_uri, via_proxy)
       begin
         sess.query(req)
       rescue
@@ -153,13 +164,13 @@ class HTTPClient
 
   private
 
-    def open(dest, proxy = nil)
+    def open(uri, via_proxy = false)
       sess = nil
-      if cached = get_cached_session(dest)
+      if cached = get_cached_session(uri)
         sess = cached
       else
-        sess = Session.new(@client, dest, @agent_name, @from)
-        sess.proxy = proxy
+        sess = Session.new(@client, Site.new(uri), @agent_name, @from)
+        sess.proxy = via_proxy ? @proxy : nil
         sess.socket_sync = @socket_sync
         sess.requested_version = @protocol_version if @protocol_version
         sess.connect_timeout = @connect_timeout
@@ -190,12 +201,12 @@ class HTTPClient
       end
     end
 
-    def get_cached_session(dest)
+    def get_cached_session(uri)
       cached = nil
       @sess_pool_mutex.synchronize do
         new_pool = []
         @sess_pool.each do |s|
-          if s.dest == dest
+          if s.dest.match(uri)
             cached = s
           else
             new_pool << s
@@ -503,6 +514,7 @@ class HTTPClient
     # Send a request to the server
     def query(req)
       connect if @state == :INIT
+      req.header.request_via_proxy = !@proxy.nil?
       begin
         timeout(@send_timeout) do
           set_header(req)
@@ -564,8 +576,8 @@ class HTTPClient
         raise
       end
       if block
-        @headers.each do |line|
-          block.call(line)
+        @headers.each do |key, value|
+          block.call("#{key}: #{value}")
         end
       else
         @headers
@@ -733,11 +745,8 @@ class HTTPClient
       res = HTTP::Message.new_response('')
       parse_header(@socket)
       res.version, res.status, res.reason = @version, @status, @reason
-      @headers.each do |line|
-        unless /^([^:]+)\s*:\s*(.*)$/ =~ line
-          raise BadResponse.new("unparsable header: #{line}", res) if $DEBUG
-        end
-        res.header.set($1, $2)
+      @headers.each do |key, value|
+        res.header.set(key, value)
       end
       commands = @client.request_filter.collect { |filter|
         filter.filter_response(req, res)
@@ -759,25 +768,10 @@ class HTTPClient
       unless @state == :META
         raise InvalidState, 'state != :META'
       end
-      parse_header(@socket)
       @content_length = 0
       @chunked = false
-      @headers.each do |line|
-        case line
-        when /^Content-Length:\s+/i
-          @content_length = $~.post_match.to_i
-        when /^Transfer-Encoding:\s+chunked/i
-          @chunked = true
-          @chunk_length = 0
-        when /^Connection:\s+/i, /^Proxy-Connection:\s+/i
-          case $~.post_match
-          when /^Keep-Alive$/i
-            @next_connection = true
-          when /^close$/i
-            @next_connection = false
-          end
-        end
-      end
+      @chunk_length = 0
+      parse_header(@socket)
 
       # Head of the request has been parsed.
       @state = :DATA
@@ -822,16 +816,31 @@ class HTTPClient
               end
               line.chomp!
               break if line.empty?
-              if line[0] == ?\t
-                @headers[-1] << line[1..-1]
-              else
-                @headers << line
-              end
+              parse_keepalive_header(line)
+              key, value = line.split(/\s*:\s*/, 2)
+              @headers << [key, value]
             end
           end while (@version == '1.1' && @status == 100)
         end
       rescue TimeoutError
         raise
+      end
+    end
+
+    def parse_keepalive_header(line)
+      case line
+      when /^Content-Length:\s+/i
+        @content_length = $~.post_match.to_i
+      when /^Transfer-Encoding:\s+chunked/i
+        @chunked = true
+        @chunk_length = 0
+      when /^Connection:\s+/i, /^Proxy-Connection:\s+/i
+        case $~.post_match
+        when /^Keep-Alive$/i
+          @next_connection = true
+        when /^close$/i
+          @next_connection = false
+        end
       end
     end
 

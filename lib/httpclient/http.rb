@@ -159,12 +159,12 @@ module HTTP
         @http_version = 1.0
       end
 
-      def init_request(method, uri, query = nil, via_proxy = nil)
+      def init_request(method, uri, query = nil)
         @is_request = true
         @request_method = method
         @request_uri = uri
         @request_query = create_query_uri(@request_uri, query)
-        @request_via_proxy = via_proxy
+        @request_via_proxy = false
       end
 
       def init_response(status_code)
@@ -392,7 +392,8 @@ module HTTP
     end
 
     def initialize
-      @body = @header = @peer_cert = nil
+      @header = Headers.new
+      @body = @peer_cert = nil
     end
 
     class << self
@@ -402,23 +403,19 @@ module HTTP
 
     def self.new_connect_request(uri, hostport)
       m = self.__new
-      m.header = Headers.new
       m.header.init_connect_request(uri, hostport)
-      m.body = nil
       m
     end
 
-    def self.new_request(method, uri, query = nil, body = nil, proxy = nil, boundary = nil)
+    def self.new_request(method, uri, query = nil, body = nil, boundary = nil)
       m = self.__new
-      m.header = Headers.new
-      m.header.init_request(method, uri, query, proxy)
+      m.header.init_request(method, uri, query)
       m.body = Body.new(body || '', boundary)
       m
     end
 
     def self.new_response(body = '')
       m = self.__new
-      m.header = Headers.new
       m.header.init_response(Status::OK)
       m.body = Body.new(body)
       m

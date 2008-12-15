@@ -197,6 +197,7 @@ class HTTPClient
       end
     end
     reset_all
+    @session_manager.proxy = @proxy
     @proxy
   end
 
@@ -269,10 +270,10 @@ class HTTPClient
   #
   def get_content(uri, query = nil, extheader = {}, &block)
     uri = urify(uri)
-    proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request('GET', uri, query, nil, extheader, !proxy.nil?)
+    req = create_request('GET', uri, query, nil, extheader)
     follow_redirect(uri, block) { |new_uri, filtered_block|
-      req.header.init_request('GET', new_uri, query, !proxy.nil?)
+      req.header.init_request('GET', new_uri, query)
+      proxy = no_proxy?(new_uri) ? nil : @proxy
       do_request(req, proxy, &filtered_block)
     }.content
   end
@@ -284,10 +285,10 @@ class HTTPClient
   #
   def post_content(uri, body = nil, extheader = {}, &block)
     uri = urify(uri)
-    proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request('POST', uri, nil, body, extheader, !proxy.nil?)
+    req = create_request('POST', uri, nil, body, extheader)
     follow_redirect(uri, block) { |new_uri, filtered_block|
-      req.header.init_request('POST', new_uri, nil, !proxy.nil?)
+      req.header.init_request('POST', new_uri, nil)
+      proxy = no_proxy?(new_uri) ? nil : @proxy
       do_request(req, proxy, &filtered_block)
     }.content
   end
@@ -297,7 +298,7 @@ class HTTPClient
     unless newuri.is_a?(URI::HTTP)
       raise BadResponse.new("unexpected location: #{newuri}", res)
     end
-    puts "Redirect to: #{newuri}" if $DEBUG
+    puts "redirect to: #{newuri}" if $DEBUG
     newuri
   end
 
@@ -308,7 +309,7 @@ class HTTPClient
       STDERR.puts("could be a relative URI in location header which is not recommended")
       STDERR.puts("'The field value consists of a single absolute URI' in HTTP spec")
     end
-    puts "Redirect to: #{newuri}" if $DEBUG
+    puts "redirect to: #{newuri}" if $DEBUG
     newuri
   end
 
@@ -351,7 +352,7 @@ class HTTPClient
   def request(method, uri, query = nil, body = nil, extheader = {}, &block)
     uri = urify(uri)
     proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method, uri, query, body, extheader, !proxy.nil?)
+    req = create_request(method, uri, query, body, extheader)
     if block
       filtered_block = proc { |res, str|
         block.call(str)
@@ -401,7 +402,7 @@ class HTTPClient
   def request_async(method, uri, query = nil, body = nil, extheader = {})
     uri = urify(uri)
     proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method, uri, query, body, extheader, !proxy.nil?)
+    req = create_request(method, uri, query, body, extheader)
     do_request_async(req, proxy)
   end
 
@@ -516,7 +517,7 @@ private
     end
   end
 
-  def create_request(method, uri, query, body, extheader, proxy)
+  def create_request(method, uri, query, body, extheader)
     if extheader.is_a?(Hash)
       extheader = extheader.to_a
     end
@@ -527,7 +528,7 @@ private
     if content_type && content_type[1] =~ /boundary=(.+)\z/
       boundary = $1
     end
-    req = HTTP::Message.new_request(method, uri, query, body, proxy, boundary)
+    req = HTTP::Message.new_request(method, uri, query, body, boundary)
     extheader.each do |key, value|
       req.header.set(key, value)
     end
@@ -623,14 +624,10 @@ private
 
   def do_get_header(req, res, sess)
     res.version, res.status, res.reason = sess.get_status
-    sess.get_header().each do |line|
-      if /^([^:]+)\s*:\s*(.*)$/ =~ line
-        res.header.set($1, $2)
-      else
-        STDERR.puts("Unparsable header: '#{line}'") if $DEBUG
-      end
+    sess.get_header.each do |key, value|
+      res.header.set(key, value)
     end
-    if @cookie_manager && res.header['set-cookie']
+    if @cookie_manager
       res.header['set-cookie'].each do |cookie|
         @cookie_manager.parse(cookie, req.header.request_uri)
       end

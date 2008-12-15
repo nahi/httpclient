@@ -285,11 +285,10 @@ class WebAgent
 
 
     def find(url)
-
       check_expired_cookies()
+      return nil if @cookies.empty?
 
       cookie_list = Array.new()
-
       @cookies.each{|cookie|
 	if cookie.use? && cookie.match?(url)
 	  if cookie_list.select{|c1| c1.name == cookie.name}.empty?
