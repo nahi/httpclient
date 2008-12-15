@@ -628,8 +628,8 @@ class HTTPClient
 
     def src
       if @socket
-        src = Site.new
         addr = @socket.addr
+        src = Site.new
         src.host = addr[3]
         src.port = addr[1]
         src
@@ -660,13 +660,6 @@ class HTTPClient
       begin
         timeout(@connect_timeout) do
           @socket = create_socket(site)
-          begin
-            #@src.host = @socket.addr[3]
-            #@src.port = @socket.addr[1]
-          rescue SocketError
-            # to avoid IPSocket#addr problem on Mac OS X 10.3 + ruby-1.8.1.
-            # cf. [ruby-talk:84909], [ruby-talk:95827]
-          end
           if @dest.scheme == 'https'
             @socket = create_ssl_socket(@socket)
             connect_ssl_proxy(@socket, @dest) if @proxy
