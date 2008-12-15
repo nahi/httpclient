@@ -499,7 +499,7 @@ private
       if HTTP::Status.successful?(res.status)
         return res
       elsif HTTP::Status.redirect?(res.status)
-        uri = @redirect_uri_callback.call(uri, res)
+        uri = urify(@redirect_uri_callback.call(uri, res))
         retry_number += 1
       else
         raise BadResponse.new("unexpected response: #{res.header.inspect}", res)

@@ -6,7 +6,6 @@
 # either the dual license version in 2003, or any later version.
 
 
-require 'uri'
 require 'time'
 
 
@@ -52,18 +51,8 @@ module HTTP
       a_time.gmtime.strftime("%a, %d %b %Y %H:%M:%S GMT")
     end
 
-    ProtocolVersionRegexp = Regexp.new('^(?:HTTP/|)(\d+)\.(\d+)$')
     def keep_alive_enabled?(version)
-      ProtocolVersionRegexp =~ version
-      if !($1 and $2)
-        false
-      elsif $1.to_i > 1
-	true
-      elsif $1.to_i == 1 and $2.to_i >= 1
-	true
-      else
-	false
-      end
+      version >= 1.1
     end
   end
 
@@ -147,7 +136,7 @@ module HTTP
       #
       def initialize
         @is_request = nil	# true, false and nil
-        @http_version = 'HTTP/1.1'
+        @http_version = 1.1
         @body_type = nil
         @body_charset = nil
         @body_size = nil
@@ -165,23 +154,15 @@ module HTTP
       def init_connect_request(uri, hostport)
         @is_request = true
         @request_method = 'CONNECT'
-        @request_uri = if uri.is_a?(URI)
-            uri
-          else
-            URI.parse(uri.to_s)
-          end
+        @request_uri = uri
         @request_query = hostport
-        @http_version = 'HTTP/1.0'
+        @http_version = 1.0
       end
 
       def init_request(method, uri, query = nil, via_proxy = nil)
         @is_request = true
         @request_method = method
-        @request_uri = if uri.is_a?(URI)
-            uri
-          else
-            URI.parse(uri.to_s)
-          end
+        @request_uri = uri
         @request_query = create_query_uri(@request_uri, query)
         @request_via_proxy = via_proxy
       end
@@ -214,7 +195,7 @@ module HTTP
         end
       end
 
-      def dump(dev = '')
+      def dump(dev = nil)
         set_header
         str = nil
         if @is_request
@@ -225,8 +206,12 @@ module HTTP
         str += @header_item.collect { |key, value|
           dump_line("#{ key }: #{ value }")
         }.join
-        dev << str
-        dev
+        if dev
+          dev << str
+          dev
+        else
+          str
+        end
       end
 
       def set(key, value)
@@ -234,7 +219,7 @@ module HTTP
       end
 
       def get(key = nil)
-        if !key
+        if key.nil?
           @header_item
         else
           key = key.upcase
@@ -267,12 +252,12 @@ module HTTP
           else
             @request_query
           end
-        dump_line("#{ @request_method } #{ path } #{ @http_version }")
+        dump_line("#{ @request_method } #{ path } HTTP/#{ @http_version }")
       end
 
       def response_status_line
         if defined?(Apache)
-          dump_line("#{ @http_version } #{ response_status_code } #{ @reason_phrase }")
+          dump_line("HTTP/#{ @http_version } #{ response_status_code } #{ @reason_phrase }")
         else
           dump_line("Status: #{ response_status_code } #{ @reason_phrase }")
         end
@@ -299,7 +284,7 @@ module HTTP
         end
 
         if @is_request == true
-          if @http_version >= 'HTTP/1.1'
+          if @http_version >= 1.1
             if @request_uri.port == @request_uri.default_port
               set('Host', "#{@request_uri.host}")
             else
@@ -337,31 +322,21 @@ module HTTP
     end
 
     class Body
-      attr_accessor :type, :charset, :date, :chunk_size
+      attr_reader :size
+      attr_accessor :chunk_size
 
-      def initialize(body = nil, date = nil, type = nil, charset = nil, boundary = nil)
+      def initialize(body = nil, boundary = nil)
         @body = nil
+        @size = nil
         @pos = nil
         @boundary = boundary
         set_content(body, boundary)
-        @type = type
-        @charset = charset
-        @date = date
-        @chunk_size = 4096
+        @chunk_size = 1024 * 16
       end
 
-      def size
-        if @body.nil?
-          nil
-        elsif @body.respond_to?(:read)
-          nil
-        else
-          @body.size
-        end
-      end
-
-      def dump(dev = '')
+      def dump(header = '', dev = '')
         if @body.respond_to?(:read)
+          dev << header
           @body.pos = @pos if @pos
           begin
             while true
@@ -372,8 +347,10 @@ module HTTP
           rescue EOFError
           end
           dev << (dump_last_chunk + CRLF)
+        elsif @body
+          dev << header + @body
         else
-          dev << @body if @body
+          dev << header
         end
         dev
       end
@@ -392,8 +369,10 @@ module HTTP
           end
         elsif boundary
           @body = Message.create_query_multipart_str(body, boundary)
+          @size = @body.size
         else
           @body = Message.create_query_part_str(body)
+          @size = @body.size
         end
       end
 
@@ -433,7 +412,7 @@ module HTTP
       m = self.__new
       m.header = Headers.new
       m.header.init_request(method, uri, query, proxy)
-      m.body = Body.new(body || '', nil, nil, nil, boundary)
+      m.body = Body.new(body || '', boundary)
       m
     end
 
@@ -446,10 +425,12 @@ module HTTP
     end
 
     def dump(dev = '')
-      sync_header
-      dev = header.dump(dev)
-      dev << CRLF
-      dev = body.dump(dev) if body
+      str = header.dump + CRLF
+      if body
+        dev = body.dump(str, dev)
+      else
+        dev << str
+      end
       dev
     end
 
@@ -462,7 +443,6 @@ module HTTP
 
     def header=(header)
       @header = header
-      sync_body
     end
 
     def content
@@ -471,7 +451,7 @@ module HTTP
 
     def body=(body)
       @body = body
-      sync_header
+      @header.body_size = @body.size if @header
     end
 
     def status
@@ -608,26 +588,6 @@ module HTTP
         else
           'application/octet-stream'
         end
-      end
-    end
-
-  private
-
-    def sync_header
-      if @header and @body
-        @header.body_type = @body.type
-        @header.body_charset = @body.charset
-        @header.body_size = @body.size
-        @header.body_date = @body.date
-      end
-    end
-
-    def sync_body
-      if @header and @body
-        @body.type = @header.body_type
-        @body.charset = @header.body_charset
-        @body.size = @header.body_size
-        @body.date = @header.body_date
       end
     end
   end

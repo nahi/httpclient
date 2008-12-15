@@ -449,7 +449,6 @@ class HTTPClient
     end
 
     attr_reader :dest                     # Destination site
-    attr_reader :src                      # Source site
     attr_accessor :proxy                  # Proxy site
     attr_accessor :socket_sync            # Boolean value for Socket#sync
 
@@ -471,7 +470,6 @@ class HTTPClient
     def initialize(client, dest, user_agent, from)
       @client = client
       @dest = dest
-      @src = Site.new
       @proxy = nil
       @socket_sync = true
       @requested_version = nil
@@ -628,10 +626,24 @@ class HTTPClient
       data
     end
 
+    def src
+      if @socket
+        src = Site.new
+        addr = @socket.addr
+        src.host = addr[3]
+        src.port = addr[1]
+        src
+      end
+    end
+
   private
 
     def set_header(req)
-      req.version = @requested_version if @requested_version
+      if @requested_version
+        if /^(?:HTTP\/|)(\d+.\d+)$/ =~ @requested_version
+          req.version = $1.to_f
+        end
+      end
       if @user_agent
         req.header.set('User-Agent', "#{@user_agent} #{LIB_NAME}")
       end
@@ -649,8 +661,8 @@ class HTTPClient
         timeout(@connect_timeout) do
           @socket = create_socket(site)
           begin
-            @src.host = @socket.addr[3]
-            @src.port = @socket.addr[1]
+            #@src.host = @socket.addr[3]
+            #@src.port = @socket.addr[1]
           rescue SocketError
             # to avoid IPSocket#addr problem on Mac OS X 10.3 + ruby-1.8.1.
             # cf. [ruby-talk:84909], [ruby-talk:95827]
@@ -759,20 +771,18 @@ class HTTPClient
       @chunked = false
       @headers.each do |line|
         case line
-        when /^Content-Length:\s+(\d+)/i
-          @content_length = $1.to_i
+        when /^Content-Length:\s+/i
+          @content_length = $~.post_match.to_i
         when /^Transfer-Encoding:\s+chunked/i
           @chunked = true
           @chunk_length = 0
-        when /^Connection:\s+([\-\w]+)/i, /^Proxy-Connection:\s+([\-\w]+)/i
-          case $1
+        when /^Connection:\s+/i, /^Proxy-Connection:\s+/i
+          case $~.post_match
           when /^Keep-Alive$/i
             @next_connection = true
           when /^close$/i
             @next_connection = false
           end
-        else
-          # Nothing to parse.
         end
       end
 
@@ -810,7 +820,7 @@ class HTTPClient
               break
 	    end
 	    @version, @status, @reason = $1, $2.to_i, $3
-	    @next_connection = HTTP.keep_alive_enabled?(@version)
+	    @next_connection = HTTP.keep_alive_enabled?(@version.to_f)
             @headers = []
             while true
               line = socket.gets("\n")
