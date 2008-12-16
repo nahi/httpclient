@@ -7,11 +7,11 @@ require 'open-uri'
 require 'eventmachine'
 require 'curb'
 
-proxy = nil
-url = URI.parse('http://dev.ctor.org/')
-threads = 5
-# eventmachine client blocks when number > 25 or so... 
-number = 100
+url = ARGV.shift or raise
+proxy = ENV['http_proxy'] || ENV['HTTP_PROXY']
+url = URI.parse(url)
+threads = 1
+number = 200
 
 def do_threads(number)
   threads = []
@@ -26,6 +26,8 @@ def do_threads(number)
 end
 
 Benchmark.bmbm do |bm|
+=begin
+  # eventmachine client blocks when number > 25 or so... 
   bm.report('EM::Protocols::HttpClient2') do
     EM.run do
       query = {}
@@ -51,6 +53,15 @@ Benchmark.bmbm do |bm|
       }
       done = true
     end
+  end
+=end
+
+  bm.report('curb') do
+    do_threads(threads) {
+      (1..number).collect {
+        Curl::Easy.http_get(url.to_s).body_str.size
+      }
+    }
   end
 
   bm.report('RFuzz::HttpClient') do
@@ -94,14 +105,6 @@ Benchmark.bmbm do |bm|
     do_threads(threads) {
       (1..number).collect {
         open(url, :proxy => proxy).read.size
-      }
-    }
-  end
-
-  bm.report('curb') do
-    do_threads(threads) {
-      (1..number).collect {
-        Curl::Easy.http_get(url.to_s).body_str.size
       }
     }
   end
