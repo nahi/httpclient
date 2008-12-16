@@ -159,10 +159,11 @@ module HTTP
         @http_version = 1.0
       end
 
+      NIL_URI = URI.parse('http://nil-uri-given/')
       def init_request(method, uri, query = nil)
         @is_request = true
         @request_method = method
-        @request_uri = uri
+        @request_uri = uri || NIL_URI
         @request_query = create_query_uri(@request_uri, query)
         @request_via_proxy = false
       end

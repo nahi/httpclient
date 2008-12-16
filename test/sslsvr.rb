@@ -39,6 +39,9 @@ server = WEBrick::HTTPServer.new(
   :SSLClientCA => cert('ca.cert'),
   :SSLCertName => nil
 )
+trap(:INT) do
+  server.shutdown
+end
 [:hello].each do |sym|
   server.mount(
     "/#{sym}",
