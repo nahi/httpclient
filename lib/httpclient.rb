@@ -86,7 +86,7 @@ class HTTPClient
   include Util
 
   class << self
-    %w(get_content head get post put delete options propfind trace).each do |name|
+    %w(get_content post_content head get post put delete options propfind proppatch trace).each do |name|
       eval <<-EOD
         def #{name}(*arg)
           new.#{name}(*arg)
