@@ -6,12 +6,14 @@ require 'uri'
 require 'open-uri'
 require 'eventmachine'
 require 'curb'
+require 'httparty'
 
 url = ARGV.shift or raise
 proxy = ENV['http_proxy'] || ENV['HTTP_PROXY']
 url = URI.parse(url)
-threads = 1
-number = 200
+proxy = URI.parse(proxy) if proxy
+threads = 2
+number = 500
 
 def do_threads(number)
   threads = []
@@ -73,9 +75,11 @@ Benchmark.bmbm do |bm|
       end
       path = proxy ? url.to_s : url.path
       c = RFuzz::HttpClient.new(host, port)
-      (1..number).collect {
+      result = (1..number).collect {
 	c.get(path).http_body.size
       }
+      c.reset
+      result
     }
   end
 
@@ -86,9 +90,12 @@ Benchmark.bmbm do |bm|
       else
         c = Net::HTTP.new(url.host, url.port)
       end
-      (1..number).collect {
+      c.start
+      result = (1..number).collect {
 	c.get(url.path).read_body.size
       }
+      c.finish
+      result
     }
   end
 
@@ -99,12 +106,28 @@ Benchmark.bmbm do |bm|
 	c.get_content(url).size
       }
     }
+    c.reset_all
   end
 
   bm.report('open-uri') do
     do_threads(threads) {
       (1..number).collect {
-        open(url, :proxy => proxy).read.size
+        open(url, :proxy => proxy) { |f|
+          f.read.size
+        }
+      }
+    }
+  end
+
+  class HTTPartyClient # need to create subclass for http_proxy
+    include HTTParty
+  end
+  bm.report('HTTParty') do
+    HTTPartyClient.http_proxy(proxy.host, proxy.port) if proxy
+    do_threads(threads) {
+      (1..number).collect {
+        # HTTParty should accept URI object like others.
+        HTTPartyClient.get(url.to_s).size
       }
     }
   end
