@@ -12,6 +12,7 @@
 #    w3m homepage:  http://ei5nazha.yz.yamagata-u.ac.jp/~aito/w3m/eng/
 
 require 'uri'
+require 'time'
 
 class WebAgent
 
@@ -53,9 +54,6 @@ class WebAgent
 
   class Cookie
     include CookieUtils
-
-    require 'parsedate'
-    include ParseDate
 
     attr_accessor :name, :value
     attr_accessor :domain, :path
@@ -186,7 +184,7 @@ class WebAgent
 	  @domain = value
 	when 'expires'
 	  begin
-	    @expires = Time.gm(*parsedate(value)[0,6])
+	    @expires = Time.parse(value)
 	  rescue ArgumentError
 	    @expires = nil
 	  end

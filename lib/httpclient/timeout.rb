@@ -30,7 +30,7 @@ class HTTPClient
 
     def register(thread, sec, ex)
       period = Period.new(thread, Time.now + sec, ex || ::Timeout::Error)
-      @pool[period] = period
+      @pool[period] = true
       if @next.nil? or period.time < @next
         @thread.wakeup
       end
@@ -50,7 +50,7 @@ class HTTPClient
             @next = nil
             sleep
           else
-            id, min = @pool.min { |a, b| a[1].time <=> b[1].time }
+            min, = @pool.min { |a, b| a[0].time <=> b[0].time }
             @next = min.time
             sec = @next - Time.now
             if sec > 0
@@ -58,7 +58,7 @@ class HTTPClient
             end
           end
           now = Time.now
-          @pool.each do |id, period|
+          @pool.keys.each do |period|
             if period.time < now
               period.thread.raise(period.ex, 'execution expired') if period.thread.alive?
               cancel(period)
