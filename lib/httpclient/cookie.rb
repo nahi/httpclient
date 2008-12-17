@@ -13,6 +13,7 @@
 
 require 'uri'
 require 'time'
+require 'monitor'
 
 class WebAgent
 
@@ -208,7 +209,7 @@ class WebAgent
     class ErrorOverrideOK < Error; end
     class SpecialError < Error; end
 
-    attr_accessor :cookies
+    attr_reader :cookies
     attr_accessor :cookies_file
     attr_accessor :accept_domains, :reject_domains
 
@@ -218,6 +219,7 @@ class WebAgent
 
     def initialize(file=nil)
       @cookies = Array.new()
+      @cookies.extend(MonitorMixin)
       @cookies_file = file
       @is_saved = true
       @reject_domains = Array.new()
@@ -225,22 +227,31 @@ class WebAgent
       @netscape_rule = false
     end
 
+    def cookies=(cookies)
+      @cookies.synchronize do
+        @cookies = cookies
+        @cookies.extend(MonitorMixin)
+      end
+    end
+
     def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
       if @is_saved and !force
 	return
       end
-      File.open(@cookies_file, 'w') do |f|
-	@cookies.each do |cookie|
-          if (cookie.use? or save_unused) and
-              (!cookie.discard? or save_discarded)
-	    f.print(cookie.url.to_s,"\t",
-		    cookie.name,"\t",
-		    cookie.value,"\t",
-		    cookie.expires.to_i,"\t",
-		    cookie.domain,"\t",
-		    cookie.path,"\t",
-		    cookie.flag,"\n")
-	  end
+      @cookies.synchronize do
+        File.open(@cookies_file, 'w') do |f|
+          @cookies.each do |cookie|
+            if (cookie.use? or save_unused) and
+                (!cookie.discard? or save_discarded)
+              f.print(cookie.url.to_s,"\t",
+                      cookie.name,"\t",
+                      cookie.value,"\t",
+                      cookie.expires.to_i,"\t",
+                      cookie.domain,"\t",
+                      cookie.path,"\t",
+                      cookie.flag,"\n")
+            end
+          end
         end
       end
       @is_saved = true
@@ -251,13 +262,15 @@ class WebAgent
     end
 
     def check_expired_cookies()
-      @cookies.reject!{|cookie|
-	is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
-	if is_expired && !cookie.discard?
-	  @is_saved = false
-	end
-	is_expired
-      }
+      @cookies.synchronize do
+        @cookies.reject!{|cookie|
+          is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
+          if is_expired && !cookie.discard?
+            @is_saved = false
+          end
+          is_expired
+        }
+      end
     end
 
     def parse(str, url)
@@ -283,18 +296,20 @@ class WebAgent
 
 
     def find(url)
-      check_expired_cookies()
-      return nil if @cookies.empty?
+      @cookies.synchronize do
+        check_expired_cookies()
+        return nil if @cookies.empty?
 
-      cookie_list = Array.new()
-      @cookies.each{|cookie|
-	if cookie.use? && cookie.match?(url)
-	  if cookie_list.select{|c1| c1.name == cookie.name}.empty?
-	    cookie_list << cookie
-	  end
-	end
-      }
-      return make_cookie_str(cookie_list)
+        cookie_list = Array.new()
+        @cookies.each{|cookie|
+          if cookie.use? && cookie.match?(url)
+            if cookie_list.select{|c1| c1.name == cookie.name}.empty?
+              cookie_list << cookie
+            end
+          end
+        }
+        return make_cookie_str(cookie_list)
+      end
     end
 
     def find_cookie_info(domain, path, name)
@@ -361,12 +376,13 @@ class WebAgent
 
       path ||= url.path.sub(%r|/[^/]*|, '')
       domain ||= domainname
-      cookie = find_cookie_info(domain, path, name)
-
-      if !cookie
-	cookie = WebAgent::Cookie.new()
-	cookie.use = true
-	@cookies << cookie
+      @cookies.synchronize do
+        cookie = find_cookie_info(domain, path, name)
+        if !cookie
+          cookie = WebAgent::Cookie.new()
+          cookie.use = true
+          @cookies << cookie
+        end
       end
 
       cookie.url = url
@@ -393,20 +409,22 @@ class WebAgent
 
     def load_cookies()
       return if !File.readable?(@cookies_file)
-      File.open(@cookies_file,'r'){|f|
-	while line = f.gets
-	  cookie = WebAgent::Cookie.new()
-	  @cookies << cookie
-	  col = line.chomp.split(/\t/)
-	  cookie.url = URI.parse(col[0])
-	  cookie.name = col[1]
-	  cookie.value = col[2]
-	  cookie.expires = Time.at(col[3].to_i)
-	  cookie.domain = col[4]
-	  cookie.path = col[5]
-	  cookie.set_flag(col[6])
-	end
-      }
+      @cookies.synchronize do
+        File.open(@cookies_file,'r'){|f|
+          while line = f.gets
+            cookie = WebAgent::Cookie.new()
+            @cookies << cookie
+            col = line.chomp.split(/\t/)
+            cookie.url = URI.parse(col[0])
+            cookie.name = col[1]
+            cookie.value = col[2]
+            cookie.expires = Time.at(col[3].to_i)
+            cookie.domain = col[4]
+            cookie.path = col[5]
+            cookie.set_flag(col[6])
+          end
+        }
+      end
     end
 
     def check_cookie_accept_domain(domain)
