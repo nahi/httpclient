@@ -516,7 +516,7 @@ class HTTPClient
       connect if @state == :INIT
       req.header.request_via_proxy = !@proxy.nil?
       begin
-        timeout(@send_timeout) do
+        timeout(@send_timeout, SendTimeoutError) do
           set_header(req)
           req.dump(@socket)
           # flush the IO stream as IO::sync mode is false
@@ -602,27 +602,16 @@ class HTTPClient
           raise InvalidState.new('state != DATA')
         end
         data = nil
-        if block
-          while true
-            begin
-              timeout(@receive_timeout) do
-                data = read_body
-              end
-            rescue TimeoutError
-              raise
-            end
-            block.call(data) if data
-            break if eof?
-          end
-          data = nil      # Calling with block returns nil.
-        else
+        while true
           begin
-            timeout(@receive_timeout) do
+            timeout(@receive_timeout, ReceiveTimeoutError) do
               data = read_body
             end
           rescue TimeoutError
             raise
           end
+          block.call(data) if data
+          break if eof?
         end
       rescue
         close
@@ -635,7 +624,7 @@ class HTTPClient
           close
         end
       end
-      data
+      nil
     end
 
     def src
@@ -670,7 +659,7 @@ class HTTPClient
       site = @proxy || @dest
       retry_number = 0
       begin
-        timeout(@connect_timeout) do
+        timeout(@connect_timeout, ConnectTimeoutError) do
           @socket = create_socket(site)
           if @dest.scheme == 'https'
             @socket = create_ssl_socket(@socket)
@@ -689,7 +678,7 @@ class HTTPClient
         if retry_number < @protocol_retry_count
           retry
         end
-        raise BadResponse.new("connect to the server failed with status #{@status} #{@reason}")
+        raise BadResponseError.new("connect to the server failed with status #{@status} #{@reason}")
       rescue TimeoutError
         if @connect_retry == 0
           retry
@@ -755,7 +744,7 @@ class HTTPClient
         raise RetryableResponse.new
       end
       unless @status == 200
-        raise BadResponse.new("connect to ssl proxy failed with status #{@status} #{@reason}", res)
+        raise BadResponseError.new("connect to ssl proxy failed with status #{@status} #{@reason}", res)
       end
     end
 
@@ -792,7 +781,7 @@ class HTTPClient
     StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d\d\d)\s*([^\r\n]+)?\r?\n\z)
     def parse_header(socket)
       begin
-        timeout(@receive_timeout) do
+        timeout(@receive_timeout, ReceiveTimeoutError) do
           begin
             initial_line = socket.gets("\n")
             if initial_line.nil?
@@ -812,7 +801,7 @@ class HTTPClient
             while true
               line = socket.gets("\n")
               unless line
-                raise BadResponse.new('unexpected EOF')
+                raise BadResponseError.new('unexpected EOF')
               end
               line.chomp!
               break if line.empty?
@@ -834,6 +823,7 @@ class HTTPClient
       when /^Transfer-Encoding:\s+chunked/i
         @chunked = true
         @chunk_length = 0
+        @content_length = nil
       when /^Connection:\s+/i, /^Proxy-Connection:\s+/i
         case $~.post_match
         when /^Keep-Alive$/i

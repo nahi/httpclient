@@ -9,6 +9,7 @@
 # Ruby standard library
 require 'uri'
 require 'stringio'
+require 'digest/sha1'
 
 # Extra library
 require 'httpclient/util'
@@ -57,7 +58,7 @@ class HTTPClient
   class ConfigurationError < StandardError
   end
 
-  class BadResponse < RuntimeError
+  class BadResponseError < RuntimeError
     attr_reader :res
 
     def initialize(msg, res = nil)
@@ -66,9 +67,21 @@ class HTTPClient
     end
   end
 
+  class TimeoutError < RuntimeError
+  end
+
+  class ConnectTimeoutError < TimeoutError
+  end
+
+  class ReceiveTimeoutError < TimeoutError
+  end
+
+  class SendTimeoutError < TimeoutError
+  end
+
   # for backward compatibility
   class Session
-    BadResponse = ::HTTPClient::BadResponse
+    BadResponse = ::HTTPClient::BadResponseError
   end
 
   attr_reader :agent_name
@@ -271,11 +284,12 @@ class HTTPClient
   def get_content(uri, query = nil, extheader = {}, &block)
     uri = urify(uri)
     req = create_request('GET', uri, query, nil, extheader)
-    follow_redirect(uri, block) { |new_uri, filtered_block|
+    res = follow_redirect(uri, block) { |new_uri, filtered_block|
       req.header.init_request('GET', new_uri, query)
       proxy = no_proxy?(new_uri) ? nil : @proxy
       do_request(req, proxy, &filtered_block)
-    }.content
+    }
+    res.content
   end
 
   # DESCRIPTION
@@ -286,17 +300,18 @@ class HTTPClient
   def post_content(uri, body = nil, extheader = {}, &block)
     uri = urify(uri)
     req = create_request('POST', uri, nil, body, extheader)
-    follow_redirect(uri, block) { |new_uri, filtered_block|
+    res = follow_redirect(uri, block) { |new_uri, filtered_block|
       req.header.init_request('POST', new_uri, nil)
       proxy = no_proxy?(new_uri) ? nil : @proxy
       do_request(req, proxy, &filtered_block)
-    }.content
+    }
+    res.content
   end
 
   def strict_redirect_uri_callback(uri, res)
     newuri = URI.parse(res.header['location'][0])
     unless newuri.is_a?(URI::HTTP)
-      raise BadResponse.new("unexpected location: #{newuri}", res)
+      raise BadResponseError.new("unexpected location: #{newuri}", res)
     end
     puts "redirect to: #{newuri}" if $DEBUG
     newuri
@@ -407,11 +422,6 @@ class HTTPClient
   end
 
   ##
-  # Multiple call interface.
-
-  # ???
-
-  ##
   # Management interface.
 
   def reset(uri)
@@ -503,10 +513,10 @@ private
         uri = urify(@redirect_uri_callback.call(uri, res))
         retry_number += 1
       else
-        raise BadResponse.new("unexpected response: #{res.header.inspect}", res)
+        raise BadResponseError.new("unexpected response: #{res.header.inspect}", res)
       end
     end
-    raise BadResponse.new("retry count exceeded", res)
+    raise BadResponseError.new("retry count exceeded", res)
   end
 
   def protect_keep_alive_disconnected
@@ -520,13 +530,33 @@ private
   def create_request(method, uri, query, body, extheader)
     if extheader.is_a?(Hash)
       extheader = extheader.to_a
+    else
+      extheader = extheader.dup
     end
     boundary = nil
-    content_type = extheader.find { |key, value|
-      key.downcase == 'content-type'
-    }
-    if content_type && content_type[1] =~ /boundary=(.+)\z/
-      boundary = $1
+    if body
+      dummy, content_type = extheader.find { |key, value|
+        key.downcase == 'content-type'
+      }
+      if content_type
+        if /\Amultipart/ =~ content_type
+          if content_type =~ /boundary=(.+)\z/
+            boundary = $1
+          else
+            boundary = create_boundary
+            content_type = "#{content_type}; boundary=#{boundary}"
+            extheader = override_header(extheader, 'Content-Type', content_type)
+          end
+        end
+      elsif method == 'POST'
+        if file_in_form_data?(body)
+          boundary = create_boundary
+          content_type = "multipart/form-data; boundary=#{boundary}"
+        else
+          content_type = 'application/x-www-form-urlencoded'
+        end
+        extheader << ['Content-Type', content_type]
+      end
     end
     req = HTTP::Message.new_request(method, uri, query, body, boundary)
     extheader.each do |key, value|
@@ -535,10 +565,31 @@ private
     if @cookie_manager && cookies = @cookie_manager.find(uri)
       req.header.set('Cookie', cookies)
     end
-    if content_type.nil? and !body.nil?
-      req.header.set('content-type', 'application/x-www-form-urlencoded')
-    end
     req
+  end
+
+  def create_boundary
+    Digest::SHA1.hexdigest(Time.now.to_s)
+  end
+
+  def file_in_form_data?(body)
+    if body.is_a?(Array) or body.is_a?(Hash)
+      body.any? { |k, v| v.is_a?(File) }
+    else
+      false
+    end
+  end
+
+  def override_header(extheader, key, value)
+    result = []
+    extheader.each do |k, v|
+      if k.downcase == key.downcase
+        result << [key, value]
+      else
+        result << [k, v]
+      end
+    end
+    result
   end
 
   NO_PROXY_HOSTS = ['localhost']
@@ -578,7 +629,7 @@ private
     @debug_dev << "\n\n= Response\n\n" if @debug_dev
     do_get_header(req, res, sess)
     conn.push(res)
-    sess.get_data() do |part|
+    sess.get_data do |part|
       if block
         block.call(res, part)
       else

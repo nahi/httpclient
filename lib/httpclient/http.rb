@@ -29,19 +29,23 @@ module HTTP
     PROXY_AUTHENTICATE_REQUIRED = 407
     INTERNAL = 500
 
+    SUCCESSFUL_STATUS = [
+      OK, CREATED, ACCEPTED,
+      NON_AUTHORITATIVE_INFORMATION, NO_CONTENT,
+      RESET_CONTENT, PARTIAL_CONTENT
+    ]
+
+    REDIRECT_STATUS = [
+      MOVED_PERMANENTLY, FOUND, SEE_OTHER,
+      TEMPORARY_REDIRECT, MOVED_TEMPORARILY
+    ]
+
     def self.successful?(status)
-      [
-        OK, CREATED, ACCEPTED,
-        NON_AUTHORITATIVE_INFORMATION, NO_CONTENT,
-        RESET_CONTENT, PARTIAL_CONTENT
-      ].include?(status)
+      SUCCESSFUL_STATUS.include?(status)
     end
 
     def self.redirect?(status)
-      [
-        MOVED_PERMANENTLY, FOUND, SEE_OTHER,
-        TEMPORARY_REDIRECT, MOVED_TEMPORARILY
-      ].include?(status)
+      REDIRECT_STATUS.include?(status)
     end
   end
 
@@ -329,7 +333,7 @@ module HTTP
       def initialize(body = nil, boundary = nil)
         @body = nil
         @size = nil
-        @pos = nil
+        @positions = {}
         @boundary = boundary
         set_content(body, boundary)
         @chunk_size = 1024 * 16
@@ -338,16 +342,22 @@ module HTTP
       def dump(header = '', dev = '')
         if @body.respond_to?(:read)
           dev << header
-          @body.pos = @pos if @pos
-          begin
-            while true
-              chunk = @body.read(@chunk_size)
-              break if chunk.nil?
-              dev << dump_chunk(chunk)
-            end
-          rescue EOFError
-          end
+          reset_pos(@body)
+          dump_chunks(@body, dev)
           dev << (dump_last_chunk + CRLF)
+        elsif @body.is_a?(Parts)
+          dev << header
+          buf = ''
+          @body.parts.each do |part|
+            if Parts.file?(part)
+              reset_pos(part)
+              while !part.read(@chunk_size, buf).nil?
+                dev << buf
+              end
+            else
+              dev << part
+            end
+          end
         elsif @body
           dev << header + @body
         else
@@ -363,13 +373,15 @@ module HTTP
       def set_content(body, boundary = nil)
         if body.nil?
           @body = nil
+          @size = nil
         elsif body.respond_to?(:read)
+          # uses Transfer-Encoding: chunked.  bear in mind that server may not
+          # support it.  at least ruby's CGI doesn't.
           @body = body
-          if @body.respond_to?(:pos) && @body.respond_to?(:pos=)
-            @pos = @body.pos rescue nil # IO may not support it (ex. IO.pipe)
-          end
-        elsif boundary
-          @body = Message.create_query_multipart_str(body, boundary)
+          remember_pos(@body)
+          @size = nil
+        elsif boundary and Message.multiparam_query?(body)
+          @body = build_query_multipart_str(body, boundary)
           @size = @body.size
         else
           @body = Message.create_query_part_str(body)
@@ -379,8 +391,24 @@ module HTTP
 
     private
 
+      def remember_pos(io)
+        # IO may not support it (ex. IO.pipe)
+        @positions[io] = io.pos rescue nil
+      end
+
+      def reset_pos(io)
+        io.pos = @positions[io] if @positions.key?(io)
+      end
+
+      def dump_chunks(io, dev)
+        buf = ''
+        while !io.read(@chunk_size, buf).nil?
+          dev << dump_chunk(buf)
+        end
+      end
+
       def dump_chunk(str)
-        dump_chunk_size(str.size) << (str + CRLF)
+        dump_chunk_size(str.size) + (str + CRLF)
       end
 
       def dump_last_chunk
@@ -388,7 +416,124 @@ module HTTP
       end
 
       def dump_chunk_size(size)
-        sprintf("%x", size) << CRLF
+        sprintf("%x", size) + CRLF
+      end
+
+      class Parts
+        attr_reader :size
+
+        def self.file?(obj)
+          obj.respond_to?(:path) and obj.respond_to?(:pos) and obj.respond_to?(:pos=)
+        end
+
+        def initialize
+          @body = []
+          @size = 0
+          @as_stream = false
+        end
+
+        def add(part)
+          if Parts.file?(part)
+            @as_stream = true
+            @body << part
+            if part.respond_to?(:size)
+              @size += part.size
+            elsif part.respond_to?(:lstat)
+              @size += part.lstat.size
+            else
+              # use chunked upload
+              @size = nil
+            end
+          elsif @body[-1].is_a?(String)
+            @body[-1] += part.to_s
+            @size += part.to_s.size if @size
+          else
+            @body << part.to_s
+            @size += part.to_s.size if @size
+          end
+        end
+
+        def parts
+          if @as_stream
+            @body
+          else
+            [@body.join]
+          end
+        end
+      end
+
+      def build_query_multipart_str(query, boundary)
+        parts = Parts.new
+        query.each do |attr, value|
+          value ||= ''
+          extra_content_disposition = content_type = content = nil
+          if Parts.file?(value)
+            remember_pos(value)
+            params = {}
+            params['filename'] = File.basename(value.path)
+            # Creation time is not available from File::Stat
+            params['modification-date'] = value.mtime.rfc822 if params.respond_to?(:mtime)
+            params['read-date'] = value.atime.rfc822 if params.respond_to?(:atime)
+            param_str = params.to_a.collect { |k, v|
+              "#{k}=\"#{v}\""
+            }.join("; ")
+            extra_content_disposition = " #{param_str}"
+            content_type = mime_type(value.path)
+          else
+            extra_content_disposition = ''
+            content_type = mime_type(nil)
+          end
+          parts.add("--#{boundary}" + CRLF +
+            %{Content-Disposition: form-data; name="#{attr.to_s}";} +
+            extra_content_disposition + CRLF +
+            "Content-Type: " + content_type + CRLF + CRLF)
+          parts.add(value)
+          parts.add(CRLF)
+        end
+        parts.add("--#{boundary}--" + CRLF + CRLF) # empty epilogue
+        parts
+      end
+
+      @@mime_type_func = nil
+
+      def set_mime_type_func(val)
+        @@mime_type_func = val
+      end
+
+      def get_mime_type_func
+        @@mime_type_func
+      end
+
+      def mime_type(path)
+        if @@mime_type_func
+          res = @@mime_type_func.call(path)
+          if !res || res.to_s == ''
+            return 'application/octet-stream'
+          else
+            return res
+          end
+        else
+          internal_mime_type(path)
+        end
+      end
+
+      def internal_mime_type(path)
+        case path
+        when /\.txt$/i
+          'text/plain'
+        when /\.(htm|html)$/i
+          'text/html'
+        when /\.doc$/i
+          'application/msword'
+        when /\.png$/i
+          'image/png'
+        when /\.gif$/i
+          'image/gif'
+        when /\.(jpg|jpeg)$/i
+          'image/jpeg'
+        else
+          'application/octet-stream'
+        end
       end
     end
 
@@ -456,6 +601,9 @@ module HTTP
       @header.response_status_code
     end
 
+    alias code status
+    alias status_code status
+
     def status=(status)
       @header.response_status_code = status
     end
@@ -485,55 +633,11 @@ module HTTP
     end
 
     class << self
-      @@mime_type_func = nil
-
-      def set_mime_type_func(val)
-        @@mime_type_func = val
-      end
-
-      def get_mime_type_func
-        @@mime_type_func
-      end
-
       def create_query_part_str(query)
         if multiparam_query?(query)
           escape_query(query)
-        else
-          query.to_s
-        end
-      end
-
-      def create_query_multipart_str(query, boundary)
-        if multiparam_query?(query)
-          query.collect { |attr, value|
-            value ||= ''
-            extra_content_disposition = content_type = content = nil
-            if value.is_a? File
-              params = {
-                'filename' => File.basename(value.path),
-                # Creation time is not available from File::Stat
-                # 'creation-date' => value.ctime.rfc822,
-                'modification-date' => value.mtime.rfc822,
-                'read-date' => value.atime.rfc822,
-              }
-              param_str = params.to_a.collect { |k, v|
-                "#{k}=\"#{v}\""
-              }.join("; ")
-              extra_content_disposition = " #{param_str}"
-              content_type = mime_type(value.path)
-              content = value.read
-            else
-              extra_content_disposition = ''
-              content_type = mime_type(nil)
-              content = value.to_s
-            end
-            "--#{boundary}" + CRLF +
-            %{Content-Disposition: form-data; name="#{attr.to_s}";} +
-              extra_content_disposition + CRLF +
-              "Content-Type: " + content_type + CRLF +
-              CRLF +
-              content + CRLF
-          }.join('') + "--#{boundary}--" + CRLF + CRLF # empty epilogue
+        elsif query.respond_to?(:read)
+          query = query.read
         else
           query.to_s
         end
@@ -545,6 +649,9 @@ module HTTP
 
       def escape_query(query)
         query.collect { |attr, value|
+          if value.respond_to?(:read)
+            value = value.read
+          end
           escape(attr.to_s) << '=' << escape(value.to_s)
         }.join('&')
       end
@@ -554,38 +661,6 @@ module HTTP
         str.gsub(/([^ a-zA-Z0-9_.-]+)/n) {
           '%' + $1.unpack('H2' * $1.size).join('%').upcase
         }.tr(' ', '+')
-      end
-
-      def mime_type(path)
-        if @@mime_type_func
-          res = @@mime_type_func.call(path)
-          if !res || res.to_s == ''
-            return 'application/octet-stream'
-          else
-            return res
-          end
-        else
-          internal_mime_type(path)
-        end
-      end
-
-      def internal_mime_type(path)
-        case path
-        when /\.txt$/i
-          'text/plain'
-        when /\.(htm|html)$/i
-          'text/html'
-        when /\.doc$/i
-          'application/msword'
-        when /\.png$/i
-          'image/png'
-        when /\.gif$/i
-          'image/gif'
-        when /\.(jpg|jpeg)$/i
-          'image/jpeg'
-        else
-          'application/octet-stream'
-        end
       end
     end
   end
