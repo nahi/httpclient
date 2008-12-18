@@ -207,10 +207,10 @@ class TestClient < Test::Unit::TestCase
     assert_equal('hello', @client.get_content(@url + 'hello'))
     assert_equal('hello', @client.get_content(@url + 'redirect1'))
     assert_equal('hello', @client.get_content(@url + 'redirect2'))
-    assert_raises(HTTPClient::BadResponse) do
+    assert_raises(HTTPClient::Session::BadResponse) do
       @client.get_content(@url + 'notfound')
     end
-    assert_raises(HTTPClient::BadResponse) do
+    assert_raises(HTTPClient::Session::BadResponse) do
       @client.get_content(@url + 'redirect_self')
     end
     called = false
@@ -227,10 +227,10 @@ class TestClient < Test::Unit::TestCase
     assert_equal('hello', @client.post_content(@url + 'hello'))
     assert_equal('hello', @client.post_content(@url + 'redirect1'))
     assert_equal('hello', @client.post_content(@url + 'redirect2'))
-    assert_raises(HTTPClient::BadResponse) do
+    assert_raises(HTTPClient::Session::BadResponse) do
       @client.post_content(@url + 'notfound')
     end
-    assert_raises(HTTPClient::BadResponse) do
+    assert_raises(HTTPClient::Session::BadResponse) do
       @client.post_content(@url + 'redirect_self')
     end
     called = false
@@ -355,7 +355,7 @@ class TestClient < Test::Unit::TestCase
     assert_equal('hello', @client.get_content(@url + 'sleep?sec=2'))
     @client.receive_timeout = 1
     assert_equal('hello', @client.get_content(@url + 'sleep?sec=0'))
-    assert_raise(Timeout::Error) do
+    assert_raise(HTTPClient::ReceiveTimeoutError) do
       @client.get_content(@url + 'sleep?sec=2')
     end
     @client.receive_timeout = 3

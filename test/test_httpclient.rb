@@ -168,6 +168,31 @@ class TestHTTPClient < Test::Unit::TestCase
     end
   end
 
+  def test_proxy_env
+    setup_proxyserver
+    escape_env do
+      ENV['http_proxy'] = "http://admin:admin@foo:1234"
+      ENV['NO_PROXY'] = "foobar"
+      client = HTTPClient.new
+      assert_equal(URI.parse("http://admin:admin@foo:1234"), client.proxy)
+      assert_equal('foobar', client.no_proxy)
+    end
+  end
+
+  def test_proxy_env_cgi
+    setup_proxyserver
+    escape_env do
+      ENV['REQUEST_METHOD'] = 'GET' # CGI environment emulation
+      ENV['http_proxy'] = "http://admin:admin@foo:1234"
+      ENV['no_proxy'] = "foobar"
+      client = HTTPClient.new
+      assert_equal(nil, client.proxy)
+      ENV['CGI_HTTP_PROXY'] = "http://admin:admin@foo:1234"
+      client = HTTPClient.new
+      assert_equal(URI.parse("http://admin:admin@foo:1234"), client.proxy)
+    end
+  end
+
   def test_noproxy_for_localhost
     @proxyio.string = ""
     @client.proxy = @proxyurl
@@ -265,7 +290,7 @@ class TestHTTPClient < Test::Unit::TestCase
     begin
       @client.get_content(@url + 'redirect1')
       assert(false)
-    rescue HTTPClient::BadResponse => e
+    rescue HTTPClient::BadResponseError => e
       assert_equal(302, e.res.status)
     end
   end
@@ -282,10 +307,10 @@ class TestHTTPClient < Test::Unit::TestCase
     @client.reset(url)
     @client.reset(@url)
     @client.reset(url)
-    assert_raises(HTTPClient::BadResponse) do
+    assert_raises(HTTPClient::BadResponseError) do
       @client.get_content(@url + 'notfound')
     end
-    assert_raises(HTTPClient::BadResponse) do
+    assert_raises(HTTPClient::BadResponseError) do
       @client.get_content(@url + 'redirect_self')
     end
     called = false
@@ -314,10 +339,10 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal('hello', @client.post_content(@url + 'hello'))
     assert_equal('hello', @client.post_content(@url + 'redirect1'))
     assert_equal('hello', @client.post_content(@url + 'redirect2'))
-    assert_raises(HTTPClient::BadResponse) do
+    assert_raises(HTTPClient::BadResponseError) do
       @client.post_content(@url + 'notfound')
     end
-    assert_raises(HTTPClient::BadResponse) do
+    assert_raises(HTTPClient::BadResponseError) do
       @client.post_content(@url + 'redirect_self')
     end
     called = false
@@ -382,6 +407,37 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("post", @client.post(@url + 'servlet').content[0, 4])
     res = @client.post(@url + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
+  end
+
+  def test_post_with_content_type
+    ext = {'content-type' => 'application/x-www-form-urlencoded', 'hello' => 'world'}
+    assert_equal("post", @client.post(@url + 'servlet').content[0, 4], ext)
+    res = @client.post(@url + 'servlet', {1=>2, 3=>4}, ext)
+    assert_equal('1=2&3=4', res.header["x-query"][0])
+    #
+    ext = [['content-type', 'multipart/form-data'], ['hello', 'world']]
+    assert_equal("post", @client.post(@url + 'servlet').content[0, 4], ext)
+    res = @client.post(@url + 'servlet', {1=>2, 3=>4}, ext)
+    assert_match(/Content-Disposition: form-data; name="1";/, res.content)
+    assert_match(/Content-Disposition: form-data; name="3";/, res.content)
+    #
+    ext = {'content-type' => 'multipart/form-data; boundary=hello'}
+    assert_equal("post", @client.post(@url + 'servlet').content[0, 4], ext)
+    res = @client.post(@url + 'servlet', {1=>2, 3=>4}, ext)
+    assert_match(/Content-Disposition: form-data; name="1";/, res.content)
+    assert_match(/Content-Disposition: form-data; name="3";/, res.content)
+    assert_equal("post,--hello\r\nContent-Disposition: form-data; name=\"1\";\r\nContent-Type: application/octet-stream\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\";\r\nContent-Type: application/octet-stream\r\n\r\n4\r\n--hello--\r\n\r\n", res.content)
+  end
+
+  def test_post_with_file
+    STDOUT.sync = true
+    File.open(__FILE__) do |file|
+      res = @client.post(@url + 'servlet', {1=>2, 3=>file})
+      assert_match(/Content-Disposition: form-data; name="1";/, res.content)
+      assert_match(/Content-Disposition: form-data; name="3";/, res.content)
+      # FIND_TAG_IN_THIS_FILE
+      assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
+    end
   end
 
   def test_post_async
@@ -569,7 +625,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal('hello', @client.get_content(@url + 'sleep?sec=2'))
     @client.receive_timeout = 1
     assert_equal('hello', @client.get_content(@url + 'sleep?sec=0'))
-    assert_raise(Timeout::Error) do
+    assert_raise(HTTPClient::ReceiveTimeoutError) do
       @client.get_content(@url + 'sleep?sec=2')
     end
     @client.receive_timeout = 3
@@ -734,6 +790,15 @@ private
       end
     end
     t
+  end
+
+  def escape_env
+    env = {}
+    env.update(ENV)
+    yield
+  ensure
+    ENV.clear
+    ENV.update(env)
   end
 
   def escape_noproxy
