@@ -228,17 +228,16 @@ class WebAgent
     end
 
     def cookies=(cookies)
-      @cookies.synchronize do
-        @cookies = cookies
-        @cookies.extend(MonitorMixin)
-      end
+      @cookies = cookies
+      @cookies.extend(MonitorMixin)
     end
 
     def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
-      if @is_saved and !force
-	return
-      end
       @cookies.synchronize do
+        check_expired_cookies()
+        if @is_saved and !force
+          return
+        end
         File.open(@cookies_file, 'w') do |f|
           @cookies.each do |cookie|
             if (cookie.use? or save_unused) and
@@ -262,15 +261,13 @@ class WebAgent
     end
 
     def check_expired_cookies()
-      @cookies.synchronize do
-        @cookies.reject!{|cookie|
-          is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
-          if is_expired && !cookie.discard?
-            @is_saved = false
-          end
-          is_expired
-        }
-      end
+      @cookies.reject!{|cookie|
+        is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
+        if is_expired && !cookie.discard?
+          @is_saved = false
+        end
+        is_expired
+      }
     end
 
     def parse(str, url)
@@ -296,20 +293,18 @@ class WebAgent
 
 
     def find(url)
-      @cookies.synchronize do
-        check_expired_cookies()
-        return nil if @cookies.empty?
+      return nil if @cookies.empty?
 
-        cookie_list = Array.new()
-        @cookies.each{|cookie|
-          if cookie.use? && cookie.match?(url)
-            if cookie_list.select{|c1| c1.name == cookie.name}.empty?
-              cookie_list << cookie
-            end
+      cookie_list = Array.new()
+      @cookies.each{|cookie|
+        is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
+        if cookie.use? && !is_expired && cookie.match?(url)
+          if cookie_list.select{|c1| c1.name == cookie.name}.empty?
+            cookie_list << cookie
           end
-        }
-        return make_cookie_str(cookie_list)
-      end
+        end
+      }
+      return make_cookie_str(cookie_list)
     end
 
     def find_cookie_info(domain, path, name)
@@ -383,6 +378,7 @@ class WebAgent
           cookie.use = true
           @cookies << cookie
         end
+        check_expired_cookies()
       end
 
       cookie.url = url
@@ -402,9 +398,6 @@ class WebAgent
 	cookie.discard = false
 	@is_saved = false
       end
-
-      check_expired_cookies()
-      return false
     end
 
     def load_cookies()

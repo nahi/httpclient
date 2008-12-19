@@ -478,7 +478,7 @@ class HTTPClient
     attr_reader :ssl_peer_cert
     attr_accessor :test_loopback_http_response
 
-    def initialize(client, dest, user_agent, from)
+    def initialize(client, dest, agent_name, from)
       @client = client
       @dest = dest
       @proxy = nil
@@ -498,7 +498,7 @@ class HTTPClient
 
       @test_loopback_http_response = nil
 
-      @user_agent = user_agent
+      @agent_name = agent_name
       @from = from
       @state = :INIT
 
@@ -525,12 +525,12 @@ class HTTPClient
       rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE
         close
         raise KeepAliveDisconnected.new
+      rescue HTTPClient::TimeoutError
+        close
+        raise
       rescue
         if SSLEnabled and $!.is_a?(OpenSSL::SSL::SSLError)
           raise KeepAliveDisconnected.new
-        elsif $!.is_a?(TimeoutError)
-          close
-          raise
         else
           raise
         end
@@ -603,12 +603,8 @@ class HTTPClient
         end
         data = nil
         while true
-          begin
-            timeout(@receive_timeout, ReceiveTimeoutError) do
-              data = read_body
-            end
-          rescue TimeoutError
-            raise
+          timeout(@receive_timeout, ReceiveTimeoutError) do
+            data = read_body
           end
           block.call(data) if data
           break if eof?
@@ -645,8 +641,8 @@ class HTTPClient
           req.version = $1.to_f
         end
       end
-      if @user_agent
-        req.header.set('User-Agent', "#{@user_agent} #{LIB_NAME}")
+      if @agent_name
+        req.header.set('User-Agent', "#{@agent_name} #{LIB_NAME}")
       end
       if @from
         req.header.set('From', @from)
@@ -780,39 +776,35 @@ class HTTPClient
 
     StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d\d\d)\s*([^\r\n]+)?\r?\n\z)
     def parse_header(socket)
-      begin
-        timeout(@receive_timeout, ReceiveTimeoutError) do
-          begin
-            initial_line = socket.gets("\n")
-            if initial_line.nil?
-              raise KeepAliveDisconnected.new
+      timeout(@receive_timeout, ReceiveTimeoutError) do
+        begin
+          initial_line = socket.gets("\n")
+          if initial_line.nil?
+            raise KeepAliveDisconnected.new
+          end
+          if StatusParseRegexp !~ initial_line
+            @version = '0.9'
+            @status = nil
+            @reason = nil
+            @next_connection = false
+            @readbuf = initial_line
+            break
+          end
+          @version, @status, @reason = $1, $2.to_i, $3
+          @next_connection = HTTP.keep_alive_enabled?(@version.to_f)
+          @headers = []
+          while true
+            line = socket.gets("\n")
+            unless line
+              raise BadResponseError.new('unexpected EOF')
             end
-            if StatusParseRegexp !~ initial_line
-              @version = '0.9'
-              @status = nil
-              @reason = nil
-              @next_connection = false
-              @readbuf = initial_line
-              break
-	    end
-	    @version, @status, @reason = $1, $2.to_i, $3
-	    @next_connection = HTTP.keep_alive_enabled?(@version.to_f)
-            @headers = []
-            while true
-              line = socket.gets("\n")
-              unless line
-                raise BadResponseError.new('unexpected EOF')
-              end
-              line.chomp!
-              break if line.empty?
-              parse_keepalive_header(line)
-              key, value = line.split(/\s*:\s*/, 2)
-              @headers << [key, value]
-            end
-          end while (@version == '1.1' && @status == 100)
-        end
-      rescue TimeoutError
-        raise
+            line.chomp!
+            break if line.empty?
+            parse_keepalive_header(line)
+            key, value = line.split(/\s*:\s*/, 2)
+            @headers << [key, value]
+          end
+        end while (@version == '1.1' && @status == 100)
       end
     end
 

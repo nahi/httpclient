@@ -383,6 +383,12 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("get", @client.get(@url + 'servlet').content)
     res = @client.get(@url + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
+    assert_nil(res.contenttype)
+    #
+    url = @url.to_s + 'servlet?5=6&7=8'
+    res = @client.get(url, {1=>2, 3=>4})
+    assert_equal('1=2&3=4&5=6&7=8', res.header["x-query"][0])
+    assert_nil(res.contenttype)
   end
 
   def test_get_async
@@ -418,15 +424,15 @@ class TestHTTPClient < Test::Unit::TestCase
     ext = [['content-type', 'multipart/form-data'], ['hello', 'world']]
     assert_equal("post", @client.post(@url + 'servlet').content[0, 4], ext)
     res = @client.post(@url + 'servlet', {1=>2, 3=>4}, ext)
-    assert_match(/Content-Disposition: form-data; name="1";/, res.content)
-    assert_match(/Content-Disposition: form-data; name="3";/, res.content)
+    assert_match(/Content-Disposition: form-data; name="1"/, res.content)
+    assert_match(/Content-Disposition: form-data; name="3"/, res.content)
     #
     ext = {'content-type' => 'multipart/form-data; boundary=hello'}
     assert_equal("post", @client.post(@url + 'servlet').content[0, 4], ext)
     res = @client.post(@url + 'servlet', {1=>2, 3=>4}, ext)
-    assert_match(/Content-Disposition: form-data; name="1";/, res.content)
-    assert_match(/Content-Disposition: form-data; name="3";/, res.content)
-    assert_equal("post,--hello\r\nContent-Disposition: form-data; name=\"1\";\r\nContent-Type: application/octet-stream\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\";\r\nContent-Type: application/octet-stream\r\n\r\n4\r\n--hello--\r\n\r\n", res.content)
+    assert_match(/Content-Disposition: form-data; name="1"/, res.content)
+    assert_match(/Content-Disposition: form-data; name="3"/, res.content)
+    assert_equal("post,--hello\r\nContent-Disposition: form-data; name=\"1\"\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\"\r\n\r\n4\r\n--hello--\r\n\r\n", res.content)
   end
 
   def test_post_with_file
@@ -438,6 +444,18 @@ class TestHTTPClient < Test::Unit::TestCase
       # FIND_TAG_IN_THIS_FILE
       assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
     end
+  end
+
+  def test_post_with_io # chunked post
+    myio = StringIO.new("4")
+    def myio.size
+      nil
+    end
+    res = @client.post(@url + 'servlet', {1=>2, 3=>myio})
+    assert_match(/\r\nContent-Disposition: form-data; name="1"\r\n/m, res.content)
+    assert_match(/\r\n2\r\n/m, res.content)
+    assert_match(/\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m, res.content)
+    assert_match(/\r\n4\r\n/m, res.content)
   end
 
   def test_post_async
@@ -560,6 +578,8 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal({'123'=>'45'}, check_query_get('123=45'))
     assert_equal({'12 3'=>'45', ' '=>' '}, check_query_get('12+3=45&+=+'))
     assert_equal({}, check_query_get(''))
+    assert_equal({'1'=>'2'}, check_query_get({1=>StringIO.new('2')}))
+    assert_equal({'1'=>'2', '3'=>'4'}, check_query_get(StringIO.new('3=4&1=2')))
   end
 
   def test_post_body
@@ -714,6 +734,112 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal('site3', h[site2])
   end
 
+  def test_http_header
+    res = @client.get(@url + 'hello')
+    assert_equal('text/html', res.contenttype)
+    assert_equal(5, res.header.get(nil).size)
+    #
+    res.header.delete('connection')
+    assert_equal(4, res.header.get(nil).size)
+    #
+    res.header['foo'] = 'bar'
+    assert_equal(['bar'], res.header['foo'])
+    #
+    assert_equal([['foo', 'bar']], res.header.get('foo'))
+    res.header['foo'] = 'bar2'
+    assert_equal([['foo', 'bar'], ['foo', 'bar2']], res.header.get('foo'))
+  end
+
+  def test_mime_type
+    assert_equal('text/plain', HTTP::Message.mime_type('foo.txt'))
+    assert_equal('text/html', HTTP::Message.mime_type('foo.html'))
+    assert_equal('text/html', HTTP::Message.mime_type('foo.htm'))
+    assert_equal('application/msword', HTTP::Message.mime_type('foo.doc'))
+    assert_equal('image/png', HTTP::Message.mime_type('foo.png'))
+    assert_equal('image/gif', HTTP::Message.mime_type('foo.gif'))
+    assert_equal('image/jpeg', HTTP::Message.mime_type('foo.jpg'))
+    assert_equal('image/jpeg', HTTP::Message.mime_type('foo.jpeg'))
+    assert_equal('application/octet-stream', HTTP::Message.mime_type('foo.unknown'))
+    #
+    func = lambda { |path| 'hello/world' }
+    assert_nil(HTTP::Message.get_mime_type_func)
+    HTTP::Message.set_mime_type_func(func)
+    assert_not_nil(HTTP::Message.get_mime_type_func)
+    assert_equal('hello/world', HTTP::Message.mime_type('foo.txt'))
+    HTTP::Message.set_mime_type_func(nil)
+    assert_equal('text/plain', HTTP::Message.mime_type('foo.txt'))
+  end
+
+  def test_connect_request
+    req = HTTP::Message.new_connect_request(URI.parse('http://example.com/'), 'foo:443')
+    assert_equal("CONNECT foo:443 HTTP/1.0\r\n\r\n", req.dump)
+  end
+
+  def test_response
+    res = HTTP::Message.new_response('response')
+    res.contenttype = 'text/plain'
+    res.header.body_date = Time.mktime(2000, 1, 1)
+    assert_equal(
+      [
+        "",
+        "Content-Length: 8",
+        "Content-Type: text/plain",
+        "Last-Modified: Fri, 31 Dec 1999 15:00:00 GMT",
+        "Status: 200 OK",
+        "response"
+      ],
+      res.dump.split(/\r\n/).sort
+    )
+    res.header.set('foo', 'bar')
+    assert_equal(
+      [
+        "",
+        "Content-Length: 8",
+        "Content-Type: text/plain",
+        "Last-Modified: Fri, 31 Dec 1999 15:00:00 GMT",
+        "Status: 200 OK",
+        "foo: bar",
+        "response"
+      ],
+      res.dump.split(/\r\n/).sort
+    )
+    # nil body
+    res = HTTP::Message.new_response(nil)
+    assert_equal(
+      [
+        "Content-Length: 0",
+        "Content-Type: text/html; charset=us-ascii",
+        "Status: 200 OK"
+      ],
+      res.dump.split(/\r\n/).sort
+    )
+    # for mod_ruby env
+    Object.const_set('Apache', nil)
+    begin
+      res = HTTP::Message.new_response('response')
+      assert(res.dump.split(/\r\n/).any? { |line| /^Date/ =~ line })
+      #
+      res = HTTP::Message.new_response('response')
+      res.contenttype = 'text/plain'
+      res.header.body_date = Time.mktime(2000, 1, 1)
+      res.header['Date'] = Time.mktime(2000, 1, 1)
+      assert_equal(
+        [
+          "",
+          "Content-Length: 8",
+          "Content-Type: text/plain",
+          "Date: Sat Jan 01 00:00:00 +0900 2000",
+          "HTTP/1.1 200 OK",
+          "Last-Modified: Fri, 31 Dec 1999 15:00:00 GMT",
+          "response"
+        ],
+        res.dump.split(/\r\n/).sort
+      )
+    ensure
+      Object.instance_eval { remove_const('Apache') }
+    end
+  end
+
 private
 
   def check_query_get(query)
@@ -758,7 +884,6 @@ private
 
   def setup_client
     @client = HTTPClient.new
-    @client.debug_dev = STDOUT if $DEBUG
   end
 
   def teardown_server
@@ -915,7 +1040,7 @@ private
 
     def query_escape(query)
       escaped = []
-      query.collect do |k, v|
+      query.sort_by { |k, v| k }.collect do |k, v|
 	v.to_ary.each do |ve|
 	  escaped << CGI.escape(k) + '=' + CGI.escape(ve)
 	end

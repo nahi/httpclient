@@ -55,6 +55,8 @@ class HTTPClient
   /: (\S+) (\S+)/ =~ %q$Id$
   LIB_NAME = "(#{$1}/#{$2}, #{RUBY_VERSION_STRING})"
 
+  include Util
+
   class ConfigurationError < StandardError
   end
 
@@ -84,8 +86,30 @@ class HTTPClient
     BadResponse = ::HTTPClient::BadResponseError
   end
 
-  attr_reader :agent_name
-  attr_reader :from
+  class << self
+    def attr_proxy(symbol, assignable = false)
+      name = symbol.to_s
+      define_method(name) {
+        @session_manager.__send__(name)
+      }
+      if assignable
+        aname = name + '='
+        define_method(aname) { |rhs|
+          reset_all
+          @session_manager.__send__(aname, rhs)
+        }
+      end
+    end
+
+    %w(get_content post_content head get post put delete options propfind proppatch trace).each do |name|
+      eval <<-EOD
+        def #{name}(*arg)
+          new.#{name}(*arg)
+        end
+      EOD
+    end
+  end
+
   attr_reader :ssl_config
   attr_accessor :cookie_manager
   attr_reader :test_loopback_response
@@ -96,17 +120,17 @@ class HTTPClient
   attr_accessor :follow_redirect_count
   attr_accessor :protocol_retry_count
 
-  include Util
+  attr_proxy(:protocol_version, true)
+  attr_proxy(:connect_timeout, true)
+  attr_proxy(:send_timeout, true)
+  attr_proxy(:receive_timeout, true)
+  # if your ruby is older than 2005-09-06, do not set socket_sync = false to
+  # avoid an SSL socket blocking bug in openssl/buffering.rb.
+  attr_proxy(:socket_sync, true)
+  attr_proxy(:agent_name, true)
+  attr_proxy(:from, true)
 
-  class << self
-    %w(get_content post_content head get post put delete options propfind proppatch trace).each do |name|
-      eval <<-EOD
-        def #{name}(*arg)
-          new.#{name}(*arg)
-        end
-      EOD
-    end
-  end
+  attr_proxy(:test_loopback_http_response)
 
   PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }
 
@@ -122,11 +146,10 @@ class HTTPClient
   #   Create an instance.
   #   SSLConfig cannot be re-initialized.  Create new client.
   #
-  def initialize(proxy = nil, agent_name = nil, from = nil)
+  def initialize(*args)
+    proxy, agent_name, from = keyword_argument(args, :proxy, :agent_name, :from)
     @proxy = nil        # assigned later.
     @no_proxy = nil
-    @agent_name = agent_name
-    @from = from
     @www_auth = WWWAuth.new
     @proxy_auth = ProxyAuth.new
     @request_filter = [@proxy_auth, @www_auth]
@@ -134,8 +157,8 @@ class HTTPClient
     @redirect_uri_callback = method(:default_redirect_uri_callback)
     @test_loopback_response = []
     @session_manager = SessionManager.new(self)
-    @session_manager.agent_name = @agent_name
-    @session_manager.from = @from
+    @session_manager.agent_name = agent_name
+    @session_manager.from = from
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
     @cookie_manager = WebAgent::CookieManager.new
     @follow_redirect_count = 10
@@ -152,42 +175,6 @@ class HTTPClient
     @debug_dev = dev
     reset_all
     @session_manager.debug_dev = dev
-  end
-
-  def protocol_version
-    @session_manager.protocol_version
-  end
-
-  def protocol_version=(protocol_version)
-    reset_all
-    @session_manager.protocol_version = protocol_version
-  end
-
-  def connect_timeout
-    @session_manager.connect_timeout
-  end
-
-  def connect_timeout=(connect_timeout)
-    reset_all
-    @session_manager.connect_timeout = connect_timeout
-  end
-
-  def send_timeout
-    @session_manager.send_timeout
-  end
-
-  def send_timeout=(send_timeout)
-    reset_all
-    @session_manager.send_timeout = send_timeout
-  end
-
-  def receive_timeout
-    @session_manager.receive_timeout
-  end
-
-  def receive_timeout=(receive_timeout)
-    reset_all
-    @session_manager.receive_timeout = receive_timeout
   end
 
   def proxy
@@ -223,12 +210,6 @@ class HTTPClient
     reset_all
   end
 
-  # if your ruby is older than 2005-09-06, do not set socket_sync = false to
-  # avoid an SSL socket blocking bug in openssl/buffering.rb.
-  def socket_sync=(socket_sync)
-    @session_manager.socket_sync = socket_sync
-  end
-
   def set_auth(uri, user, passwd)
     uri = urify(uri)
     @www_auth.set_auth(uri, user, passwd)
@@ -259,10 +240,6 @@ class HTTPClient
 
   def redirect_uri_callback=(redirect_uri_callback)
     @redirect_uri_callback = redirect_uri_callback
-  end
-
-  def test_loopback_http_response
-    @session_manager.test_loopback_http_response
   end
 
   # SYNOPSIS
@@ -329,35 +306,35 @@ class HTTPClient
   end
 
   def head(uri, query = nil, extheader = {})
-    request('HEAD', uri, query, nil, extheader)
+    request(:head, uri, query, nil, extheader)
   end
 
   def get(uri, query = nil, extheader = {}, &block)
-    request('GET', uri, query, nil, extheader, &block)
+    request(:get, uri, query, nil, extheader, &block)
   end
 
   def post(uri, body = nil, extheader = {}, &block)
-    request('POST', uri, nil, body, extheader, &block)
+    request(:post, uri, nil, body, extheader, &block)
   end
 
   def put(uri, body = nil, extheader = {}, &block)
-    request('PUT', uri, nil, body, extheader, &block)
+    request(:put, uri, nil, body, extheader, &block)
   end
 
   def delete(uri, extheader = {}, &block)
-    request('DELETE', uri, nil, nil, extheader, &block)
+    request(:delete, uri, nil, nil, extheader, &block)
   end
 
   def options(uri, extheader = {}, &block)
-    request('OPTIONS', uri, nil, nil, extheader, &block)
+    request(:options, uri, nil, nil, extheader, &block)
   end
 
   def propfind(uri, extheader = PROPFIND_DEFAULT_EXTHEADER, &block)
-    request('PROPFIND', uri, nil, nil, extheader, &block)
+    request(:propfind, uri, nil, nil, extheader, &block)
   end
   
   def proppatch(uri, body = nil, extheader = {}, &block)
-    request('PROPPATCH', uri, nil, body, extheader, &block)
+    request(:proppatch, uri, nil, body, extheader, &block)
   end
   
   def trace(uri, query = nil, body = nil, extheader = {}, &block)
@@ -367,7 +344,7 @@ class HTTPClient
   def request(method, uri, query = nil, body = nil, extheader = {}, &block)
     uri = urify(uri)
     proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method, uri, query, body, extheader)
+    req = create_request(method.to_s.upcase, uri, query, body, extheader)
     if block
       filtered_block = proc { |res, str|
         block.call(str)
@@ -379,45 +356,45 @@ class HTTPClient
   # Async interface.
 
   def head_async(uri, query = nil, extheader = {})
-    request_async('HEAD', uri, query, nil, extheader)
+    request_async(:head, uri, query, nil, extheader)
   end
 
   def get_async(uri, query = nil, extheader = {})
-    request_async('GET', uri, query, nil, extheader)
+    request_async(:get, uri, query, nil, extheader)
   end
 
   def post_async(uri, body = nil, extheader = {})
-    request_async('POST', uri, nil, body, extheader)
+    request_async(:post, uri, nil, body, extheader)
   end
 
   def put_async(uri, body = nil, extheader = {})
-    request_async('PUT', uri, nil, body, extheader)
+    request_async(:put, uri, nil, body, extheader)
   end
 
   def delete_async(uri, extheader = {})
-    request_async('DELETE', uri, nil, nil, extheader)
+    request_async(:delete, uri, nil, nil, extheader)
   end
 
   def options_async(uri, extheader = {})
-    request_async('OPTIONS', uri, nil, nil, extheader)
+    request_async(:options, uri, nil, nil, extheader)
   end
 
   def propfind_async(uri, extheader = PROPFIND_DEFAULT_EXTHEADER)
-    request_async('PROPFIND', uri, nil, nil, extheader)
+    request_async(:propfind, uri, nil, nil, extheader)
   end
   
   def proppatch_async(uri, body = nil, extheader = {})
-    request_async('PROPPATCH', uri, nil, body, extheader)
+    request_async(:proppatch, uri, nil, body, extheader)
   end
   
   def trace_async(uri, query = nil, body = nil, extheader = {})
-    request_async('TRACE', uri, query, body, extheader)
+    request_async(:trace, uri, query, body, extheader)
   end
 
   def request_async(method, uri, query = nil, body = nil, extheader = {})
     uri = urify(uri)
     proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method, uri, query, body, extheader)
+    req = create_request(method.to_s.upcase, uri, query, body, extheader)
     do_request_async(req, proxy)
   end
 
@@ -573,11 +550,8 @@ private
   end
 
   def file_in_form_data?(body)
-    if body.is_a?(Array) or body.is_a?(Hash)
-      body.any? { |k, v| v.is_a?(File) }
-    else
-      false
-    end
+    HTTP::Message.multiparam_query?(body) &&
+      body.any? { |k, v| HTTP::Message.file?(v) }
   end
 
   def override_header(extheader, key, value)

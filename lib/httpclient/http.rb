@@ -93,7 +93,7 @@ module HTTP
       # A milestone of body.
       attr_accessor :body_date
       # Chunked or not.
-      attr_reader :chunked
+      attr_accessor :chunked
       # Request method.
       attr_reader :request_method
       # Requested URI.
@@ -153,6 +153,7 @@ module HTTP
         @request_uri = nil
         @request_query = nil
         @request_via_proxy = nil
+        @dumped = false
       end
 
       def init_connect_request(uri, hostport)
@@ -183,24 +184,20 @@ module HTTP
       end
 
       def contenttype
-        self['content-type'][0]
+        self['Content-Type'][0]
       end
 
       def contenttype=(contenttype)
-        self['content-type'] = contenttype
+        delete('Content-Type')
+        self['Content-Type'] = contenttype
       end
 
       # body_size == nil means that the body is_a? IO
       def body_size=(body_size)
         @body_size = body_size
-        if @body_size
-          @chunked = false
-        else
-          @chunked = true
-        end
       end
 
-      def dump(dev = nil)
+      def dump
         set_header
         str = nil
         if @is_request
@@ -211,12 +208,7 @@ module HTTP
         str += @header_item.collect { |key, value|
           dump_line("#{ key }: #{ value }")
         }.join
-        if dev
-          dev << str
-          dev
-        else
-          str
-        end
+        str
       end
 
       def set(key, value)
@@ -225,11 +217,15 @@ module HTTP
 
       def get(key = nil)
         if key.nil?
-          @header_item
+          all
         else
           key = key.upcase
           @header_item.find_all { |pair| pair[0].upcase == key }
         end
+      end
+
+      def all
+        @header_item
       end
 
       def delete(key)
@@ -248,15 +244,11 @@ module HTTP
     private
 
       def request_line
-        path = if @request_via_proxy
-            if @request_uri.port
-              "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port }#{ @request_query }"
-            else
-              "#{ @request_uri.scheme }://#{ @request_uri.host }#{ @request_query }"
-            end
-          else
-            @request_query
-          end
+        if @request_via_proxy
+          path = "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port || 0 }#{ @request_query }"
+        else
+          path =  @request_query
+        end
         dump_line("#{ @request_method } #{ path } HTTP/#{ @http_version }")
       end
 
@@ -269,12 +261,16 @@ module HTTP
       end
 
       def set_header
-        if defined?(Apache) && !self['Date']
+        return if @dumped
+        @dumped = true
+        if defined?(Apache) && self['Date'].empty?
           set('Date', HTTP.http_date(Time.now))
         end
 
         keep_alive = HTTP.keep_alive_enabled?(@http_version)
-        set('Connection', 'close') unless keep_alive
+        if !keep_alive and @request_method != 'CONNECT'
+          set('Connection', 'close')
+        end
 
         if @chunked
           set('Transfer-Encoding', 'chunked')
@@ -288,7 +284,7 @@ module HTTP
           set('Last-Modified', HTTP.http_date(@body_date))
         end
 
-        if @is_request == true
+        if @is_request
           if @http_version >= 1.1
             if @request_uri.port == @request_uri.default_port
               set('Host', "#{@request_uri.host}")
@@ -296,8 +292,10 @@ module HTTP
               set('Host', "#{@request_uri.host}:#{@request_uri.port}")
             end
           end
-        elsif @is_request == false
-          set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ CharsetMap[@body_charset || $KCODE] }")
+        else
+          if self['Content-Type'].empty?
+            set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ CharsetMap[@body_charset || $KCODE] }")
+          end
         end
       end
 
@@ -314,7 +312,7 @@ module HTTP
         end
         if query
           if query_str
-            query_str << '&' << Message.create_query_part_str(query)
+            query_str += "&#{Message.create_query_part_str(query)}"
           else
             query_str = Message.create_query_part_str(query)
           end
@@ -330,26 +328,55 @@ module HTTP
       attr_reader :size
       attr_accessor :chunk_size
 
-      def initialize(body = nil, boundary = nil)
+      def initialize
         @body = nil
         @size = nil
-        @positions = {}
+        @positions = nil
+        @chunk_size = nil
+      end
+
+      def init_request(body = nil, boundary = nil)
         @boundary = boundary
+        @positions = {}
         set_content(body, boundary)
         @chunk_size = 1024 * 16
       end
 
-      def dump(header = '', dev = '')
-        if @body.respond_to?(:read)
-          dev << header
+      def init_response(body = nil)
+        @body = body
+        if @body.respond_to?(:size)
+          @size = @body.size
+        else
+          @size = nil
+        end
+      end
+
+      def dump_chunked(header = '', dev = '')
+        dev << header
+        if @body.is_a?(Parts)
+          @body.parts.each do |part|
+            if Message.file?(part)
+              reset_pos(part)
+              dump_chunks(part, dev)
+            else
+              dev << dump_chunk(part)
+            end
+          end
+          dev << (dump_last_chunk + CRLF)
+        elsif @body
           reset_pos(@body)
           dump_chunks(@body, dev)
           dev << (dump_last_chunk + CRLF)
-        elsif @body.is_a?(Parts)
+        end
+        dev
+      end
+
+      def dump(header = '', dev = '')
+        if @body.is_a?(Parts)
           dev << header
           buf = ''
           @body.parts.each do |part|
-            if Parts.file?(part)
+            if Message.file?(part)
               reset_pos(part)
               while !part.read(@chunk_size, buf).nil?
                 dev << buf
@@ -370,11 +397,10 @@ module HTTP
         @body
       end
 
+    private
+
       def set_content(body, boundary = nil)
-        if body.nil?
-          @body = nil
-          @size = nil
-        elsif body.respond_to?(:read)
+        if body.respond_to?(:read)
           # uses Transfer-Encoding: chunked.  bear in mind that server may not
           # support it.  at least ruby's CGI doesn't.
           @body = body
@@ -388,8 +414,6 @@ module HTTP
           @size = @body.size
         end
       end
-
-    private
 
       def remember_pos(io)
         # IO may not support it (ex. IO.pipe)
@@ -422,10 +446,6 @@ module HTTP
       class Parts
         attr_reader :size
 
-        def self.file?(obj)
-          obj.respond_to?(:path) and obj.respond_to?(:pos) and obj.respond_to?(:pos=)
-        end
-
         def initialize
           @body = []
           @size = 0
@@ -433,11 +453,15 @@ module HTTP
         end
 
         def add(part)
-          if Parts.file?(part)
+          if Message.file?(part)
             @as_stream = true
             @body << part
             if part.respond_to?(:size)
-              @size += part.size
+              if sz = part.size
+                @size += sz
+              else
+                @size = nil
+              end
             elsif part.respond_to?(:lstat)
               @size += part.lstat.size
             else
@@ -466,27 +490,23 @@ module HTTP
         parts = Parts.new
         query.each do |attr, value|
           value ||= ''
-          extra_content_disposition = content_type = content = nil
-          if Parts.file?(value)
+          headers = ["--#{boundary}"]
+          if Message.file?(value)
             remember_pos(value)
-            params = {}
-            params['filename'] = File.basename(value.path)
-            # Creation time is not available from File::Stat
-            params['modification-date'] = value.mtime.rfc822 if params.respond_to?(:mtime)
-            params['read-date'] = value.atime.rfc822 if params.respond_to?(:atime)
-            param_str = params.to_a.collect { |k, v|
+            param_str = params_from_file(value).collect { |k, v|
               "#{k}=\"#{v}\""
             }.join("; ")
-            extra_content_disposition = " #{param_str}"
-            content_type = mime_type(value.path)
+            if value.respond_to?(:mime_type)
+              content_type = value.mime_type
+            else
+              content_type = Message.mime_type(value.path)
+            end
+            headers << %{Content-Disposition: form-data; name="#{attr}"; #{param_str}}
+            headers << %{Content-Type: #{content_type}}
           else
-            extra_content_disposition = ''
-            content_type = mime_type(nil)
+            headers << %{Content-Disposition: form-data; name="#{attr}"}
           end
-          parts.add("--#{boundary}" + CRLF +
-            %{Content-Disposition: form-data; name="#{attr.to_s}";} +
-            extra_content_disposition + CRLF +
-            "Content-Type: " + content_type + CRLF + CRLF)
+          parts.add(headers.join(CRLF) + CRLF + CRLF)
           parts.add(value)
           parts.add(CRLF)
         end
@@ -494,46 +514,17 @@ module HTTP
         parts
       end
 
-      @@mime_type_func = nil
-
-      def set_mime_type_func(val)
-        @@mime_type_func = val
-      end
-
-      def get_mime_type_func
-        @@mime_type_func
-      end
-
-      def mime_type(path)
-        if @@mime_type_func
-          res = @@mime_type_func.call(path)
-          if !res || res.to_s == ''
-            return 'application/octet-stream'
-          else
-            return res
-          end
-        else
-          internal_mime_type(path)
+      def params_from_file(value)
+        params = {}
+        params['filename'] = File.basename(value.path || '')
+        # Creation time is not available from File::Stat
+        if value.respond_to?(:mtime)
+          params['modification-date'] = value.mtime.rfc822
         end
-      end
-
-      def internal_mime_type(path)
-        case path
-        when /\.txt$/i
-          'text/plain'
-        when /\.(htm|html)$/i
-          'text/html'
-        when /\.doc$/i
-          'application/msword'
-        when /\.png$/i
-          'image/png'
-        when /\.gif$/i
-          'image/gif'
-        when /\.(jpg|jpeg)$/i
-          'image/jpeg'
-        else
-          'application/octet-stream'
+        if value.respond_to?(:atime)
+          params['read-date'] = value.atime.rfc822
         end
+        params
       end
     end
 
@@ -550,26 +541,34 @@ module HTTP
     def self.new_connect_request(uri, hostport)
       m = self.__new
       m.header.init_connect_request(uri, hostport)
+      m.header.body_size = 0
       m
     end
 
     def self.new_request(method, uri, query = nil, body = nil, boundary = nil)
       m = self.__new
       m.header.init_request(method, uri, query)
-      m.body = Body.new(body || '', boundary)
+      m.body = Body.new
+      m.body.init_request(body || '', boundary)
+      m.header.body_size = m.body.size
+      m.header.chunked = true if m.body.size.nil?
       m
     end
 
-    def self.new_response(body = '')
+    def self.new_response(body)
       m = self.__new
       m.header.init_response(Status::OK)
-      m.body = Body.new(body)
+      m.body = Body.new
+      m.body.init_response(body)
+      m.header.body_size = m.body.size || 0
       m
     end
 
     def dump(dev = '')
       str = header.dump + CRLF
-      if body
+      if header.chunked
+        dev = body.dump_chunked(str, dev)
+      elsif body
         dev = body.dump(str, dev)
       else
         dev << str
@@ -633,6 +632,48 @@ module HTTP
     end
 
     class << self
+      @@mime_type_func = nil
+
+      def set_mime_type_func(val)
+        @@mime_type_func = val
+      end
+
+      def get_mime_type_func
+        @@mime_type_func
+      end
+
+      def mime_type(path)
+        if @@mime_type_func
+          res = @@mime_type_func.call(path)
+          if !res || res.to_s == ''
+            return 'application/octet-stream'
+          else
+            return res
+          end
+        else
+          internal_mime_type(path)
+        end
+      end
+
+      def internal_mime_type(path)
+        case path
+        when /\.txt$/i
+          'text/plain'
+        when /\.(htm|html)$/i
+          'text/html'
+        when /\.doc$/i
+          'application/msword'
+        when /\.png$/i
+          'image/png'
+        when /\.gif$/i
+          'image/gif'
+        when /\.(jpg|jpeg)$/i
+          'image/jpeg'
+        else
+          'application/octet-stream'
+        end
+      end
+
       def create_query_part_str(query)
         if multiparam_query?(query)
           escape_query(query)
@@ -645,6 +686,10 @@ module HTTP
 
       def multiparam_query?(query)
         query.is_a?(Array) or query.is_a?(Hash)
+      end
+
+      def file?(obj)
+        obj.respond_to?(:path) and obj.respond_to?(:pos) and obj.respond_to?(:pos=)
       end
 
       def escape_query(query)

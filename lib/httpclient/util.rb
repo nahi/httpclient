@@ -13,6 +13,14 @@ class HTTPClient
 
 
   module Util
+    def keyword_argument(args, *field)
+      if args.size == 1 and args[0].is_a?(Hash)
+        args[0].values_at(*field)
+      else
+        args
+      end
+    end
+
     def urify(uri)
       if uri.nil?
         nil
