@@ -243,6 +243,32 @@ class TestHTTPClient < Test::Unit::TestCase
     end
   end
 
+  def test_proxy_ssl
+    escape_noproxy do
+      @client.proxy = 'http://admin:admin@localhost:8080/'
+      # disconnected at initial 'CONNECT' so there're 2 loopback responses
+      @client.test_loopback_http_response << <<EOS
+HTTP/1.0 407 Proxy Authentication Required\r
+Date: Fri, 19 Dec 2008 11:57:29 GMT\r
+Content-Type: text/plain\r
+Content-Length: 0\r
+Proxy-Authenticate: Basic realm="hello"\r
+Proxy-Connection: close\r
+\r
+EOS
+      @client.test_loopback_http_response << <<EOS
+HTTP/1.0 200 Connection established\r
+\r
+HTTP/1.1 200 OK\r
+Content-Length: 5\r
+Connection: close\r
+\r
+hello
+EOS
+      assert_equal('hello', @client.get('https://localhost:17171/baz').content)
+    end
+  end
+
   def test_loopback_response
     @client.test_loopback_response << 'message body 1'
     @client.test_loopback_response << 'message body 2'

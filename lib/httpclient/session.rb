@@ -662,11 +662,15 @@ class HTTPClient
         timeout(@connect_timeout, ConnectTimeoutError) do
           @socket = create_socket(site)
           if @dest.scheme == 'https'
-            @socket = create_ssl_socket(@socket)
-            connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
-            @socket.ssl_connect
-            @socket.post_connection_check(@dest)
-            @ssl_peer_cert = @socket.peer_cert
+            if @socket.is_a?(LoopBackSocket)
+              connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
+            else
+              @socket = create_ssl_socket(@socket)
+              connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
+              @socket.ssl_connect
+              @socket.post_connection_check(@dest)
+              @ssl_peer_cert = @socket.peer_cert
+            end
           end
           # Use Ruby internal buffering instead of passing data immediatly
           # to the underlying layer
