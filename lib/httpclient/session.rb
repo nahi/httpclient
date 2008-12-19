@@ -99,6 +99,7 @@ class HTTPClient
     attr_accessor :send_timeout
     attr_accessor :receive_timeout
     attr_accessor :read_block_size
+    attr_accessor :protocol_retry_count
 
     attr_accessor :ssl_config
 
@@ -121,6 +122,7 @@ class HTTPClient
       @send_timeout = 120
       @receive_timeout = 60       # For each read_block_size bytes
       @read_block_size = 1024 * 16 # follows net/http change in 1.8.7
+      @protocol_retry_count = 5
 
       @ssl_config = nil
       @test_loopback_http_response = []
@@ -178,6 +180,7 @@ class HTTPClient
         sess.send_timeout = @send_timeout
         sess.receive_timeout = @receive_timeout
         sess.read_block_size = @read_block_size
+        sess.protocol_retry_count = @protocol_retry_count
         sess.ssl_config = @ssl_config
         sess.debug_dev = @debug_dev
         sess.test_loopback_http_response = @test_loopback_http_response
@@ -467,12 +470,12 @@ class HTTPClient
 
     attr_accessor :debug_dev              # Device for dumping log for debugging
 
-    # These session parameters are not used now...
     attr_accessor :connect_timeout
     attr_accessor :connect_retry
     attr_accessor :send_timeout
     attr_accessor :receive_timeout
     attr_accessor :read_block_size
+    attr_accessor :protocol_retry_count
 
     attr_accessor :ssl_config
     attr_reader :ssl_peer_cert
@@ -492,6 +495,7 @@ class HTTPClient
       @send_timeout = nil
       @receive_timeout = nil
       @read_block_size = nil
+      @protocol_retry_count = 5
 
       @ssl_config = nil
       @ssl_peer_cert = nil
@@ -659,7 +663,7 @@ class HTTPClient
           @socket = create_socket(site)
           if @dest.scheme == 'https'
             @socket = create_ssl_socket(@socket)
-            connect_ssl_proxy(@socket, @dest) if @proxy
+            connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
             @socket.ssl_connect
             @socket.post_connection_check(@dest)
             @ssl_peer_cert = @socket.peer_cert

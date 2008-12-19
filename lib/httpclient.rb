@@ -118,12 +118,12 @@ class HTTPClient
   attr_reader :www_auth
 
   attr_accessor :follow_redirect_count
-  attr_accessor :protocol_retry_count
 
   attr_proxy(:protocol_version, true)
   attr_proxy(:connect_timeout, true)
   attr_proxy(:send_timeout, true)
   attr_proxy(:receive_timeout, true)
+  attr_proxy(:protocol_retry_count, true)
   # if your ruby is older than 2005-09-06, do not set socket_sync = false to
   # avoid an SSL socket blocking bug in openssl/buffering.rb.
   attr_proxy(:socket_sync, true)
@@ -162,7 +162,6 @@ class HTTPClient
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
     @cookie_manager = WebAgent::CookieManager.new
     @follow_redirect_count = 10
-    @protocol_retry_count = 5
     load_environment
     self.proxy = proxy if proxy
   end
@@ -421,7 +420,7 @@ private
   def do_request(req, proxy, &block)
     conn = Connection.new
     res = nil
-    retry_count = @protocol_retry_count
+    retry_count = @session_manager.protocol_retry_count
     while retry_count > 0
       begin
         protect_keep_alive_disconnected do
@@ -440,7 +439,7 @@ private
   def do_request_async(req, proxy)
     conn = Connection.new
     t = Thread.new(conn) { |tconn|
-      retry_count = @protocol_retry_count
+      retry_count = @session_manager.protocol_retry_count
       while retry_count > 0
         begin
           protect_keep_alive_disconnected do
