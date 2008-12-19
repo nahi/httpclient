@@ -1,11 +1,23 @@
 require 'bm_common'
 
+require 'multipart'
+
 url = ARGV.shift or raise
 proxy = ENV['http_proxy'] || ENV['HTTP_PROXY']
 url = URI.parse(url)
 proxy = URI.parse(proxy) if proxy
-threads = 2
-number = 500
+threads = 1
+number = 5
+msize = 10
+
+testfile = File.expand_path("testfile", File.dirname(__FILE__))
+require 'openssl'
+File.open(testfile, 'wb') do |file|
+  (msize * 1024).times do
+    file.write(OpenSSL::Random.random_bytes(1024))
+  end
+end
+upload_size = msize * 1024 * 1024
 
 def do_threads(number)
   threads = []
@@ -48,13 +60,13 @@ Benchmark.bmbm do |bm|
       done = true
     end
   end
-=end
 
   if defined?(Curl)
     bm.report('curb') do
+      fields = [Curl::PostField.file('upload', testfile)]
       do_threads(threads) {
         (1..number).collect {
-          Curl::Easy.http_get(url.to_s).body_str.size
+          p Curl::Easy.http_post(url.to_s, *fields).body_str.to_i
         }
       }
     end
@@ -78,9 +90,10 @@ Benchmark.bmbm do |bm|
       }
     end
   end
+=end
 
   if defined?(Net::HTTP)
-    bm.report('Net::HTTP') do
+    bm.report('Net::HTTP + multipart') do
       do_threads(threads) {
         if proxy
           c = Net::HTTP::Proxy(proxy.host, proxy.port).new(url.host, url.port)
@@ -89,7 +102,10 @@ Benchmark.bmbm do |bm|
         end
         c.start
         result = (1..number).collect {
-          c.get(url.path).read_body.size
+          req = Net::HTTP::Post.new(url.path)
+          file = Net::HTTP::FileForPost.new(testfile)
+          req.set_multipart_data('upload' => file)
+          raise if upload_size != c.request(req).read_body.to_i
         }
         c.finish
         result
@@ -102,25 +118,16 @@ Benchmark.bmbm do |bm|
       c = HTTPClient.new(proxy)
       do_threads(threads) {
         (1..number).collect {
-          c.get_content(url).size
+          File.open(testfile) do |file|
+            raise if upload_size != c.post(url, {'upload' => file}).content.to_i
+          end
         }
       }
       c.reset_all
     end
   end
 
-  if defined?(OpenURI)
-    bm.report('open-uri') do
-      do_threads(threads) {
-        (1..number).collect {
-          open(url, :proxy => proxy) { |f|
-            f.read.size
-          }
-        }
-      }
-    end
-  end
-
+=begin
   if defined?(HTTParty)
     class HTTPartyClient # need to create subclass for http_proxy
       include HTTParty
@@ -135,4 +142,5 @@ Benchmark.bmbm do |bm|
       }
     end
   end
+=end
 end
