@@ -83,9 +83,9 @@ class HTTPClient
 
     def filter_response(req, res)
       command = nil
-      uri = req.header.request_uri
       if res.status == HTTP::Status::UNAUTHORIZED
         if challenge = parse_authentication_header(res, 'www-authenticate')
+          uri = req.header.request_uri
           challenge.each do |scheme, param_str|
             @authenticator.each do |auth|
               if scheme.downcase == auth.scheme.downcase
@@ -139,9 +139,9 @@ class HTTPClient
 
     def filter_response(req, res)
       command = nil
-      uri = req.header.request_uri
       if res.status == HTTP::Status::PROXY_AUTHENTICATE_REQUIRED
         if challenge = parse_authentication_header(res, 'proxy-authenticate')
+          uri = req.header.request_uri
           challenge.each do |scheme, param_str|
             @authenticator.each do |auth|
               if scheme.downcase == auth.scheme.downcase
