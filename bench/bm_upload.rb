@@ -7,7 +7,7 @@ proxy = ENV['http_proxy'] || ENV['HTTP_PROXY']
 url = URI.parse(url)
 proxy = URI.parse(proxy) if proxy
 threads = 1
-number = 5
+number = 10
 msize = 10
 
 testfile = File.expand_path("testfile", File.dirname(__FILE__))

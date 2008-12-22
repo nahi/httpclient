@@ -5,7 +5,8 @@ proxy = ENV['http_proxy'] || ENV['HTTP_PROXY']
 url = URI.parse(url)
 proxy = URI.parse(proxy) if proxy
 threads = 1
-number = 20
+number = 10
+download_size = 10 * 1024 * 1024
 
 def do_threads(number)
   threads = []
@@ -25,6 +26,7 @@ Benchmark.bmbm do |bm|
       do_threads(threads) {
         (1..number).collect {
           Curl::Easy.download(url.to_s, 'download_curb')
+          raise if download_size != File.lstat('download_curb').size
         }
       }
     end
@@ -44,6 +46,7 @@ Benchmark.bmbm do |bm|
           File.open('download_rfuzz', 'wb') do |file|
             file.write(c.get(path).http_body)
           end
+          raise if download_size != File.lstat('download_rfuzz').size
         }
         c.reset
         result
@@ -66,6 +69,7 @@ Benchmark.bmbm do |bm|
               file.write(data)
             end
           end
+          raise if download_size != File.lstat('download_net_http').size
         }
         c.finish
         result
@@ -83,6 +87,7 @@ Benchmark.bmbm do |bm|
               file.write(data)
             end
           end
+          raise if download_size != File.lstat('download_httpclient').size
         }
       }
       c.reset_all
@@ -99,6 +104,7 @@ Benchmark.bmbm do |bm|
               FileUtils.copy_stream(f, file)
             }
           end
+          raise if download_size != File.lstat('download_open-uri').size
         }
       }
     end
@@ -115,6 +121,7 @@ Benchmark.bmbm do |bm|
           File.open('download_httparty', 'wb') do |file|
             file.write(HTTPartyClient.get(url.to_s))
           end
+          raise if download_size != File.lstat('download_httparty').size
         }
       }
     end
