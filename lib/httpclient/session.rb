@@ -292,19 +292,25 @@ class HTTPClient
 
     def gets(*args)
       str = @ssl_socket.gets(*args)
-      @debug_dev << str if @debug_dev
+      debug(str)
       str
     end
 
     def read(*args)
       str = @ssl_socket.read(*args)
-      @debug_dev << str if @debug_dev
+      debug(str)
+      str
+    end
+
+    def readpartial(*args)
+      str = @ssl_socket.readpartial(*args)
+      debug(str)
       str
     end
 
     def <<(str)
       rv = @ssl_socket.write(str)
-      @debug_dev << str if @debug_dev
+      debug(str)
       rv
     end
 
@@ -338,6 +344,10 @@ class HTTPClient
       end
       ssl_socket
     end
+
+    def debug(str)
+      @debug_dev << str if @debug_dev && str
+    end
   end
 
 
@@ -369,6 +379,15 @@ class HTTPClient
 
     def read(*args)
       @socket.read(*args)
+    end
+
+    def readpartial(*args)
+      # StringIO doesn't support :readpartial
+      if @socket.respond_to?(:readpartial)
+        @socket.readpartial(*args)
+      else
+        @socket.read(*args)
+      end
     end
 
     def <<(str)
@@ -415,6 +434,12 @@ class HTTPClient
       str
     end
 
+    def readpartial(*args)
+      str = super
+      debug(str)
+      str
+    end
+
     def <<(str)
       super
       debug(str)
@@ -423,7 +448,7 @@ class HTTPClient
   private
 
     def debug(str)
-      @debug_dev << str if @debug_dev
+      @debug_dev << str if str && @debug_dev
     end
   end
 
@@ -465,9 +490,7 @@ class HTTPClient
     attr_reader :dest                     # Destination site
     attr_accessor :proxy                  # Proxy site
     attr_accessor :socket_sync            # Boolean value for Socket#sync
-
     attr_accessor :requested_version      # Requested protocol version
-
     attr_accessor :debug_dev              # Device for dumping log for debugging
 
     attr_accessor :connect_timeout
@@ -513,6 +536,7 @@ class HTTPClient
       @headers = []
 
       @socket = nil
+      @readbuf = nil
     end
 
     # Send a request to the server
@@ -558,60 +582,37 @@ class HTTPClient
       @state == :INIT
     end
 
-    def get_status
-      version = status = reason = nil
+    def get_header
       begin
         if @state != :META
           raise InvalidState.new("get_status must be called at the beginning of a session")
         end
-        version, status, reason = read_header
+        read_header
       rescue
         close
         raise
       end
-      return version, status, reason
-    end
-
-    def get_header(&block)
-      begin
-        read_header if @state == :META
-      rescue
-        close
-        raise
-      end
-      if block
-        @headers.each do |key, value|
-          block.call("#{key}: #{value}")
-        end
-      else
-        @headers
-      end
+      [@version, @status, @reason, @headers]
     end
 
     def eof?
       if !@content_length.nil?
         @content_length == 0
-      elsif @readbuf.length > 0
-        false
       else
         @socket.closed? or @socket.eof?
       end
     end
 
-    def get_data(&block)
+    def get_body(&block)
       begin
         read_header if @state == :META
         return nil if @state != :DATA
-        unless @state == :DATA
-          raise InvalidState.new('state != DATA')
-        end
-        data = nil
-        while true
-          timeout(@receive_timeout, ReceiveTimeoutError) do
-            data = read_body
-          end
-          block.call(data) if data
-          break if eof?
+        if @chunked
+          read_body_chunked(&block)
+        elsif @content_length
+          read_body_length(&block)
+        else
+          read_body_rest(&block)
         end
       rescue
         close
@@ -693,9 +694,7 @@ class HTTPClient
         close
         raise
       end
-
       @state = :WAIT
-      @readbuf = ''
     end
 
     def create_socket(site)
@@ -736,7 +735,7 @@ class HTTPClient
       req.dump(@socket)
       @socket.flush unless @socket_sync
       res = HTTP::Message.new_response('')
-      parse_header(@socket)
+      parse_header
       res.version, res.status, res.reason = @version, @status, @reason
       @headers.each do |key, value|
         res.header.set(key, value)
@@ -754,17 +753,10 @@ class HTTPClient
 
     # Read status block.
     def read_header
-      if @state == :DATA
-        get_data {}
-        check_state
-      end
-      unless @state == :META
-        raise InvalidState, 'state != :META'
-      end
       @content_length = 0
       @chunked = false
       @chunk_length = 0
-      parse_header(@socket)
+      parse_header
 
       # Head of the request has been parsed.
       @state = :DATA
@@ -779,14 +771,13 @@ class HTTPClient
         end
       end
       @next_connection = false unless @content_length
-      return [@version, @status, @reason]
     end
 
     StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d\d\d)\s*([^\r\n]+)?\r?\n\z)
-    def parse_header(socket)
+    def parse_header
       timeout(@receive_timeout, ReceiveTimeoutError) do
         begin
-          initial_line = socket.gets("\n")
+          initial_line = @socket.gets("\n")
           if initial_line.nil?
             raise KeepAliveDisconnected.new
           end
@@ -795,6 +786,7 @@ class HTTPClient
             @status = nil
             @reason = nil
             @next_connection = false
+            @content_length = nil
             @readbuf = initial_line
             break
           end
@@ -802,7 +794,7 @@ class HTTPClient
           @next_connection = HTTP.keep_alive_enabled?(@version.to_f)
           @headers = []
           while true
-            line = socket.gets("\n")
+            line = @socket.gets("\n")
             unless line
               raise BadResponseError.new('unexpected EOF')
             end
@@ -834,78 +826,59 @@ class HTTPClient
       end
     end
 
-    def read_body
-      if @chunked
-        return read_body_chunked
-      elsif @content_length == 0
-        return nil
-      elsif @content_length
-        return read_body_length
-      else
-        if @readbuf.length > 0
-          data = @readbuf
-          @readbuf = ''
-          return data
-        else
-          data = @socket.read(@read_block_size)
-          data = nil if data and data.empty?       # Absorbing interface mismatch.
-          return data
+    def read_body_length(&block)
+      return nil if @content_length == 0
+      buf = ''
+      while true
+        maxbytes = @read_block_size
+        maxbytes = @content_length if maxbytes > @content_length
+        timeout(@receive_timeout, ReceiveTimeoutError) do
+          @socket.readpartial(maxbytes, buf)
         end
+        if buf.length > 0
+          @content_length -= buf.length
+          yield buf
+        else
+          @content_length = 0
+        end
+        return if @content_length == 0
       end
-    end
-
-    def read_body_length
-      maxbytes = @read_block_size
-      if @readbuf.length > 0
-        data = @readbuf[0, @content_length]
-        @readbuf[0, @content_length] = ''
-        @content_length -= data.length
-        return data
-      end
-      maxbytes = @content_length if maxbytes > @content_length
-      data = @socket.read(maxbytes)
-      if data
-        @content_length -= data.length
-      else
-        @content_length = 0
-      end
-      return data
     end
 
     RS = "\r\n"
-    def read_body_chunked
-      if @chunk_length == 0
-        until (i = @readbuf.index(RS))
-          @readbuf << @socket.gets(RS)
-        end
-        i += 2
-        @chunk_length = @readbuf[0, i].hex
-        @readbuf[0, i] = ''
+    def read_body_chunked(&block)
+      buf = ''
+      while true
+        len = @socket.gets(RS)
+        @chunk_length = len.hex
         if @chunk_length == 0
           @content_length = 0
           @socket.gets(RS)
-          return nil
+          return
+        end
+        timeout(@receive_timeout, ReceiveTimeoutError) do
+          @socket.read(@chunk_length + 2, buf)
+        end
+        unless buf.empty?
+          yield buf.slice(0, @chunk_length)
         end
       end
-      while @readbuf.length < @chunk_length + 2
-        @readbuf << @socket.read(@chunk_length + 2 - @readbuf.length)
-      end
-      data = @readbuf[0, @chunk_length]
-      @readbuf[0, @chunk_length + 2] = ''
-      @chunk_length = 0
-      return data
     end
 
-    def check_state
-      if @state == :DATA
-        if eof?
-          if @next_connection
-            if @requests.empty?
-              @state = :WAIT
-            else
-              @state = :META
-            end
-          end
+    def read_body_rest
+      if @readbuf.length > 0
+        yield @readbuf
+        @readbuf = nil
+      end
+      buf = ''
+      while true
+        timeout(@receive_timeout, ReceiveTimeoutError) do
+          @socket.read(@read_block_size, buf)
+        end
+        if buf && buf.length > 0
+          yield buf
+        else
+          return
         end
       end
     end

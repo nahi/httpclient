@@ -602,7 +602,7 @@ private
     @debug_dev << "\n\n= Response\n\n" if @debug_dev
     do_get_header(req, res, sess)
     conn.push(res)
-    sess.get_data do |part|
+    sess.get_body do |part|
       if block
         block.call(res, part)
       else
@@ -635,7 +635,7 @@ private
     @debug_dev << "\n\n= Response\n\n" if @debug_dev
     do_get_header(req, res, sess)
     conn.push(res)
-    sess.get_data() do |part|
+    sess.get_body do |part|
       pipew.syswrite(part)
     end
     pipew.close
@@ -647,8 +647,8 @@ private
   end
 
   def do_get_header(req, res, sess)
-    res.version, res.status, res.reason = sess.get_status
-    sess.get_header.each do |key, value|
+    res.version, res.status, res.reason, headers = sess.get_header
+    headers.each do |key, value|
       res.header.set(key, value)
     end
     if @cookie_manager

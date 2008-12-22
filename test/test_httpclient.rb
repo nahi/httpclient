@@ -83,18 +83,20 @@ class TestHTTPClient < Test::Unit::TestCase
   def test_protocol_version_http09
     @client.protocol_version = 'HTTP/0.9'
     @client.debug_dev = str = ''
-    @client.test_loopback_http_response << 'hello world'
+    @client.test_loopback_http_response << "hello\nworld\n"
     res = @client.get(@url + 'hello')
+    assert_equal('0.9', res.version)
+    assert_equal(nil, res.status)
+    assert_equal(nil, res.reason)
+    assert_equal("hello\nworld\n", res.content)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET /hello HTTP/0.9", lines[3])
     assert_equal("Connection: close", lines[5])
     assert_equal("= Response", lines[6])
-    assert_match(/^hello world/, lines[7])
-    assert_equal('0.9', res.version)
-    assert_equal(nil, res.status)
-    assert_equal(nil, res.reason)
+    assert_match(/^hello$/, lines[7])
+    assert_match(/^world$/, lines[8])
   end
 
   def test_protocol_version_http10
@@ -465,8 +467,8 @@ EOS
     STDOUT.sync = true
     File.open(__FILE__) do |file|
       res = @client.post(@url + 'servlet', {1=>2, 3=>file})
-      assert_match(/Content-Disposition: form-data; name="1";/, res.content)
-      assert_match(/Content-Disposition: form-data; name="3";/, res.content)
+      assert_match(/^Content-Disposition: form-data; name="1"\r\n/m, res.content)
+      assert_match(/^Content-Disposition: form-data; name="3";/, res.content)
       # FIND_TAG_IN_THIS_FILE
       assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
     end
