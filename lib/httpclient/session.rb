@@ -189,8 +189,10 @@ class HTTPClient
     end
 
     def close_all
-      each_sess do |sess|
-        sess.close
+      @sess_pool_mutex.synchronize do
+        @sess_pool.each do |sess|
+          sess.close
+        end
       end
       @sess_pool.clear
     end
@@ -223,14 +225,6 @@ class HTTPClient
     def add_cached_session(sess)
       @sess_pool_mutex.synchronize do
         @sess_pool << sess
-      end
-    end
-
-    def each_sess
-      @sess_pool_mutex.synchronize do
-        @sess_pool.each do |sess|
-          yield(sess)
-        end
       end
     end
   end
@@ -800,27 +794,26 @@ class HTTPClient
             end
             line.chomp!
             break if line.empty?
-            parse_keepalive_header(line)
             key, value = line.split(/\s*:\s*/, 2)
+            parse_keepalive_header(key, value)
             @headers << [key, value]
           end
         end while (@version == '1.1' && @status == 100)
       end
     end
 
-    def parse_keepalive_header(line)
-      case line
-      when /^Content-Length:\s+/i
-        @content_length = $~.post_match.to_i
-      when /^Transfer-Encoding:\s+chunked/i
+    def parse_keepalive_header(key, value)
+      key = key.downcase
+      if key == 'content-length'
+        @content_length = value.to_i
+      elsif key == 'transfer-encoding' and value.downcase == 'chunked'
         @chunked = true
         @chunk_length = 0
         @content_length = nil
-      when /^Connection:\s+/i, /^Proxy-Connection:\s+/i
-        case $~.post_match
-        when /^Keep-Alive$/i
+      elsif key == 'connection' or key == 'proxy-connection'
+        if value.downcase == 'keep-alive'
           @next_connection = true
-        when /^close$/i
+        else
           @next_connection = false
         end
       end

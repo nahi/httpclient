@@ -260,12 +260,7 @@ class HTTPClient
   def get_content(uri, query = nil, extheader = {}, &block)
     uri = urify(uri)
     req = create_request('GET', uri, query, nil, extheader)
-    res = follow_redirect(uri, block) { |new_uri, filtered_block|
-      req.header.init_request('GET', new_uri, query)
-      proxy = no_proxy?(new_uri) ? nil : @proxy
-      do_request(req, proxy, &filtered_block)
-    }
-    res.content
+    follow_redirect(req, &block).content
   end
 
   # DESCRIPTION
@@ -276,12 +271,7 @@ class HTTPClient
   def post_content(uri, body = nil, extheader = {}, &block)
     uri = urify(uri)
     req = create_request('POST', uri, nil, body, extheader)
-    res = follow_redirect(uri, block) { |new_uri, filtered_block|
-      req.header.init_request('POST', new_uri, nil)
-      proxy = no_proxy?(new_uri) ? nil : @proxy
-      do_request(req, proxy, &filtered_block)
-    }
-    res.content
+    follow_redirect(req, &block).content
   end
 
   def strict_redirect_uri_callback(uri, res)
@@ -473,20 +463,21 @@ private
     ENV[name.downcase] || ENV[name.upcase]
   end
 
-  def follow_redirect(uri, block = nil)
-    uri = urify(uri)
+  def follow_redirect(req, &block)
     retry_number = 0
     if block
-      filtered_block = proc { |res, str|
-        block.call(str) if HTTP::Status.successful?(res.status)
+      filtered_block = proc { |r, str|
+        block.call(str) if HTTP::Status.successful?(r.status)
       }
     end
     while retry_number < @follow_redirect_count
-      res = yield(uri, filtered_block)
+      proxy = no_proxy?(req.header.request_uri) ? nil : @proxy
+      res = do_request(req, proxy, &filtered_block)
       if HTTP::Status.successful?(res.status)
         return res
       elsif HTTP::Status.redirect?(res.status)
-        uri = urify(@redirect_uri_callback.call(uri, res))
+        uri = urify(@redirect_uri_callback.call(req.header.request_uri, res))
+        req.header.request_uri = uri
         retry_number += 1
       else
         raise BadResponseError.new("unexpected response: #{res.header.inspect}", res)

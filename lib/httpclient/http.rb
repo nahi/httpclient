@@ -97,7 +97,9 @@ module HTTP
       # Request method.
       attr_reader :request_method
       # Requested URI.
-      attr_reader :request_uri
+      attr_accessor :request_uri
+      # Requested query.
+      attr_accessor :request_query
       # HTTP status reason phrase.
       attr_accessor :reason_phrase
 
@@ -139,7 +141,7 @@ module HTTP
       #   status_code for HTTP response.
       #
       def initialize
-        @is_request = nil	# true, false and nil
+        @is_request = nil       # true, false and nil
         @http_version = 1.1
         @body_type = nil
         @body_charset = nil
@@ -169,7 +171,7 @@ module HTTP
         @is_request = true
         @request_method = method
         @request_uri = uri || NIL_URI
-        @request_query = create_query_uri(@request_uri, query)
+        @request_query = query
         @request_via_proxy = false
       end
 
@@ -205,10 +207,9 @@ module HTTP
         else
           str = response_status_line
         end
-        str += @header_item.collect { |key, value|
-          dump_line("#{ key }: #{ value }")
+        str + @header_item.collect { |key, value|
+          "#{ key }: #{ value }#{ CRLF }"
         }.join
-        str
       end
 
       def set(key, value)
@@ -220,7 +221,7 @@ module HTTP
           all
         else
           key = key.upcase
-          @header_item.find_all { |pair| pair[0].upcase == key }
+          @header_item.find_all { |k, v| k.upcase == key }
         end
       end
 
@@ -244,34 +245,53 @@ module HTTP
     private
 
       def request_line
+        path = create_query_uri(@request_uri, @request_query)
         if @request_via_proxy
-          path = "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port || 0 }#{ @request_query }"
-        else
-          path =  @request_query
+          path = "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port }#{ path }"
         end
-        dump_line("#{ @request_method } #{ path } HTTP/#{ @http_version }")
+        "#{ @request_method } #{ path } HTTP/#{ @http_version }#{ CRLF }"
       end
 
       def response_status_line
         if defined?(Apache)
-          dump_line("HTTP/#{ @http_version } #{ response_status_code } #{ @reason_phrase }")
+          "HTTP/#{ @http_version } #{ response_status_code } #{ @reason_phrase }#{ CRLF }"
         else
-          dump_line("Status: #{ response_status_code } #{ @reason_phrase }")
+          "Status: #{ response_status_code } #{ @reason_phrase }#{ CRLF }"
         end
       end
 
       def set_header
+        if @is_request
+          set_request_header
+        else
+          set_response_header
+        end
+      end
+
+      def set_request_header
+        return if @dumped
+        @dumped = true
+        keep_alive = HTTP.keep_alive_enabled?(@http_version)
+        if !keep_alive and @request_method != 'CONNECT'
+          set('Connection', 'close')
+        end
+        if @chunked
+          set('Transfer-Encoding', 'chunked')
+        elsif keep_alive or @body_size != 0
+          set('Content-Length', @body_size.to_s)
+        end
+        if @http_version >= 1.1
+	  set('Host', "#{@request_uri.host}:#{@request_uri.port}")
+        end
+      end
+
+      def set_response_header
         return if @dumped
         @dumped = true
         if defined?(Apache) && self['Date'].empty?
           set('Date', HTTP.http_date(Time.now))
         end
-
         keep_alive = HTTP.keep_alive_enabled?(@http_version)
-        if !keep_alive and @request_method != 'CONNECT'
-          set('Connection', 'close')
-        end
-
         if @chunked
           set('Transfer-Encoding', 'chunked')
         else
@@ -279,31 +299,18 @@ module HTTP
             set('Content-Length', @body_size.to_s)
           end
         end
-
         if @body_date
           set('Last-Modified', HTTP.http_date(@body_date))
         end
-
-        if @is_request
-          if @http_version >= 1.1
-            if @request_uri.port == @request_uri.default_port
-              set('Host', "#{@request_uri.host}")
-            else
-              set('Host', "#{@request_uri.host}:#{@request_uri.port}")
-            end
-          end
-        else
-          if self['Content-Type'].empty?
-            set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ CharsetMap[@body_charset || $KCODE] }")
-          end
+        if self['Content-Type'].empty?
+          set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ CharsetMap[@body_charset || $KCODE] }")
         end
       end
 
-      def dump_line(str)
-        str + CRLF
-      end
-
       def create_query_uri(uri, query)
+        if @request_method == 'CONNECT'
+          return query
+        end
         path = uri.path
         path = '/' if path.nil? or path.empty?
         query_str = nil
@@ -328,6 +335,8 @@ module HTTP
       attr_reader :size
       attr_accessor :chunk_size
 
+      DEFAULT_CHUNK_SIZE = 1024 * 16
+
       def initialize
         @body = nil
         @size = nil
@@ -339,7 +348,7 @@ module HTTP
         @boundary = boundary
         @positions = {}
         set_content(body, boundary)
-        @chunk_size = 1024 * 16
+        @chunk_size = DEFAULT_CHUNK_SIZE
       end
 
       def init_response(body = nil)
@@ -533,20 +542,15 @@ module HTTP
       @body = @peer_cert = nil
     end
 
-    class << self
-      alias __new new
-      undef new
-    end
-
     def self.new_connect_request(uri, hostport)
-      m = self.__new
+      m = self.new
       m.header.init_connect_request(uri, hostport)
       m.header.body_size = 0
       m
     end
 
     def self.new_request(method, uri, query = nil, body = nil, boundary = nil)
-      m = self.__new
+      m = self.new
       m.header.init_request(method, uri, query)
       m.body = Body.new
       m.body.init_request(body || '', boundary)
@@ -556,7 +560,7 @@ module HTTP
     end
 
     def self.new_response(body)
-      m = self.__new
+      m = self.new
       m.header.init_response(Status::OK)
       m.body = Body.new
       m.body.init_response(body)
