@@ -1,6 +1,5 @@
 require 'bm_common'
-
-require 'multipart'
+try_require 'multipart'
 
 url = ARGV.shift or raise
 proxy = ENV['http_proxy'] || ENV['HTTP_PROXY']
@@ -92,7 +91,7 @@ Benchmark.bmbm do |bm|
   end
 =end
 
-  if defined?(Net::HTTP)
+  if defined?(Net::HTTP) and defined?(Net::HTTP::FileForPost)
     bm.report('Net::HTTP + multipart') do
       do_threads(threads) {
         if proxy
