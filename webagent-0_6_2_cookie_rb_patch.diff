@@ -1,5 +1,5 @@
---- cookie.rb	2002-09-30 01:00:39.000000000 +0900
-+++ ../../../lib/httpclient/cookie.rb	2008-12-17 18:51:31.000000000 +0900
+--- lib/webagent/cookie.rb	2002-09-30 01:00:39.000000000 +0900
++++ ../lib/httpclient/cookie.rb	2008-12-19 15:55:42.000000000 +0900
 @@ -1,2 +1,8 @@
 +# cookie.rb is redistributed file which is originally included in Webagent
 +# version 0.6.2 by TAKAHASHI `Maki' Masayoshi.  And it contains some bug fixes.
@@ -70,13 +70,13 @@
 +	    @expires = Time.parse(value)
  	  rescue ArgumentError
  	    @expires = nil
-@@ -200,47 +209,67 @@ class WebAgent
+@@ -200,46 +209,63 @@ class WebAgent
      class ErrorOverrideOK < Error; end
      class SpecialError < Error; end
 -    class NoDotError < ErrorOverrideOK; end
--
--    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
  
+-    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
+-
 -    attr_accessor :cookies
 +    attr_reader :cookies
      attr_accessor :cookies_file
@@ -98,31 +98,18 @@
  
 -    def save_cookies(force = nil)
 -      if @is_saved && !force
+-	return
 +    def cookies=(cookies)
-+      @cookies.synchronize do
-+        @cookies = cookies
-+        @cookies.extend(MonitorMixin)
-+      end
++      @cookies = cookies
++      @cookies.extend(MonitorMixin)
 +    end
 +
 +    def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
-+      if @is_saved and !force
- 	return
-       end
--      File.open(@cookies_file,'w'){|f|
--	@cookies.each{|cookie|
--	  if cookie.use? && (!cookie.discard?)
--	    f.print(cookie.url.to_s,"\t",
--		    cookie.name,"\t",
--		    cookie.value,"\t",
--		    cookie.expires.to_i,"\t",
--		    cookie.domain,"\t",
--		    cookie.path,"\t",
--		    cookie.flag,"\n")
--	  end
--	}
--      }
 +      @cookies.synchronize do
++        check_expired_cookies()
++        if @is_saved and !force
++          return
++        end
 +        File.open(@cookies_file, 'w') do |f|
 +          @cookies.each do |cookie|
 +            if (cookie.use? or save_unused) and
@@ -137,7 +124,20 @@
 +            end
 +          end
 +        end
-+      end
+       end
+-      File.open(@cookies_file,'w'){|f|
+-	@cookies.each{|cookie|
+-	  if cookie.use? && (!cookie.discard?)
+-	    f.print(cookie.url.to_s,"\t",
+-		    cookie.name,"\t",
+-		    cookie.value,"\t",
+-		    cookie.expires.to_i,"\t",
+-		    cookie.domain,"\t",
+-		    cookie.path,"\t",
+-		    cookie.flag,"\n")
+-	  end
+-	}
+-      }
 +      @is_saved = true
 +    end
 +
@@ -146,57 +146,43 @@
      end
  
      def check_expired_cookies()
--      @cookies.reject!{|cookie|
+       @cookies.reject!{|cookie|
 -	is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
 -	if is_expired && !cookie.discard?
 -	  @is_saved = false
 -	end
 -	is_expired
--      }
-+      @cookies.synchronize do
-+        @cookies.reject!{|cookie|
-+          is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
-+          if is_expired && !cookie.discard?
-+            @is_saved = false
-+          end
-+          is_expired
-+        }
-+      end
++        is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
++        if is_expired && !cookie.discard?
++          @is_saved = false
++        end
++        is_expired
+       }
      end
- 
-@@ -268,17 +297,18 @@ class WebAgent
+@@ -268,15 +294,14 @@ class WebAgent
  
      def find(url)
 -
 -      check_expired_cookies()
++      return nil if @cookies.empty?
+ 
+       cookie_list = Array.new()
 -
--      cookie_list = Array.new()
--
--      @cookies.each{|cookie|
+       @cookies.each{|cookie|
 -	if cookie.use? && cookie.match?(url)
 -	  if cookie_list.select{|c1| c1.name == cookie.name}.empty?
 -	    cookie_list << cookie
 -	  end
 -	end
--      }
--      return make_cookie_str(cookie_list)
-+      @cookies.synchronize do
-+        check_expired_cookies()
-+        return nil if @cookies.empty?
-+
-+        cookie_list = Array.new()
-+        @cookies.each{|cookie|
-+          if cookie.use? && cookie.match?(url)
-+            if cookie_list.select{|c1| c1.name == cookie.name}.empty?
-+              cookie_list << cookie
-+            end
++        is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
++        if cookie.use? && !is_expired && cookie.match?(url)
++          if cookie_list.select{|c1| c1.name == cookie.name}.empty?
++            cookie_list << cookie
 +          end
-+        }
-+        return make_cookie_str(cookie_list)
-+      end
-     end
- 
-@@ -290,6 +320,7 @@ class WebAgent
++        end
+       }
+       return make_cookie_str(cookie_list)
+@@ -290,6 +315,7 @@ class WebAgent
      private :find_cookie_info
  
 +    # not tested well; used only netscape_rule = true.
@@ -205,7 +191,7 @@
 +      if !err.kind_of?(ErrorOverrideOK) || !override
  	raise err
        end
-@@ -311,8 +342,4 @@ class WebAgent
+@@ -311,8 +337,4 @@ class WebAgent
        use_security = override
  
 -      if !domainname
@@ -214,7 +200,7 @@
 -
        if domain
  
-@@ -326,27 +353,35 @@ class WebAgent
+@@ -326,27 +348,36 @@ class WebAgent
  	end
  
 -	## [NETSCAPE] rule
@@ -268,9 +254,17 @@
 +          cookie.use = true
 +          @cookies << cookie
 +        end
++        check_expired_cookies()
        end
  
-@@ -375,18 +410,20 @@ class WebAgent
+@@ -368,25 +399,24 @@ class WebAgent
+ 	@is_saved = false
+       end
+-
+-      check_expired_cookies()
+-      return false
+     end
+ 
      def load_cookies()
        return if !File.readable?(@cookies_file)
 -      File.open(@cookies_file,'r'){|f|
