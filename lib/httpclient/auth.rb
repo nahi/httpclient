@@ -12,22 +12,19 @@ require 'httpclient/session'
 
 class HTTPClient
 
+  begin
+    require 'net/ntlm'
+    NTLMEnabled = true
+  rescue LoadError
+    NTLMEnabled = false
+  end
 
-  NTLMEnabled = begin
-      require 'net/ntlm'
-      true
-    rescue LoadError
-      false
-    end
-
-
-  SSPIEnabled = begin
-      require 'win32/sspi'
-      true
-    rescue LoadError
-      false
-    end
-
+  begin
+    require 'win32/sspi'
+    SSPIEnabled = true
+  rescue LoadError
+    SSPIEnabled = false
+  end
 
   class AuthFilterBase
   private
@@ -46,6 +43,7 @@ class HTTPClient
   end
 
 
+  # WWWAuth
   class WWWAuth < AuthFilterBase
     attr_reader :basic_auth
     attr_reader :digest_auth

@@ -31,6 +31,8 @@ end
 
 Rake::RDocTask.new("doc") do |rdoc|
   rdoc.rdoc_dir = 'doc'
-  rdoc.rdoc_files.include('lib/**/*.rb')
+  rdoc.rdoc_files.include('README.txt')
+  rdoc.rdoc_files.include('lib/httpclient/*.rb')
+  rdoc.rdoc_files.include('lib/httpclient.rb')
 end
 

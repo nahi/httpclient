@@ -8,14 +8,12 @@
 
 class HTTPClient
 
-
-  SSLEnabled = begin
-      require 'openssl'
-      true
-    rescue LoadError
-      false
-    end
-
+  begin
+    require 'openssl'
+    SSLEnabled = true
+  rescue LoadError
+    SSLEnabled = false
+  end
 
   # HTTPClient::SSLConfig -- SSL configuration of a client.
   #

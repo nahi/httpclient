@@ -1,12 +1,11 @@
 # HTTPClient - HTTP client library.
 # Copyright (C) 2000-2008  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
-
+#
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;
 # either the dual license version in 2003, or any later version.
 
 
-# Ruby standard library
 require 'uri'
 require 'stringio'
 require 'digest/sha1'
@@ -21,35 +20,181 @@ require 'httpclient/auth'
 require 'httpclient/cookie'
 
 
-# DESCRIPTION
-#   HTTPClient -- Client to retrieve web resources via HTTP.
+# == Description
 #
-# How to create your client.
-#   1. Create simple client.
+# The HTTPClient class provides several methods for accessing Web resources
+# via HTTP.
+#
+# HTTPClient instance is designed to be MT-safe.  You can call a HTTPClient
+# instance from several threads without syncronization after setting up an
+# instance.
+#
+#   clnt = HTTPClient.new
+#   clnt.set_cookie_store('/home/nahi/cookie.dat')
+#   urls.each do |url|
+#     Thread.new(url) do |u|
+#       p clnt.head(u).status
+#     end
+#   end
+#
+# == How to use
+#
+# At first, how to create your client.  See initialize for more detail.
+#
+# 1. Create simple client.
+#
 #     clnt = HTTPClient.new
 #
-#   2. Accessing resources through HTTP proxy.
-#     clnt = HTTPClient.new("http://myproxy:8080")
+# 2. Accessing resources through HTTP proxy.  You can use environment
+#    variable 'http_proxy' or 'HTTP_PROXY' instead.
 #
-#   3. Set User-Agent and From in HTTP request header.(nil means "No proxy")
-#     clnt = HTTPClient.new(nil, "MyAgent", "nahi@keynauts.com")
+#     clnt = HTTPClient.new('http://myproxy:8080')
 #
-# How to retrieve web resources.
-#   1. Get content of specified URL.
-#     puts clnt.get_content("http://www.ruby-lang.org/en/")
+# === How to retrieve web resources
 #
-#   2. Do HEAD request.
+# See get_content.
+#
+# 1. Get content of specified URL.  It returns a String of whole result.
+#
+#     puts clnt.get_content('http://dev.ctor.org/')
+#
+# 2. Get content as chunks of String.  It yields chunks of String.
+#
+#     clnt.get_content('http://dev.ctor.org/') do |chunk|
+#       puts chunk
+#     end
+#
+# === Invoking other HTTP methods
+#
+# See head, get, post, put, delete, options, propfind, proppatch and trace.  
+# It returns a HTTP::Message instance as a response.
+#
+# 1. Do HEAD request.
+#
 #     res = clnt.head(uri)
+#     p res.header['Last-Modified'][0]
 #
-#   3. Do GET request with query.
-#     res = clnt.get(uri)
+# 2. Do GET request with query.
 #
-#   4. Do POST request.
-#     res = clnt.post(uri)
-#     res = clnt.get|post|head(uri, proxy)
+#     query = { 'keyword' => 'ruby', 'lang' => 'en' }
+#     res = clnt.get(uri, query)
+#     p res.status
+#     p res.contenttype
+#     p res.header['X-Custom']
+#     puts res.content
+#
+# === How to POST
+#
+# See post.
+#
+# 1. Do POST a form data.
+#
+#     body = { 'keyword' => 'ruby', 'lang' => 'en' }
+#     res = clnt.post(uri, body)
+#
+# 2. Do multipart file upload with POST.  No need to set extra header by
+#    yourself from httpclient/2.1.3.
+#
+#     File.open('/tmp/post_data') do |file|
+#       body = { 'upload' => file, 'user' => 'nahi' }
+#       res = clnt.post(uri, body)
+#     end
+#
+# === Accessing via SSL
+#
+# Ruby needs to be compiled with OpenSSL.
+#
+# 1. Get content of specified URL via SSL.
+#    Just pass an URL which starts with 'https://'.
+#
+#     https_url = 'https://www.rsa.com'
+#     clnt.get_content(https_url)
+#
+# 2. Getting peer certificate from response.
+#
+#     res = clnt.get(https_url)
+#     p res.peer_cert #=> returns OpenSSL::X509::Certificate
+#
+# 3. Configuring OpenSSL options.  See HTTPClient::SSLConfig for more details.
+#
+#     user_cert_file = 'cert.pem'
+#     user_key_file = 'privkey.pem'
+#     clnt.ssl_config.set_client_cert_file(user_cert_file, user_key_file)
+#     clnt.get_content(https_url)
+#
+# === Handling Cookies
+#
+# 1. Using volatile Cookies.  Nothing to do.  HTTPClient handles Cookies.
+#
+#     clnt = HTTPClient.new
+#     clnt.get_content(url1) # receives Cookies.
+#     clnt.get_content(url2) # sends Cookies if needed.
+#
+# 2. Saving non volatile Cookies to a specified file.  Need to set a file at
+#    first and invoke save method at last.
+#
+#     clnt = HTTPClient.new
+#     clnt.set_cookie_store('/home/nahi/cookie.dat')
+#     clnt.get_content(url)
+#     ...
+#     clnt.save_cookie_store
+#
+# 3. Disabling Cookies.
+#
+#     clnt = HTTPClient.new
+#     clnt.cookie_manager = nil
+#
+# === Configuring authenticateion credentials
+#
+# 1. Authentication with Web server.  Supports BasicAuth, DigestAuth, and
+#    Negotiate/NTLM (requires ruby/ntlm module).
+#
+#     clnt = HTTPClient.new
+#     domain = 'http://dev.ctor.org/http-access2/'
+#     user = 'user'
+#     password = 'user'
+#     clnt.set_auth(domain, user, password)
+#     p clnt.get_content('http://dev.ctor.org/http-access2/login').status
+#
+# 2. Authentication witn Proxy server.  Supports BasicAuth and NTLM
+#    (requires win32/sspi)
+#
+#     clnt = HTTPClient.new(proxy)
+#     user = 'proxy'
+#     password = 'proxy'
+#     clnt.set_proxy_auth(user, password)
+#     p clnt.get_content(url)
+#
+# === Invoking HTTP methods with custom header
+#
+# Pass a Hash or an Array for extheader argument.
+#
+#     extheader = { 'Accept' => '*/*' }
+#     clnt.get_content(uri, query, extheader)
+#
+#     extheader = [['Accept', 'image/jpeg'], ['Accept', 'image/png']]
+#     clnt.get_content(uri, query, extheader)
+#
+# === Invoking HTTP methods asynchronously
+#
+# See head_async, get_async, post_async, put_async, delete_async,
+# options_async, propfind_async, proppatch_async, and trace_async.
+# It immediately returns a HTTPClient::Connection instance as a result.
+#
+#     connection = clnt.get_async('http://dev.ctor.org/')
+#     io = connection.pop.content
+#     while str = io.read(40)
+#       p str
+#     end
+#
+# === Shortcut methods
+#
+# You can invoke get_content, get, etc. without creating HTTPClient instance.
+#
+#   ruby -rhttpclient -e 'puts HTTPClient.get_content(ARGV.shift)' http://dev.ctor.org/
+#   ruby -rhttpclient -e 'p HTTPClient.head(ARGV.shift).header["last-modified"]' http://dev.ctor.org/
 #
 class HTTPClient
-
   VERSION = '2.1.3-SNAPSHOT'
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
   /: (\S+) (\S+)/ =~ %q$Id$
@@ -57,36 +202,58 @@ class HTTPClient
 
   include Util
 
+  # Raised for indicating running environment configuration error for example
+  # accessing via SSL under the ruby which is not compiled with OpenSSL.
   class ConfigurationError < StandardError
   end
 
+  # Raised for indicating HTTP response error.
   class BadResponseError < RuntimeError
+    # HTTP::Message:: a response
     attr_reader :res
 
-    def initialize(msg, res = nil)
+    def initialize(msg, res = nil) # :nodoc:
       super(msg)
       @res = res
     end
   end
 
+  # Raised for indicating a timeout error.
   class TimeoutError < RuntimeError
   end
 
+  # Raised for indicating a connection timeout error.
+  # You can configure connection timeout via HTTPClient#connect_timeout=.
   class ConnectTimeoutError < TimeoutError
   end
 
-  class ReceiveTimeoutError < TimeoutError
-  end
-
+  # Raised for indicating a request sending timeout error.
+  # You can configure request sending timeout via HTTPClient#send_timeout=.
   class SendTimeoutError < TimeoutError
   end
 
-  # for backward compatibility
+  # Raised for indicating a response receiving timeout error.
+  # You can configure response receiving timeout via
+  # HTTPClient#receive_timeout=.
+  class ReceiveTimeoutError < TimeoutError
+  end
+
+  # Deprecated.  just for backward compatibility
   class Session
     BadResponse = ::HTTPClient::BadResponseError
   end
 
   class << self
+    %w(get_content post_content head get post put delete options propfind proppatch trace).each do |name|
+      eval <<-EOD
+        def #{name}(*arg)
+          new.#{name}(*arg)
+        end
+      EOD
+    end
+
+  private
+
     def attr_proxy(symbol, assignable = false)
       name = symbol.to_s
       define_method(name) {
@@ -100,52 +267,66 @@ class HTTPClient
         }
       end
     end
-
-    %w(get_content post_content head get post put delete options propfind proppatch trace).each do |name|
-      eval <<-EOD
-        def #{name}(*arg)
-          new.#{name}(*arg)
-        end
-      EOD
-    end
   end
 
+  # HTTPClient::SSLConfig:: SSL configurator.
   attr_reader :ssl_config
+  # WebAgent::CookieManager:: Cookies configurator.
   attr_accessor :cookie_manager
+  # An array of response HTTP message body String which is used for loopback
+  # test.  See test/* to see how to use it.  If you want to do loopback test
+  # of HTTP header, use test_loopback_http_response instead.
   attr_reader :test_loopback_response
+  # An array of request filter which can trap HTTP request/response.
+  # See HTTPClient::WWWAuth to see how to use it.
   attr_reader :request_filter
+  # HTTPClient::ProxyAuth:: Proxy authentication handler.
   attr_reader :proxy_auth
+  # HTTPClient::WWWAuth:: WWW authentication handler.
   attr_reader :www_auth
-
+  # How many times get_content and post_content follows HTTP redirect.
+  # 10 by default.
   attr_accessor :follow_redirect_count
 
+  # Set HTTP version as a String:: 'HTTP/1.0' or 'HTTP/1.1'
   attr_proxy(:protocol_version, true)
+  # Connect timeout in sec.
   attr_proxy(:connect_timeout, true)
+  # Request sending timeout in sec.
   attr_proxy(:send_timeout, true)
+  # Response receiving timeout in sec.
   attr_proxy(:receive_timeout, true)
+  # Negotiation retry count for authentication.  5 by default.
   attr_proxy(:protocol_retry_count, true)
   # if your ruby is older than 2005-09-06, do not set socket_sync = false to
   # avoid an SSL socket blocking bug in openssl/buffering.rb.
   attr_proxy(:socket_sync, true)
+  # User-Agent header in HTTP request.
   attr_proxy(:agent_name, true)
+  # From header in HTTP request.
   attr_proxy(:from, true)
-
+  # An array of response HTTP String (not a HTTP message body) which is used
+  # for loopback test.  See test/* to see how to use it.
   attr_proxy(:test_loopback_http_response)
 
   PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }
 
-  # SYNOPSIS
-  #   Client.new(proxy = nil, agent_name = nil, from = nil)
+  # Create an HTTPClient instance which manages sessions, cookies, etc.
   #
-  # ARGS
-  #   proxy             A String of HTTP proxy URL. ex. "http://proxy:8080".
-  #   agent_name        A String for "User-Agent" HTTP request header.
-  #   from              A String for "From" HTTP request header.
+  # HTTPClient.new takes 3 optional arguments for proxy url string,
+  # User-Agent String and From header String.  User-Agent and From are embedded
+  # in HTTP request Header if given.  No User-Agent and From header added
+  # without setting it explicitly.
   #
-  # DESCRIPTION
-  #   Create an instance.
-  #   SSLConfig cannot be re-initialized.  Create new client.
+  #   proxy = 'http://myproxy:8080'
+  #   agent_name = 'MyAgent/0.1'
+  #   from = 'from@example.com'
+  #   HTTPClient.new(proxy, agent_name, from)
   #
+  # You can use a keyword argument style Hash.  Keys are :proxy, :agent_name
+  # and :from.
+  #
+  #   HTTPClient.new(:agent_name = 'MyAgent/0.1')
   def initialize(*args)
     proxy, agent_name, from = keyword_argument(args, :proxy, :agent_name, :from)
     @proxy = nil        # assigned later.
@@ -166,20 +347,36 @@ class HTTPClient
     self.proxy = proxy if proxy
   end
 
+  # Returns debug device if exists.  See debug_dev=.
   def debug_dev
     @debug_dev
   end
 
+  # Sets debug device.  Once debug device is set, all HTTP requests and
+  # responses are dumped to given device.  dev must respond to << for dump.
+  #
+  # Calling this method resets all existing sessions.
   def debug_dev=(dev)
     @debug_dev = dev
     reset_all
     @session_manager.debug_dev = dev
   end
 
+  # Returns URI object of HTTP proxy if exists.
   def proxy
     @proxy
   end
 
+  # Sets HTTP proxy used for HTTP connection.  Given proxy can be an URI,
+  # a String or nil.  You can set user/password for proxy authentication like
+  # HTTPClient#proxy = 'http://user:passwd@myproxy:8080'
+  #
+  # You can use environment variable 'http_proxy' or 'HTTP_PROXY' for it.
+  # You need to use 'cgi_http_proxy' or 'CGI_HTTP_PROXY' instead if you run
+  # HTTPClient from CGI environment from security reason. (HTTPClient checks
+  # 'REQUEST_METHOD' environment variable whether it's CGI or not)
+  #
+  # Calling this method resets all existing sessions.
   def proxy=(proxy)
     if proxy.nil?
       @proxy = nil
@@ -200,80 +397,151 @@ class HTTPClient
     @proxy
   end
 
+  # Returns NO_PROXY setting String if given.
   def no_proxy
     @no_proxy
   end
 
+  # Sets NO_PROXY setting String.  no_proxy must be a comma separated String.
+  # Each entry must be 'host' or 'host:port' such as;
+  # HTTPClient#no_proxy = 'example.com,example.co.jp:443'
+  #
+  # 'localhost' is treated as a no_proxy site regardless of explicitly listed.
+  # HTTPClient checks given URI objects before accessing it.
+  # 'host' is tail string match.  No IP-addr conversion.
+  #
+  # You can use environment variable 'no_proxy' or 'NO_PROXY' for it.
+  #
+  # Calling this method resets all existing sessions.
   def no_proxy=(no_proxy)
     @no_proxy = no_proxy
     reset_all
   end
 
-  def set_auth(uri, user, passwd)
-    uri = urify(uri)
+  # Sets credential for Web server authentication.
+  # domain:: a String or an URI to specify where HTTPClient should use this
+  #       credential.  If you set uri to nil, HTTPClient uses this credential
+  #       wherever a server requires it.
+  # user:: username String.
+  # passwd:: password String.
+  #
+  # You can set multiple credentials for each uri.
+  #
+  #   clnt.set_auth('http://www.example.com/foo/', 'foo_user', 'passwd')
+  #   clnt.set_auth('http://www.example.com/bar/', 'bar_user', 'passwd')
+  #
+  # Calling this method resets all existing sessions.
+  def set_auth(domain, user, passwd)
+    uri = urify(domain)
     @www_auth.set_auth(uri, user, passwd)
     reset_all
   end
 
-  # for backward compatibility
-  def set_basic_auth(uri, user, passwd)
-    uri = urify(uri)
+  # Deprecated.  Use set_auth instead.
+  def set_basic_auth(domain, user, passwd)
+    uri = urify(domain)
     @www_auth.basic_auth.set(uri, user, passwd)
     reset_all
   end
 
+  # Sets credential for Proxy authentication.
+  # user:: username String.
+  # passwd:: password String.
+  #
+  # Calling this method resets all existing sessions.
   def set_proxy_auth(user, passwd)
-    uri = urify(uri)
     @proxy_auth.set_auth(user, passwd)
     reset_all
   end
 
+  # Sets the filename where non-volatile Cookies be saved by calling
+  # save_cookie_store.
+  # This method tries to load and managing Cookies from the specified file.
+  #
+  # Calling this method resets all existing sessions.
   def set_cookie_store(filename)
     @cookie_manager.cookies_file = filename
     @cookie_manager.load_cookies if filename
+    reset_all
   end
 
+  # Try to save Cookies to the file specified in set_cookie_store.  Unexpected
+  # error will be raised if you don't call set_cookie_store first.
+  # (interface mismatch between WebAgent::CookieManager implementation)
   def save_cookie_store
     @cookie_manager.save_cookies
   end
 
+  # Sets callback proc when HTTP redirest status is returned for get_content
+  # and post_content.  default_redirect_uri_callback is used by default.
+  #
+  # If you need strict implementation which does not allow relative URI
+  # redirection, set strict_redirect_uri_callback instead.
+  #
+  #   clnt.redirect_uri_callback = clnt.method(:strict_redirect_uri_callback)
+  #
   def redirect_uri_callback=(redirect_uri_callback)
     @redirect_uri_callback = redirect_uri_callback
   end
 
-  # SYNOPSIS
-  #   Client#get_content(uri, query = nil, extheader = {}, &block = nil)
+  # Retrieves a web resource.
   #
-  # ARGS
-  #   uri       an_URI or a_string of uri to connect.
-  #   query     a_hash or an_array of query part.  e.g. { "a" => "b" }.
-  #             Give an array to pass multiple value like
-  #             [["a" => "b"], ["a" => "c"]].
-  #   extheader a_hash of extra headers like { "SOAPAction" => "urn:foo" }.
-  #   &block    Give a block to get chunked message-body of response like
-  #             get_content(uri) { |chunked_body| ... }
-  #             Size of each chunk may not be the same.
+  # uri:: a String or an URI object which reporesents an URL of web resource.
+  # query:: a Hash or an Array of query part.  e.g. { "a" => "b" }.
+  #         Give an array to pass multiple value like
+  #         [["a", "b"], ["a", "c"]].
+  # extheader:: a Hash or an Array of extra headers.  e.g.
+  #             { 'Accept' => '*/*' } or
+  #             [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
+  # &block:: Give a block to get chunked message-body of response like
+  #          get_content(uri) { |chunked_body| ... }.
+  #          Size of each chunk may not be the same.
   #
-  # DESCRIPTION
-  #   Get a_sring of message-body of response.
+  # get_content follows HTTP redirect status (see HTTP::Status.redirect?)
+  # internally and try to retrieve content from redirected URL.  See
+  # redirect_uri_callback= how HTTP redirection is handled.
   #
+  # If you need to get full HTTP response including HTTP status and headers,
+  # use get method.  get returns HTTP::Message as a response and you need to
+  # follow HTTP redirect by yourself if you need.
   def get_content(uri, query = nil, extheader = {}, &block)
     uri = urify(uri)
     req = create_request('GET', uri, query, nil, extheader)
     follow_redirect(req, &block).content
   end
 
-  # DESCRIPTION
-  #   POSTs a body.  Despite from post method, it follows redirect response
-  #   and posts the body to redirected site.  It's a security risk.  If you
-  #   don't understand it, do NOT use this method.
+  # Posts a content.
   #
+  # uri:: a String or an URI object which reporesents an URL of web resource.
+  # body:: a Hash or an Array of body part.  e.g. { "a" => "b" }.
+  #        Give an array to pass multiple value like
+  #        [["a", "b"], ["a", "c"]].
+  #        When you pass a File as a value, it will be posted as a
+  #        multipart/form-data.  e.g. { 'upload' => file }
+  # extheader:: a Hash or an Array of extra headers.  e.g.
+  #             { 'Accept' => '*/*' } or
+  #             [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
+  # &block:: Give a block to get chunked message-body of response like
+  #          post_content(uri) { |chunked_body| ... }.
+  #          Size of each chunk may not be the same.
+  #
+  # post_content follows HTTP redirect status (see HTTP::Status.redirect?)
+  # internally and try to post the content to redirected URL.  See
+  # redirect_uri_callback= how HTTP redirection is handled.
+  #
+  # If you need to get full HTTP response including HTTP status and headers,
+  # use post method.
   def post_content(uri, body = nil, extheader = {}, &block)
     uri = urify(uri)
     req = create_request('POST', uri, nil, body, extheader)
     follow_redirect(req, &block).content
   end
 
+  # A method for redirect uri callback.  How to use:
+  #   clnt.redirect_uri_callback = clnt.method(:strict_redirect_uri_callback)
+  # This callback does not allow relative redirect such as
+  #   Location: ../foo/
+  # in HTTP header. (raises BadResponseError instead)
   def strict_redirect_uri_callback(uri, res)
     newuri = URI.parse(res.header['location'][0])
     unless newuri.is_a?(URI::HTTP)
@@ -283,6 +551,11 @@ class HTTPClient
     newuri
   end
 
+  # A default method for redirect uri callback.  This method is used by
+  # HTTPClient instance by default.
+  # This callback allows relative redirect such as
+  #   Location: ../foo/
+  # in HTTP header.
   def default_redirect_uri_callback(uri, res)
     newuri = URI.parse(res.header['location'][0])
     unless newuri.is_a?(URI::HTTP)
@@ -294,42 +567,79 @@ class HTTPClient
     newuri
   end
 
+  # Sends HEAD request to the specified URL.  See request for arguments.
   def head(uri, query = nil, extheader = {})
     request(:head, uri, query, nil, extheader)
   end
 
+  # Sends GET request to the specified URL.  See request for arguments.
   def get(uri, query = nil, extheader = {}, &block)
     request(:get, uri, query, nil, extheader, &block)
   end
 
+  # Sends POST request to the specified URL.  See request for arguments.
   def post(uri, body = nil, extheader = {}, &block)
     request(:post, uri, nil, body, extheader, &block)
   end
 
+  # Sends PUT request to the specified URL.  See request for arguments.
   def put(uri, body = nil, extheader = {}, &block)
     request(:put, uri, nil, body, extheader, &block)
   end
 
+  # Sends DELETE request to the specified URL.  See request for arguments.
   def delete(uri, extheader = {}, &block)
     request(:delete, uri, nil, nil, extheader, &block)
   end
 
+  # Sends OPTIONS request to the specified URL.  See request for arguments.
   def options(uri, extheader = {}, &block)
     request(:options, uri, nil, nil, extheader, &block)
   end
 
+  # Sends PROPFIND request to the specified URL.  See request for arguments.
   def propfind(uri, extheader = PROPFIND_DEFAULT_EXTHEADER, &block)
     request(:propfind, uri, nil, nil, extheader, &block)
   end
   
+  # Sends PROPPATCH request to the specified URL.  See request for arguments.
   def proppatch(uri, body = nil, extheader = {}, &block)
     request(:proppatch, uri, nil, body, extheader, &block)
   end
   
+  # Sends TRACE request to the specified URL.  See request for arguments.
   def trace(uri, query = nil, body = nil, extheader = {}, &block)
     request('TRACE', uri, query, body, extheader, &block)
   end
 
+  # Sends a request to the specified URL.
+  #
+  # method:: HTTP method to be sent.  method.to_s.upcase is used.
+  # uri:: a String or an URI object which reporesents an URL of web resource.
+  # query:: a Hash or an Array of query part.  e.g. { "a" => "b" }.
+  #         Give an array to pass multiple value like
+  #         [["a", "b"], ["a", "c"]].
+  # body:: a Hash or an Array of body part.  e.g. { "a" => "b" }.
+  #        Give an array to pass multiple value like
+  #        [["a", "b"], ["a", "c"]].
+  #        When the given method is 'POST' and the given body contains a file
+  #        as a value, it will be posted as a multipart/form-data.
+  #        e.g. { 'upload' => file }
+  #        See HTTP::Message.file? for actual condition of 'a file'.
+  # extheader:: a Hash or an Array of extra headers.  e.g.
+  #             { 'Accept' => '*/*' } or
+  #             [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
+  # &block:: Give a block to get chunked message-body of response like
+  #          get(uri) { |chunked_body| ... }.
+  #          Size of each chunk may not be the same.
+  #
+  # You can also pass a String as a body.  HTTPClient just sends a String as
+  # a HTTP request message body.
+  #
+  # When you pass an IO as a body, HTTPClient sends it as a HTTP request with
+  # chunked encoding (Transfer-Encoding: chunked in HTTP header).  Bear in mind
+  # that some server application does not support chunked request.  At least
+  # cgi.rb does not support it.
   def request(method, uri, query = nil, body = nil, extheader = {}, &block)
     uri = urify(uri)
     proxy = no_proxy?(uri) ? nil : @proxy
@@ -342,44 +652,64 @@ class HTTPClient
     do_request(req, proxy, &filtered_block)
   end
 
-  # Async interface.
-
+  # Sends HEAD request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
   def head_async(uri, query = nil, extheader = {})
     request_async(:head, uri, query, nil, extheader)
   end
 
+  # Sends GET request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
   def get_async(uri, query = nil, extheader = {})
     request_async(:get, uri, query, nil, extheader)
   end
 
+  # Sends POST request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
   def post_async(uri, body = nil, extheader = {})
     request_async(:post, uri, nil, body, extheader)
   end
 
+  # Sends PUT request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
   def put_async(uri, body = nil, extheader = {})
     request_async(:put, uri, nil, body, extheader)
   end
 
+  # Sends DELETE request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
   def delete_async(uri, extheader = {})
     request_async(:delete, uri, nil, nil, extheader)
   end
 
+  # Sends OPTIONS request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
   def options_async(uri, extheader = {})
     request_async(:options, uri, nil, nil, extheader)
   end
 
+  # Sends PROPFIND request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
   def propfind_async(uri, extheader = PROPFIND_DEFAULT_EXTHEADER)
     request_async(:propfind, uri, nil, nil, extheader)
   end
   
+  # Sends PROPPATCH request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
   def proppatch_async(uri, body = nil, extheader = {})
     request_async(:proppatch, uri, nil, body, extheader)
   end
   
+  # Sends TRACE request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
   def trace_async(uri, query = nil, body = nil, extheader = {})
     request_async(:trace, uri, query, body, extheader)
   end
 
+  # Sends a request in async style.  request method creats new Thread for
+  # HTTP connection and returns a HTTPClient::Connection instance immediately.
+  #
+  # Arguments definition is the same as request.
   def request_async(method, uri, query = nil, body = nil, extheader = {})
     uri = urify(uri)
     proxy = no_proxy?(uri) ? nil : @proxy
@@ -387,14 +717,14 @@ class HTTPClient
     do_request_async(req, proxy)
   end
 
-  ##
-  # Management interface.
-
+  # Resets internal session for the given URL.  Keep-alive connection for the
+  # site (host-port pair) is disconnected if exists.
   def reset(uri)
     uri = urify(uri)
     @session_manager.reset(uri)
   end
 
+  # Resets all of internal sessions.  Keep-alive connections are disconnected.
   def reset_all
     @session_manager.reset_all
   end

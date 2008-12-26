@@ -1,67 +1,84 @@
 httpclient - HTTP accessing library.
-Copyright (C) 2000-2007  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+Copyright (C) 2000-2008  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+
+'httpclient' gives something like the functionality of libwww-perl (LWP) in
+Ruby.  'httpclient' formerly known as 'http-access2'.
+
+See HTTPClient for documentation.
+
+
+== Features
+
+* methods like GET/HEAD/POST/* via HTTP/1.1.
+* HTTPS(SSL), Cookies, proxy, authentication(Digest, NTLM, Basic), etc.
+* asynchronous HTTP request, streaming HTTP request.
+
+* by contrast with net/http in standard distribution;
+  * Cookies support
+  * MT-safe
+  * streaming POST (POST with File/IO)
+  * Digest auth
+  * Negotiate/NTLM auth for WWW-Authenticate (requires net/htlm module)
+  * NTLM auth for Proxy-Authenticate (requires win32/sspi module)
+  * extensible with filter interface
+  * you don't have to care HTTP/1.1 persistent connection
+    (httpclient cares instead of you)
+
+* Not supported now
+  * Cache
+  * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.
+    (of course you can set it in header by yourself)
+
+== Author
+
+Name:: NAKAMURA, Hiroshi
+E-mail:: nahi@ruby-lang.org
+Project web site:: http://dev.ctor.org/httpclient/
+
+
+== License
 
 This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 redistribute it and/or modify it under the same terms of Ruby's license;
 either the dual license version in 2003, or any later version.
 
-httpclient.rb is based on http-access.rb in http-access/0.0.4.  Some part
-of code in http-access.rb was recycled in http-access2.rb.  Those part is
-copyrighted by Maehashi-san who made and distributed http-access/0.0.4. Many
-thanks to Maehashi-san.
+httpclient/session.rb is based on http-access.rb in http-access/0.0.4.
+Some part of code in http-access.rb was recycled in http-access2.rb.
+Those part is copyrighted by Maehashi-san who made and distributed
+http-access/0.0.4. Many thanks to Maehashi-san.
 
 
-- Introduction
-
-  'httpclient' gives something like the functionality of libwww-perl (LWP) in
-  Ruby.  'httpclient' formerly known as 'http-access2'.
-
-  Features;
-  * methods like GET/HEAD/POST/* via HTTP/1.1.
-  * HTTPS(SSL), Cookies, proxy, authentication(Digest, NTLM, Basic), etc.
-  * asynchronous HTTP request
-
-  * by contrast with net/http in standard distribution;
-    * Cookies support
-    * MT-safe
-    * streaming POST
-    * Digest auth
-    * NTLM auth for WWW-Authenticate
-    * extensible with filter interface
-    * you don't have to care HTTP/1.1 persistent connection
-      (httpclient cares instead of you).
-
-  * Not supported now
-    * Cache
-    * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.
-      (of course you can set it in header by yourself
-
-
-- Install
+== Install
 
   $ ruby install.rb
 
-  It will install lib/* to your site_ruby directory such as
-  /usr/local/lib/ruby/site_ruby/1.8/.
+It will install lib/* to your site_ruby directory such as
+/usr/local/lib/ruby/site_ruby/1.8/.
 
 
-- Uninstall
+== Uninstall
 
-  Delete installed files from your site_ruby directory.
-
-
-- Usage
-
-  See sample/howto.rb how to use APIs.
+Delete installed files from your site_ruby directory.
 
 
-- Author
+== Usage
 
-  Name: NAKAMURA, Hiroshi
-  E-mail: nahi@ruby-lang.org
+See HTTPClient for documentation.
+You can also check sample/howto.rb how to use APIs.
 
 
-- Changes
+== Bug report or Feature request
+
+Please file a ticket at the project web site.
+
+1. find a similar ticket from http://dev.ctor.org/http-access2/search?ticket=on
+2. login as an anonymous user from http://dev.ctor.org/http-access2/login
+3. create a new ticket from http://dev.ctor.org/http-access2/newticket 
+
+Thanks in advance. 
+
+
+== Changes
 
   Sep 22, 2007 - version 2.1.2
 

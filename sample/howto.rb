@@ -35,9 +35,6 @@ puts
 puts '= GET with query 2'
 puts clnt.get(target, [["foo", "bar1"], ["foo", "bar2"]]).content
 
-# Client must be reset here to set debug_dev.
-# Setting debug_dev to keep-alive session is ignored.
-clnt.reset(target)
 clnt.debug_dev = STDERR
 puts
 puts '= GET with extra header'
@@ -48,6 +45,5 @@ puts '= GET with extra header 2'
 puts clnt.get(target, nil, [["Accept", "text/plain"], ["Accept", "text/html"]]).content
 
 clnt.debug_dev = nil
-clnt.reset(target)
 
 clnt.save_cookie_store
