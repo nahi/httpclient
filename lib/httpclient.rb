@@ -20,8 +20,6 @@ require 'httpclient/auth'
 require 'httpclient/cookie'
 
 
-# == Description
-#
 # The HTTPClient class provides several methods for accessing Web resources
 # via HTTP.
 #
@@ -179,13 +177,19 @@ require 'httpclient/cookie'
 #
 # See head_async, get_async, post_async, put_async, delete_async,
 # options_async, propfind_async, proppatch_async, and trace_async.
-# It immediately returns a HTTPClient::Connection instance as a result.
+# It immediately returns a HTTPClient::Connection instance as a returning value.
 #
-#     connection = clnt.get_async('http://dev.ctor.org/')
-#     io = connection.pop.content
-#     while str = io.read(40)
-#       p str
+#     connection = clnt.post_async(url, body)
+#     print 'posting.'
+#     while true
+#       break if connection.finished?
+#       print '.'
+#       sleep 1
 #     end
+#     puts '.'
+#     res = connection.pop
+#     p res.status
+#     p res.content.read # res.content is an IO for the res of async method.
 #
 # === Shortcut methods
 #
@@ -309,9 +313,10 @@ class HTTPClient
   # for loopback test.  See test/* to see how to use it.
   attr_proxy(:test_loopback_http_response)
 
+  # Default extheader for PROPFIND request.
   PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }
 
-  # Create an HTTPClient instance which manages sessions, cookies, etc.
+  # Creates a HTTPClient instance which manages sessions, cookies, etc.
   #
   # HTTPClient.new takes 3 optional arguments for proxy url string,
   # User-Agent String and From header String.  User-Agent and From are embedded
@@ -487,9 +492,10 @@ class HTTPClient
   # Retrieves a web resource.
   #
   # uri:: a String or an URI object which reporesents an URL of web resource.
-  # query:: a Hash or an Array of query part.  e.g. { "a" => "b" }.
+  # query:: a Hash or an Array of query part of URL.
+  #         e.g. { "a" => "b" } => 'http://host/part?a=b'.
   #         Give an array to pass multiple value like
-  #         [["a", "b"], ["a", "c"]].
+  #         [["a", "b"], ["a", "c"]] => 'http://host/part?a=b&a=c'.
   # extheader:: a Hash or an Array of extra headers.  e.g.
   #             { 'Accept' => '*/*' } or
   #             [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
@@ -513,9 +519,10 @@ class HTTPClient
   # Posts a content.
   #
   # uri:: a String or an URI object which reporesents an URL of web resource.
-  # body:: a Hash or an Array of body part.  e.g. { "a" => "b" }.
+  # body:: a Hash or an Array of body part.
+  #        e.g. { "a" => "b" } => 'a=b'.
   #        Give an array to pass multiple value like
-  #        [["a", "b"], ["a", "c"]].
+  #        [["a", "b"], ["a", "c"]] => 'a=b&a=c'.
   #        When you pass a File as a value, it will be posted as a
   #        multipart/form-data.  e.g. { 'upload' => file }
   # extheader:: a Hash or an Array of extra headers.  e.g.
@@ -616,12 +623,14 @@ class HTTPClient
   #
   # method:: HTTP method to be sent.  method.to_s.upcase is used.
   # uri:: a String or an URI object which reporesents an URL of web resource.
-  # query:: a Hash or an Array of query part.  e.g. { "a" => "b" }.
+  # query:: a Hash or an Array of query part of URL.
+  #         e.g. { "a" => "b" } => 'http://host/part?a=b'
   #         Give an array to pass multiple value like
-  #         [["a", "b"], ["a", "c"]].
-  # body:: a Hash or an Array of body part.  e.g. { "a" => "b" }.
+  #         [["a", "b"], ["a", "c"]] => 'http://host/part?a=b&a=c'
+  # body:: a Hash or an Array of body part.
+  #        e.g. { "a" => "b" } => 'a=b'.
   #        Give an array to pass multiple value like
-  #        [["a", "b"], ["a", "c"]].
+  #        [["a", "b"], ["a", "c"]] => 'a=b&a=c'.
   #        When the given method is 'POST' and the given body contains a file
   #        as a value, it will be posted as a multipart/form-data.
   #        e.g. { 'upload' => file }

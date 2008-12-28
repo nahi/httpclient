@@ -1,6 +1,6 @@
 # HTTPClient - HTTP client library.
 # Copyright (C) 2000-2008  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
-
+#
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;
 # either the dual license version in 2003, or any later version.
@@ -12,6 +12,8 @@ require 'time'
 module HTTP
 
 
+  # Represents HTTP response status.  Defines constants for HTTP response and
+  # some conditional methods.
   module Status
     OK = 200
     CREATED = 201
@@ -40,10 +42,14 @@ module HTTP
       TEMPORARY_REDIRECT, MOVED_TEMPORARILY
     ]
 
+    # Returns true if the given status represents successful HTTP response.
+    # See also SUCCESSFUL_STATUS.
     def self.successful?(status)
       SUCCESSFUL_STATUS.include?(status)
     end
 
+    # Returns true if the given status is thought to be redirec.
+    # See also REDIRECT_STATUS.
     def self.redirect?(status)
       REDIRECT_STATUS.include?(status)
     end
@@ -51,63 +57,68 @@ module HTTP
 
 
   class << self
-    def http_date(a_time)
-      a_time.gmtime.strftime("%a, %d %b %Y %H:%M:%S GMT")
-    end
-
+    # Returns true if the given HTTP version allows keep alive connection.
+    # version:: Float
     def keep_alive_enabled?(version)
       version >= 1.1
     end
   end
 
 
-  # HTTP::Message -- HTTP message.
-  # 
-  # DESCRIPTION
-  #   A class that describes 1 HTTP request / response message.
+  # Represents a HTTP message.  A message is for a request or a response.
   #
+  # Some attributes are only for a request or a response, not both.
+  #
+  # Request message is generated from given parameters internally so users
+  # don't need to care about it.  Response message is the instance that
+  # methods of HTTPClient returns so users need to know how to extract
+  # HTTP response data from Message.
   class Message
 
     CRLF = "\r\n"
 
+    # HTTP::Message::Headers:: message header.
     attr_reader :header
 
+    # HTTP::Message::Body:: message body.
     attr_reader :body
 
+    # OpenSSL::X509::Certificate:: response only.  server certificate which is
+    #                              used for retrieving the response.
     attr_accessor :peer_cert
 
-    # HTTP::Message::Headers -- HTTP message header.
-    # 
-    # DESCRIPTION
-    #   A class that describes header part of HTTP message.
-    #
+    # Represents HTTP message header.
     class Headers
-      # HTTP version string in a HTTP header.
+      # HTTP version in a HTTP header.  Float.
       attr_accessor :http_version
-      # Content-type.
-      attr_accessor :body_type
-      # Charset.
-      attr_accessor :body_charset
-      # Size of body.
+      # Size of body.  nil when size is unknown (e.g. chunked response).
       attr_reader :body_size
-      # A milestone of body.
-      attr_accessor :body_date
-      # Chunked or not.
+      # Request/Response is chunked or not.
       attr_accessor :chunked
-      # Request method.
-      attr_reader :request_method
-      # Requested URI.
-      attr_accessor :request_uri
-      # Requested query.
-      attr_accessor :request_query
-      # HTTP status reason phrase.
-      attr_accessor :reason_phrase
 
+      # Request only.  Requested method.
+      attr_reader :request_method
+      # Request only.  Requested URI.
+      attr_accessor :request_uri
+      # Request only.  Requested query.
+      attr_accessor :request_query
+      # Request only.  Requested via proxy or not.
       attr_accessor :request_via_proxy
 
-      attr_reader :response_status_code
+      # Response only.  HTTP status
+      attr_reader :status_code
+      # Response only.  HTTP status reason phrase.
+      attr_accessor :reason_phrase
 
-      StatusCodeMap = {
+      # Used for dumping response.
+      attr_accessor :body_type # :nodoc:
+      # Used for dumping response.
+      attr_accessor :body_charset # :nodoc:
+      # Used for dumping response.
+      attr_accessor :body_date # :nodoc:
+
+      # HTTP response status code to reason phrase mapping definition.
+      STATUS_CODE_MAP = {
         Status::OK => 'OK',
         Status::CREATED => "Created",
         Status::NON_AUTHORITATIVE_INFORMATION => "Non-Authoritative Information",
@@ -123,41 +134,39 @@ module HTTP
         Status::INTERNAL => 'Internal Server Error',
       }
 
-      CharsetMap = {
+      # $KCODE to charset mapping definition.
+      CHARSET_MAP = {
         'NONE' => 'us-ascii',
         'EUC'  => 'euc-jp',
         'SJIS' => 'shift_jis',
         'UTF8' => 'utf-8',
       }
 
-      # SYNOPSIS
-      #   HTTP::Message.new
-      #
-      # ARGS
-      #   N/A
-      #
-      # DESCRIPTION
-      #   Create a instance of HTTP request or HTTP response.  Specify
-      #   status_code for HTTP response.
-      #
+      # Creates a Message::Headers.  Use init_request, init_response, or
+      # init_connect_request for acutual initialize.
       def initialize
-        @is_request = nil       # true, false and nil
         @http_version = 1.1
-        @body_type = nil
-        @body_charset = nil
         @body_size = nil
-        @body_date = nil
-        @header_item = []
         @chunked = false
-        @response_status_code = nil
-        @reason_phrase = nil
+
         @request_method = nil
         @request_uri = nil
         @request_query = nil
         @request_via_proxy = nil
+
+        @status_code = nil
+        @reason_phrase = nil
+
+        @body_type = nil
+        @body_charset = nil
+        @body_date = nil
+
+        @is_request = nil
+        @header_item = []
         @dumped = false
       end
 
+      # Initialize this instance as CONNECT request.
       def init_connect_request(uri, hostport)
         @is_request = true
         @request_method = 'CONNECT'
@@ -166,7 +175,9 @@ module HTTP
         @http_version = 1.0
       end
 
+      # Placeholder URI object for nil uri.
       NIL_URI = URI.parse('http://nil-uri-given/')
+      # Initialize this instance as a general request.
       def init_request(method, uri, query = nil)
         @is_request = true
         @request_method = method
@@ -175,30 +186,36 @@ module HTTP
         @request_via_proxy = false
       end
 
+      # Initialize this instance as a resopnse.
       def init_response(status_code)
         @is_request = false
-        self.response_status_code = status_code
+        self.status_code = status_code
       end
 
-      def response_status_code=(status_code)
-        @response_status_code = status_code
-        @reason_phrase = StatusCodeMap[@response_status_code]
+      # Sets status code and reason phrase.
+      def status_code=(status_code)
+        @status_code = status_code
+        @reason_phrase = STATUS_CODE_MAP[@status_code]
       end
 
+      # Returns 'Content-Type' header value.
       def contenttype
         self['Content-Type'][0]
       end
 
+      # Sets 'Content-Type' header value.  Overrides if already exists.
       def contenttype=(contenttype)
         delete('Content-Type')
         self['Content-Type'] = contenttype
       end
 
+      # Sets byte size of message body.
       # body_size == nil means that the body is_a? IO
       def body_size=(body_size)
         @body_size = body_size
       end
 
+      # Dumps this Header and returns a dumped String.
       def dump
         set_header
         str = nil
@@ -212,10 +229,14 @@ module HTTP
         }.join
       end
 
+      # Adds a header.  Addition order is preserved.
       def set(key, value)
         @header_item.push([key, value])
       end
 
+      # Returns an Array of headers for the given key.  Each element is a pair
+      # of key and value.  It returns an single element Array even if the only
+      # one header exists.  If nil key given, it returns all headers.
       def get(key = nil)
         if key.nil?
           all
@@ -225,19 +246,23 @@ module HTTP
         end
       end
 
+      # Returns an Array of all headers.
       def all
         @header_item
       end
 
+      # Deletes headers of the given key.
       def delete(key)
         key = key.upcase
         @header_item.delete_if { |k, v| k.upcase == key }
       end
 
+      # Adds a header.  See set.
       def []=(key, value)
         set(key, value)
       end
 
+      # Returns an Array of header values for the given key.
       def [](key)
         get(key).collect { |item| item[1] }
       end
@@ -254,9 +279,9 @@ module HTTP
 
       def response_status_line
         if defined?(Apache)
-          "HTTP/#{ @http_version } #{ response_status_code } #{ @reason_phrase }#{ CRLF }"
+          "HTTP/#{ @http_version } #{ @status_code } #{ @reason_phrase }#{ CRLF }"
         else
-          "Status: #{ response_status_code } #{ @reason_phrase }#{ CRLF }"
+          "Status: #{ @status_code } #{ @reason_phrase }#{ CRLF }"
         end
       end
 
@@ -289,7 +314,7 @@ module HTTP
         return if @dumped
         @dumped = true
         if defined?(Apache) && self['Date'].empty?
-          set('Date', HTTP.http_date(Time.now))
+          set('Date', Time.now.httpdate)
         end
         keep_alive = HTTP.keep_alive_enabled?(@http_version)
         if @chunked
@@ -300,11 +325,15 @@ module HTTP
           end
         end
         if @body_date
-          set('Last-Modified', HTTP.http_date(@body_date))
+          set('Last-Modified', @body_date.httpdate)
         end
         if self['Content-Type'].empty?
-          set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ CharsetMap[@body_charset || $KCODE] }")
+          set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ charset_label(@body_charset || $KCODE) }")
         end
+      end
+
+      def charset_label(charset)
+        CHARSET_MAP[charset] || 'us-ascii'
       end
 
       def create_query_uri(uri, query)
@@ -331,12 +360,18 @@ module HTTP
       end
     end
 
+    # Represents HTTP message body.
     class Body
+      # Size of body.  nil when size is unknown (e.g. chunked response).
       attr_reader :size
+      # maxbytes of IO#read for streaming request.  See DEFAULT_CHUNK_SIZE.
       attr_accessor :chunk_size
 
+      # Default value for chunk_size
       DEFAULT_CHUNK_SIZE = 1024 * 16
 
+      # Creates a Message::Body.  Use init_request or init_response
+      # for acutual initialize.
       def initialize
         @body = nil
         @size = nil
@@ -344,6 +379,7 @@ module HTTP
         @chunk_size = nil
       end
 
+      # Initialize this instance as a request.
       def init_request(body = nil, boundary = nil)
         @boundary = boundary
         @positions = {}
@@ -351,6 +387,7 @@ module HTTP
         @chunk_size = DEFAULT_CHUNK_SIZE
       end
 
+      # Initialize this instance as a response.
       def init_response(body = nil)
         @body = body
         if @body.respond_to?(:size)
@@ -601,14 +638,14 @@ module HTTP
     end
 
     def status
-      @header.response_status_code
+      @header.status_code
     end
 
     alias code status
     alias status_code status
 
     def status=(status)
-      @header.response_status_code = status
+      @header.status_code = status
     end
 
     def version

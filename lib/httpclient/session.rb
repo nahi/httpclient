@@ -1,6 +1,6 @@
 # HTTPClient - HTTP client library.
 # Copyright (C) 2000-2008  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
-
+#
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;
 # either the dual license version in 2003, or any later version.
@@ -646,7 +646,7 @@ class HTTPClient
       if @from
         req.header.set('From', @from)
       end
-      req.header.set('Date', HTTP.http_date(Time.now))
+      req.header.set('Date', Time.now.httpdate)
     end
 
     # Connect to the server
@@ -826,7 +826,7 @@ class HTTPClient
         maxbytes = @read_block_size
         maxbytes = @content_length if maxbytes > @content_length
         timeout(@receive_timeout, ReceiveTimeoutError) do
-          @socket.readpartial(maxbytes, buf)
+          @socket.readpartial(maxbytes, buf) rescue EOFError
         end
         if buf.length > 0
           @content_length -= buf.length

@@ -850,13 +850,13 @@ EOS
       res = HTTP::Message.new_response('response')
       res.contenttype = 'text/plain'
       res.header.body_date = Time.mktime(2000, 1, 1)
-      res.header['Date'] = Time.mktime(2000, 1, 1)
+      res.header['Date'] = Time.mktime(2000, 1, 1).httpdate
       assert_equal(
         [
           "",
           "Content-Length: 8",
           "Content-Type: text/plain",
-          "Date: Sat Jan 01 00:00:00 +0900 2000",
+          "Date: Fri, 31 Dec 1999 15:00:00 GMT",
           "HTTP/1.1 200 OK",
           "Last-Modified: Fri, 31 Dec 1999 15:00:00 GMT",
           "response"
