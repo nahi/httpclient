@@ -26,6 +26,16 @@ class HTTPClient
     SSPIEnabled = false
   end
 
+
+  # Common abstract class for authentication filter.
+  #
+  # There are 2 authentication filters.
+  # WWWAuth:: Authentication filter for handling authentication negotiation
+  #           between Web server.  Parses 'WWW-Authentication' header in
+  #           response and generates 'Authorization' header in request.
+  # ProxyAuth:: Authentication filter for handling authentication negotiation
+  #             between Proxy server.  Parses 'Proxy-Authentication' header in
+  #             response and generates 'Proxy-Authorization' header in request.
   class AuthFilterBase
   private
 
@@ -43,12 +53,23 @@ class HTTPClient
   end
 
 
-  # WWWAuth
+  # Authentication filter for handling authentication negotiation between
+  # Web server.  Parses 'WWW-Authentication' header in response and
+  # generates 'Authorization' header in request.
+  #
+  # Authentication filter is implemented using request filter of HTTPClient.
+  # It traps HTTP response header and maintains authentication state, and
+  # traps HTTP request header for inserting necessary authentication header.
+  #
+  # WWWAuth has sub filters (BasicAuth, DigestAuth, and NegotiateAuth) and
+  # delegates some operations to it.
+  # NegotiateAuth requires 'ruby/ntlm' module.
   class WWWAuth < AuthFilterBase
     attr_reader :basic_auth
     attr_reader :digest_auth
     attr_reader :negotiate_auth
 
+    # Creates new WWWAuth.
     def initialize
       @basic_auth = BasicAuth.new
       @digest_auth = DigestAuth.new
@@ -57,12 +78,14 @@ class HTTPClient
       @authenticator = [@negotiate_auth, @digest_auth, @basic_auth]
     end
 
+    # Resets challenge state.  See sub filters for more details.
     def reset_challenge
       @authenticator.each do |auth|
         auth.reset_challenge
       end
     end
 
+    # Set authentication credential.  See sub filters for more details.
     def set_auth(uri, user, passwd)
       @authenticator.each do |auth|
         auth.set(uri, user, passwd)
@@ -70,6 +93,8 @@ class HTTPClient
       reset_challenge
     end
 
+    # Filter API implementation.  Traps HTTP request and insert
+    # 'Authorization' header if needed.
     def filter_request(req)
       @authenticator.each do |auth|
         if cred = auth.get(req)
@@ -79,6 +104,8 @@ class HTTPClient
       end
     end
 
+    # Filter API implementation.  Traps HTTP response and parses
+    # 'WWW-Authenticate' header.
     def filter_response(req, res)
       command = nil
       if res.status == HTTP::Status::UNAUTHORIZED
@@ -100,11 +127,24 @@ class HTTPClient
   end
 
 
+  # Authentication filter for handling authentication negotiation between
+  # Proxy server.  Parses 'Proxy-Authentication' header in response and
+  # generates 'Proxy-Authorization' header in request.
+  #
+  # Authentication filter is implemented using request filter of HTTPClient.
+  # It traps HTTP response header and maintains authentication state, and
+  # traps HTTP request header for inserting necessary authentication header.
+  #
+  # ProxyAuth has sub filters (BasicAuth, NegotiateAuth, and SSPINegotiateAuth)
+  # and delegates some operations to it.
+  # NegotiateAuth requires 'ruby/ntlm' module.
+  # SSPINegotiateAuth requires 'win32/sspi' module.
   class ProxyAuth < AuthFilterBase
     attr_reader :basic_auth
     attr_reader :negotiate_auth
     attr_reader :sspi_negotiate_auth
 
+    # Creates new ProxyAuth.
     def initialize
       @basic_auth = BasicAuth.new
       @negotiate_auth = NegotiateAuth.new
@@ -113,12 +153,14 @@ class HTTPClient
       @authenticator = [@negotiate_auth, @sspi_negotiate_auth, @basic_auth]
     end
 
+    # Resets challenge state.  See sub filters for more details.
     def reset_challenge
       @authenticator.each do |auth|
         auth.reset_challenge
       end
     end
 
+    # Set authentication credential.  See sub filters for more details.
     def set_auth(user, passwd)
       @authenticator.each do |auth|
         auth.set(nil, user, passwd)
@@ -126,6 +168,8 @@ class HTTPClient
       reset_challenge
     end
 
+    # Filter API implementation.  Traps HTTP request and insert
+    # 'Proxy-Authorization' header if needed.
     def filter_request(req)
       @authenticator.each do |auth|
         if cred = auth.get(req)
@@ -135,6 +179,8 @@ class HTTPClient
       end
     end
 
+    # Filter API implementation.  Traps HTTP response and parses
+    # 'Proxy-Authenticate' header.
     def filter_response(req, res)
       command = nil
       if res.status == HTTP::Status::PROXY_AUTHENTICATE_REQUIRED
@@ -155,11 +201,13 @@ class HTTPClient
     end
   end
 
-  # HTTPClient::BasicAuth -- BasicAuth repository.
-  #
+  # Authentication filter for handling BasicAuth negotiation.
+  # Used in WWWAuth and ProxyAuth.
   class BasicAuth
+    # Authentication scheme.
     attr_reader :scheme
 
+    # Creates new BasicAuth filter.
     def initialize
       @cred = nil
       @auth = {}
@@ -167,11 +215,14 @@ class HTTPClient
       @scheme = "Basic"
     end
 
+    # Resets challenge state.  Do not send '*Authorization' header until the
+    # server sends '*Authentication' again.
     def reset_challenge
       @challengeable.clear
     end
 
-    # uri == nil for generic purpose
+    # Set authentication credential.
+    # uri == nil for generic purpose (allow to use user/password for any URL).
     def set(uri, user, passwd)
       if uri.nil?
         @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
@@ -181,9 +232,10 @@ class HTTPClient
       end
     end
 
-    # send cred only when a given uri is;
-    #   - child page of challengeable(got WWW-Authenticate before) uri and,
-    #   - child page of defined credential
+    # Response handler: returns credential.
+    # It sends cred only when a given uri is;
+    # * child page of challengeable(got *Authenticate before) uri and,
+    # * child page of defined credential
     def get(req)
       target_uri = req.header.request_uri
       return nil unless @challengeable.find { |uri, ok|
@@ -195,6 +247,7 @@ class HTTPClient
       }
     end
 
+    # Challenge handler: remember URL for response.
     def challenge(uri, param_str)
       @challengeable[uri] = true
       true
@@ -202,11 +255,13 @@ class HTTPClient
   end
 
 
-  # HTTPClient::DigestAuth 
-  #
+  # Authentication filter for handling DigestAuth negotiation.
+  # Used in WWWAuth.
   class DigestAuth
+    # Authentication scheme.
     attr_reader :scheme
 
+    # Creates new DigestAuth filter.
     def initialize
       @auth = {}
       @challenge = {}
@@ -214,10 +269,14 @@ class HTTPClient
       @scheme = "Digest"
     end
 
+    # Resets challenge state.  Do not send '*Authorization' header until the
+    # server sends '*Authentication' again.
     def reset_challenge
       @challenge.clear
     end
 
+    # Set authentication credential.
+    # uri == nil is ignored.
     def set(uri, user, passwd)
       if uri
         uri = Util.uri_dirname(uri)
@@ -225,9 +284,10 @@ class HTTPClient
       end
     end
 
-    # send cred only when a given uri is;
-    #   - child page of challengeable(got WWW-Authenticate before) uri and,
-    #   - child page of defined credential
+    # Response handler: returns credential.
+    # It sends cred only when a given uri is;
+    # * child page of challengeable(got *Authenticate before) uri and,
+    # * child page of defined credential
     def get(req)
       target_uri = req.header.request_uri
       param = Util.hash_find_value(@challenge) { |uri, v|
@@ -242,8 +302,9 @@ class HTTPClient
       calc_cred(req.header.request_method, uri, user, passwd, param)
     end
 
+    # Challenge handler: remember URL and challenge token for response.
     def challenge(uri, param_str)
-      @challenge[uri] = Util.parse_challenge_param(param_str)
+      @challenge[uri] = parse_challenge_param(param_str)
       true
     end
 
@@ -277,15 +338,32 @@ class HTTPClient
       header << "opaque=\"#{param['opaque']}\"" if param.key?('opaque')
       header.join(", ")
     end
+
+    def parse_challenge_param(param_str)
+      param = {}
+      param_str.scan(/\s*([^\,]+(?:\\.[^\,]*)*)/).each do |str|
+        key, value = str[0].scan(/\A([^=]+)=(.*)\z/)[0]
+        if /\A"(.*)"\z/ =~ value
+          value = $1.gsub(/\\(.)/, '\1')
+        end
+        param[key] = value
+      end
+      param
+    end
   end
 
 
-  # HTTPClient::NegotiateAuth 
+  # Authentication filter for handling Negotiate/NTLM negotiation.
+  # Used in WWWAuth and ProxyAuth.
   #
+  # NegotiateAuth depends on 'ruby/ntlm' module.
   class NegotiateAuth
+    # Authentication scheme.
     attr_reader :scheme
+    # NTLM opt for ruby/ntlm.  {:ntlmv2 => true} by default.
     attr_reader :ntlm_opt
 
+    # Creates new NegotiateAuth filter.
     def initialize
       @auth = {}
       @auth_default = nil
@@ -296,10 +374,14 @@ class HTTPClient
       }
     end
 
+    # Resets challenge state.  Do not send '*Authorization' header until the
+    # server sends '*Authentication' again.
     def reset_challenge
       @challenge.clear
     end
 
+    # Set authentication credential.
+    # uri == nil for generic purpose (allow to use user/password for any URL).
     def set(uri, user, passwd)
       if uri
         uri = Util.uri_dirname(uri)
@@ -309,6 +391,8 @@ class HTTPClient
       end
     end
 
+    # Response handler: returns credential.
+    # See ruby/ntlm for negotiation state transition.
     def get(req)
       return nil unless NTLMEnabled
       target_uri = req.header.request_uri
@@ -338,6 +422,7 @@ class HTTPClient
       nil
     end
 
+    # Challenge handler: remember URL and challenge token for response.
     def challenge(uri, param_str)
       return false unless NTLMEnabled
       if param_str.nil? or @challenge[uri].nil?
@@ -354,24 +439,35 @@ class HTTPClient
   end
 
 
-  # HTTPClient::SSPINegotiateAuth 
+  # Authentication filter for handling Negotiate/NTLM negotiation.
+  # Used in ProxyAuth.
   #
+  # SSPINegotiateAuth depends on 'win32/sspi' module.
   class SSPINegotiateAuth
+    # Authentication scheme.
     attr_reader :scheme
 
+    # Creates new SSPINegotiateAuth filter.
     def initialize
       @challenge = {}
       @scheme = "Negotiate"
     end
 
+    # Resets challenge state.  Do not send '*Authorization' header until the
+    # server sends '*Authentication' again.
     def reset_challenge
       @challenge.clear
     end
 
+    # Set authentication credential.
+    # NOT SUPPORTED: username and necessary data is retrieved by win32/sspi.
+    # See win32/sspi for more details.
     def set(uri, user, passwd)
       # not supported
     end
 
+    # Response handler: returns credential.
+    # See win32/sspi for negotiation state transition.
     def get(req)
       return nil unless SSPIEnabled
       target_uri = req.header.request_uri
@@ -393,6 +489,7 @@ class HTTPClient
       nil
     end
 
+    # Challenge handler: remember URL and challenge token for response.
     def challenge(uri, param_str)
       return false unless SSPIEnabled
       if param_str.nil? or @challenge[uri].nil?

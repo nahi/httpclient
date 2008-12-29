@@ -9,11 +9,12 @@
 require 'time'
 
 
+# A namespace module for HTTP Message definitions used by HTTPClient.
 module HTTP
 
 
-  # Represents HTTP response status.  Defines constants for HTTP response and
-  # some conditional methods.
+  # Represents HTTP response status code.  Defines constants for HTTP response
+  # and some conditional methods.
   module Status
     OK = 200
     CREATED = 201
@@ -31,12 +32,14 @@ module HTTP
     PROXY_AUTHENTICATE_REQUIRED = 407
     INTERNAL = 500
 
+    # Status codes for successful HTTP response.
     SUCCESSFUL_STATUS = [
       OK, CREATED, ACCEPTED,
       NON_AUTHORITATIVE_INFORMATION, NO_CONTENT,
       RESET_CONTENT, PARTIAL_CONTENT
     ]
 
+    # Status codes which is a redirect.
     REDIRECT_STATUS = [
       MOVED_PERMANENTLY, FOUND, SEE_OTHER,
       TEMPORARY_REDIRECT, MOVED_TEMPORARILY
@@ -48,7 +51,7 @@ module HTTP
       SUCCESSFUL_STATUS.include?(status)
     end
 
-    # Returns true if the given status is thought to be redirec.
+    # Returns true if the given status is thought to be redirect.
     # See also REDIRECT_STATUS.
     def self.redirect?(status)
       REDIRECT_STATUS.include?(status)
@@ -56,36 +59,39 @@ module HTTP
   end
 
 
-  class << self
-    # Returns true if the given HTTP version allows keep alive connection.
-    # version:: Float
-    def keep_alive_enabled?(version)
-      version >= 1.1
-    end
-  end
-
-
   # Represents a HTTP message.  A message is for a request or a response.
-  #
-  # Some attributes are only for a request or a response, not both.
   #
   # Request message is generated from given parameters internally so users
   # don't need to care about it.  Response message is the instance that
   # methods of HTTPClient returns so users need to know how to extract
   # HTTP response data from Message.
+  #
+  # Some attributes are only for a request or a response, not both.
+  #
+  # == How to use HTTP response message
+  #
+  # 1. Gets response message body.
+  #
+  #     res = clnt.get(url)
+  #     p res.content #=> String
+  #
+  # 2. Gets response status code.
+  #
+  #     res = clnt.get(url)
+  #     p res.status #=> 200, 501, etc. (Integer)
+  #
+  # 3. Gets response header.
+  #
+  #     res = clnt.get(url)
+  #     res.header['set-cookie'].each do |value|
+  #       p value
+  #     end
+  #     assert_equal(1, res.header['last-modified'].size)
+  #     p res.header['last-modified'].first
+  #
   class Message
 
     CRLF = "\r\n"
-
-    # HTTP::Message::Headers:: message header.
-    attr_reader :header
-
-    # HTTP::Message::Body:: message body.
-    attr_reader :body
-
-    # OpenSSL::X509::Certificate:: response only.  server certificate which is
-    #                              used for retrieving the response.
-    attr_accessor :peer_cert
 
     # Represents HTTP message header.
     class Headers
@@ -166,12 +172,12 @@ module HTTP
         @dumped = false
       end
 
-      # Initialize this instance as CONNECT request.
-      def init_connect_request(uri, hostport)
+      # Initialize this instance as a CONNECT request.
+      def init_connect_request(uri)
         @is_request = true
         @request_method = 'CONNECT'
         @request_uri = uri
-        @request_query = hostport
+        @request_query = nil
         @http_version = 1.0
       end
 
@@ -215,7 +221,7 @@ module HTTP
         @body_size = body_size
       end
 
-      # Dumps this Header and returns a dumped String.
+      # Dumps message header part and returns a dumped String.
       def dump
         set_header
         str = nil
@@ -296,7 +302,7 @@ module HTTP
       def set_request_header
         return if @dumped
         @dumped = true
-        keep_alive = HTTP.keep_alive_enabled?(@http_version)
+        keep_alive = Message.keep_alive_enabled?(@http_version)
         if !keep_alive and @request_method != 'CONNECT'
           set('Connection', 'close')
         end
@@ -316,7 +322,7 @@ module HTTP
         if defined?(Apache) && self['Date'].empty?
           set('Date', Time.now.httpdate)
         end
-        keep_alive = HTTP.keep_alive_enabled?(@http_version)
+        keep_alive = Message.keep_alive_enabled?(@http_version)
         if @chunked
           set('Transfer-Encoding', 'chunked')
         else
@@ -338,7 +344,7 @@ module HTTP
 
       def create_query_uri(uri, query)
         if @request_method == 'CONNECT'
-          return query
+          return "#{uri.host}:#{uri.port}"
         end
         path = uri.path
         path = '/' if path.nil? or path.empty?
@@ -359,6 +365,7 @@ module HTTP
         path
       end
     end
+
 
     # Represents HTTP message body.
     class Body
@@ -397,26 +404,13 @@ module HTTP
         end
       end
 
-      def dump_chunked(header = '', dev = '')
-        dev << header
-        if @body.is_a?(Parts)
-          @body.parts.each do |part|
-            if Message.file?(part)
-              reset_pos(part)
-              dump_chunks(part, dev)
-            else
-              dev << dump_chunk(part)
-            end
-          end
-          dev << (dump_last_chunk + CRLF)
-        elsif @body
-          reset_pos(@body)
-          dump_chunks(@body, dev)
-          dev << (dump_last_chunk + CRLF)
-        end
-        dev
-      end
-
+      # Dumps message body to given dev.
+      # dev needs to respond to <<.
+      #
+      # Message header must be given as the first argument for performance
+      # reason. (header is dumped to dev, too)
+      # If no dev (the second argument) given, this method returns a dumped
+      # String.
       def dump(header = '', dev = '')
         if @body.is_a?(Parts)
           dev << header
@@ -439,6 +433,34 @@ module HTTP
         dev
       end
 
+      # Dumps message body with chuned encoding to given dev.
+      # dev needs to respond to <<.
+      #
+      # Message header must be given as the first argument for performance
+      # reason. (header is dumped to dev, too)
+      # If no dev (the second argument) given, this method returns a dumped
+      # String.
+      def dump_chunked(header = '', dev = '')
+        dev << header
+        if @body.is_a?(Parts)
+          @body.parts.each do |part|
+            if Message.file?(part)
+              reset_pos(part)
+              dump_chunks(part, dev)
+            else
+              dev << dump_chunk(part)
+            end
+          end
+          dev << (dump_last_chunk + CRLF)
+        elsif @body
+          reset_pos(@body)
+          dump_chunks(@body, dev)
+          dev << (dump_last_chunk + CRLF)
+        end
+        dev
+      end
+
+      # Returns a message body itself.
       def content
         @body
       end
@@ -574,118 +596,81 @@ module HTTP
       end
     end
 
-    def initialize
-      @header = Headers.new
-      @body = @peer_cert = nil
-    end
-
-    def self.new_connect_request(uri, hostport)
-      m = self.new
-      m.header.init_connect_request(uri, hostport)
-      m.header.body_size = 0
-      m
-    end
-
-    def self.new_request(method, uri, query = nil, body = nil, boundary = nil)
-      m = self.new
-      m.header.init_request(method, uri, query)
-      m.body = Body.new
-      m.body.init_request(body || '', boundary)
-      m.header.body_size = m.body.size
-      m.header.chunked = true if m.body.size.nil?
-      m
-    end
-
-    def self.new_response(body)
-      m = self.new
-      m.header.init_response(Status::OK)
-      m.body = Body.new
-      m.body.init_response(body)
-      m.header.body_size = m.body.size || 0
-      m
-    end
-
-    def dump(dev = '')
-      str = header.dump + CRLF
-      if header.chunked
-        dev = body.dump_chunked(str, dev)
-      elsif body
-        dev = body.dump(str, dev)
-      else
-        dev << str
-      end
-      dev
-    end
-
-    def load(str)
-      buf = str.dup
-      unless self.header.load(buf)
-        self.body.load(buf)
-      end
-    end
-
-    def header=(header)
-      @header = header
-    end
-
-    def content
-      @body.content
-    end
-
-    def body=(body)
-      @body = body
-      @header.body_size = @body.size if @header
-    end
-
-    def status
-      @header.status_code
-    end
-
-    alias code status
-    alias status_code status
-
-    def status=(status)
-      @header.status_code = status
-    end
-
-    def version
-      @header.http_version
-    end
-
-    def version=(version)
-      @header.http_version = version
-    end
-
-    def reason
-      @header.reason_phrase
-    end
-
-    def reason=(reason)
-      @header.reason_phrase = reason
-    end
-
-    def contenttype
-      @header.contenttype
-    end
-
-    def contenttype=(contenttype)
-      @header.contenttype = contenttype
-    end
 
     class << self
-      @@mime_type_func = nil
+      private :new
 
-      def set_mime_type_func(val)
-        @@mime_type_func = val
+      # Creates a Message instance of 'CONNECT' request.
+      # 'CONNECT' request does not have Body.
+      # uri:: an URI that need to connect.  Only uri.host and uri.port are used.
+      def new_connect_request(uri)
+        m = new
+        m.header.init_connect_request(uri)
+        m.header.body_size = 0
+        m
       end
 
-      def get_mime_type_func
-        @@mime_type_func
+      # Creates a Message instance of general request.
+      # method:: HTTP method String.
+      # uri:: an URI object which reporesents an URL of web resource.
+      # query:: a Hash or an Array of query part of URL.
+      #         e.g. { "a" => "b" } => 'http://host/part?a=b'
+      #         Give an array to pass multiple value like
+      #         [["a", "b"], ["a", "c"]] => 'http://host/part?a=b&a=c'
+      # body:: a Hash or an Array of body part.
+      #        e.g. { "a" => "b" } => 'a=b'.
+      #        Give an array to pass multiple value like
+      #        [["a", "b"], ["a", "c"]] => 'a=b&a=c'.
+      # boundary:: When the boundary given, it is sent as
+      #            a multipart/form-data using this boundary String.
+      def new_request(method, uri, query = nil, body = nil, boundary = nil)
+        m = new
+        m.header.init_request(method, uri, query)
+        m.body = Body.new
+        m.body.init_request(body || '', boundary)
+        m.header.body_size = m.body.size
+        m.header.chunked = true if m.body.size.nil?
+        m
       end
 
-      def mime_type(path)
-        if @@mime_type_func
-          res = @@mime_type_func.call(path)
+      # Creates a Message instance of response.
+      # body:: a String or an IO of response message body.
+      def new_response(body)
+        m = new
+        m.header.init_response(Status::OK)
+        m.body = Body.new
+        m.body.init_response(body)
+        m.header.body_size = m.body.size || 0
+        m
+      end
+
+      @@mime_type_handler = nil
+
+      # Sets MIME type handler.
+      #
+      # handler must respond to :call with a single argument :path and returns
+      # a MIME type String e.g. 'text/html'.
+      # When the handler returns nil or an empty String,
+      # 'application/octet-stream' is used.
+      #
+      # When you set nil to the handler, internal_mime_type is used instead.
+      # The handler is nil by default.
+      def mime_type_handler=(handler)
+        @@mime_type_handler = handler
+      end
+
+      # Returns MIME type handler.
+      def mime_type_handler
+        @@mime_type_handler
+      end
+
+      # For backward compatibility.
+      alias set_mime_type_func mime_type_handler=
+      alias get_mime_type_func mime_type_handler
+
+      def mime_type(path) # :nodoc:
+        if @@mime_type_handler
+          res = @@mime_type_handler.call(path)
           if !res || res.to_s == ''
             return 'application/octet-stream'
           else
@@ -696,6 +681,8 @@ module HTTP
         end
       end
 
+      # Default MIME type handler.
+      # See mime_type_handler=.
       def internal_mime_type(path)
         case path
         when /\.txt$/i
@@ -715,7 +702,31 @@ module HTTP
         end
       end
 
-      def create_query_part_str(query)
+      # Returns true if the given HTTP version allows keep alive connection.
+      # version:: Float
+      def keep_alive_enabled?(version)
+        version >= 1.1
+      end
+
+      # Returns true if the given query (or body) has a multiple parameter.
+      def multiparam_query?(query)
+        query.is_a?(Array) or query.is_a?(Hash)
+      end
+
+      # Returns true if the given object is a File.  In HTTPClient, a file is;
+      # * must respond to :read for retrieving String chunks.
+      # * must respond to :path and returns a path for Content-Disposition.
+      # * must respond to :pos and :pos= to rewind for reading.
+      #   Rewinding is only needed for following HTTP redirect.  Some IO impl
+      #   defines :pos= but raises an Exception for pos= such as StringIO
+      #   but there's no problem as far as using it for non-following methods
+      #   (get/post/etc.)
+      def file?(obj)
+        obj.respond_to?(:read) and obj.respond_to?(:path) and
+          obj.respond_to?(:pos) and obj.respond_to?(:pos=)
+      end
+
+      def create_query_part_str(query) # :nodoc:
         if multiparam_query?(query)
           escape_query(query)
         elsif query.respond_to?(:read)
@@ -725,15 +736,7 @@ module HTTP
         end
       end
 
-      def multiparam_query?(query)
-        query.is_a?(Array) or query.is_a?(Hash)
-      end
-
-      def file?(obj)
-        obj.respond_to?(:path) and obj.respond_to?(:pos) and obj.respond_to?(:pos=)
-      end
-
-      def escape_query(query)
+      def escape_query(query) # :nodoc:
         query.collect { |attr, value|
           if value.respond_to?(:read)
             value = value.read
@@ -743,11 +746,99 @@ module HTTP
       end
 
       # from CGI.escape
-      def escape(str)
+      def escape(str) # :nodoc:
         str.gsub(/([^ a-zA-Z0-9_.-]+)/n) {
           '%' + $1.unpack('H2' * $1.size).join('%').upcase
         }.tr(' ', '+')
       end
+    end
+
+
+    # HTTP::Message::Headers:: message header.
+    attr_accessor :header
+
+    # HTTP::Message::Body:: message body.
+    attr_reader :body
+
+    # OpenSSL::X509::Certificate:: response only.  server certificate which is
+    #                              used for retrieving the response.
+    attr_accessor :peer_cert
+
+    # Creates a Message.  This method should be used internally.
+    # Use Message.new_connect_request, Message.new_request or
+    # Message.new_response instead.
+    def initialize # :nodoc:
+      @header = Headers.new
+      @body = @peer_cert = nil
+    end
+
+    # Dumps message (header and body) to given dev.
+    # dev needs to respond to <<.
+    def dump(dev = '')
+      str = header.dump + CRLF
+      if header.chunked
+        dev = body.dump_chunked(str, dev)
+      elsif body
+        dev = body.dump(str, dev)
+      else
+        dev << str
+      end
+      dev
+    end
+
+    # Sets a new body.  header.body_size is updated with new body.size.
+    def body=(body)
+      @body = body
+      @header.body_size = @body.size if @header
+    end
+
+    # Returns HTTP version in a HTTP header.  Float.
+    def version
+      @header.http_version
+    end
+
+    # Sets HTTP version in a HTTP header.  Float.
+    def version=(version)
+      @header.http_version = version
+    end
+
+    # Returns HTTP status code in response.  Integer.
+    def status
+      @header.status_code
+    end
+
+    alias code status
+    alias status_code status
+
+    # Sets HTTP status code of response.  Integer.
+    # Reason phrase is updated, too.
+    def status=(status)
+      @header.status_code = status
+    end
+
+    # Returns  HTTP status reason phrase in response.  String.
+    def reason
+      @header.reason_phrase
+    end
+
+    # Sets  HTTP status reason phrase of response.  String.
+    def reason=(reason)
+      @header.reason_phrase = reason
+    end
+
+    # Sets 'Content-Type' header value.  Overrides if already exists.
+    def contenttype
+      @header.contenttype
+    end
+
+    # Returns 'Content-Type' header value.
+    def contenttype=(contenttype)
+      @header.contenttype = contenttype
+    end
+
+    # Returns a content of message body.  A String or an IO.
+    def content
+      @body.content
     end
   end
 

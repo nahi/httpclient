@@ -10,12 +10,10 @@
 # Those part is copyrighted by Maehashi-san.
 
 
-# Ruby standard library
 require 'socket'
 require 'thread'
 require 'stringio'
 
-# Extra library
 require 'httpclient/timeout'
 require 'httpclient/ssl_config'
 require 'httpclient/http'
@@ -24,78 +22,81 @@ require 'httpclient/http'
 class HTTPClient
 
 
-  DEBUG_SSL = true
-
-
-  # HTTPClient::Site -- manage a site(host and port)
-  #
+  # Represents a Site: protocol scheme, host String and port Number.
   class Site
+    # Protocol scheme.
     attr_accessor :scheme
-    attr_accessor :host
+    # Host String.
+    attr_reader :host
+    # Port number.
     attr_reader :port
 
+    # Creates a new Site based on the given URI.
     def initialize(uri = nil)
       if uri
-        @uri = uri
         @scheme = uri.scheme
         @host = uri.host
         @port = uri.port.to_i
       else
-        @uri = nil
         @scheme = 'tcp'
         @host = '0.0.0.0'
         @port = 0
       end
     end
 
+    # Returns address String.
     def addr
       "#{@scheme}://#{@host}:#{@port.to_s}"
     end
 
-    def port=(port)
-      @port = port.to_i
-    end
-
+    # Returns true is scheme, host and port are '=='
     def ==(rhs)
       (@scheme == rhs.scheme) and (@host == rhs.host) and (@port == rhs.port)
     end
 
+    # Same as ==.
     def eql?(rhs)
       self == rhs
     end
 
-    def hash
+    def hash # :nodoc:
       [@scheme, @host, @port].hash
     end
 
-    def to_s
+    def to_s # :nodoc:
       addr
     end
     
+    # Returns true if scheme, host and port of the given URI matches with this.
     def match(uri)
       (@scheme == uri.scheme) and (@host == uri.host) and (@port == uri.port.to_i)
     end
 
-    def inspect
-      sprintf("#<%s:0x%x %s>", self.class.name, __id__, @uri || addr)
+    def inspect # :nodoc:
+      sprintf("#<%s:0x%x %s>", self.class.name, __id__, addr)
     end
   end
 
 
-  # HTTPClient::SessionManager -- manage several sessions.
-  #
+  # Manages sessions for a HTTPClient instance.
   class SessionManager
-    attr_accessor :agent_name     # Name of this client.
-    attr_accessor :from           # Owner of this client.
+    # Name of this client.  Used for 'User-Agent' header in HTTP request.
+    attr_accessor :agent_name
+    # Owner of this client.  Used for 'From' header in HTTP request.
+    attr_accessor :from
 
-    attr_accessor :protocol_version       # Requested protocol version
-    attr_accessor :chunk_size             # Chunk size for chunked request
-    attr_accessor :debug_dev              # Device for dumping log for debugging
-    attr_accessor :socket_sync            # Boolean value for Socket#sync
+    # Requested protocol version
+    attr_accessor :protocol_version
+    # Chunk size for chunked request
+    attr_accessor :chunk_size
+    # Device for dumping log for debugging
+    attr_accessor :debug_dev
+    # Boolean value for Socket#sync
+    attr_accessor :socket_sync
 
-    # These parameters are not used now...
     attr_accessor :connect_timeout
-    attr_accessor :connect_retry          # Maximum retry count.  0 for infinite.
+    # Maximum retry count.  0 for infinite.
+    attr_accessor :connect_retry
     attr_accessor :send_timeout
     attr_accessor :receive_timeout
     attr_accessor :read_block_size
@@ -230,8 +231,7 @@ class HTTPClient
   end
 
 
-  # HTTPClient::SSLSocketWrap
-  #
+  # Wraps up OpenSSL::SSL::SSLSocket and offers debugging features.
   class SSLSocketWrap
     def initialize(socket, context, debug_dev = nil)
       unless SSLEnabled
@@ -265,10 +265,6 @@ class HTTPClient
 
     def peer_cert
       @ssl_socket.peer_cert
-    end
-
-    def addr
-      @socket.addr
     end
 
     def close
@@ -345,14 +341,11 @@ class HTTPClient
   end
 
 
+  # Wraps up a Socket for method interception.
   module SocketWrap
     def initialize(socket, *args)
       super(*args)
       @socket = socket
-    end
-
-    def addr
-      @socket.addr
     end
 
     def close
@@ -402,8 +395,8 @@ class HTTPClient
   end
 
 
-  # HTTPClient::DebugSocket -- debugging support
-  #
+  # Module for intercepting Socket methods and dumps in/out to given debugging
+  # device.  debug_dev must respond to <<.
   module DebugSocket
     extend SocketWrap
 
@@ -447,8 +440,7 @@ class HTTPClient
   end
 
 
-  # HTTPClient::LoopBackSocket -- dummy socket for dummy response
-  #
+  # Dummy Socket for emulating loopback test.
   class LoopBackSocket
     include SocketWrap
 
@@ -458,34 +450,26 @@ class HTTPClient
       @port = port
     end
 
-    def addr
-      [nil, @port, @host, @host]
-    end
-
     def <<(str)
       # ignored
     end
   end
 
 
-  # HTTPClient::Session -- manage http session with one site.
-  #   One or more TCP sessions with the site may be created.
-  #   Only 1 TCP session is live at the same time.
-  #
+  # Manages a HTTP session with a Site.
   class Session
     include HTTPClient::Timeout
 
-    class Error < StandardError
-    end
-
-    class InvalidState < Error
-    end
-
-    attr_reader :dest                     # Destination site
-    attr_accessor :proxy                  # Proxy site
-    attr_accessor :socket_sync            # Boolean value for Socket#sync
-    attr_accessor :requested_version      # Requested protocol version
-    attr_accessor :debug_dev              # Device for dumping log for debugging
+    # Destination site
+    attr_reader :dest
+    # Proxy site
+    attr_accessor :proxy
+    # Boolean value for Socket#sync
+    attr_accessor :socket_sync
+    # Requested protocol version
+    attr_accessor :requested_version
+    # Device for dumping log for debugging
+    attr_accessor :debug_dev
 
     attr_accessor :connect_timeout
     attr_accessor :connect_retry
@@ -579,7 +563,7 @@ class HTTPClient
     def get_header
       begin
         if @state != :META
-          raise InvalidState.new("get_status must be called at the beginning of a session")
+          raise RuntimeError.new("get_status must be called at the beginning of a session")
         end
         read_header
       rescue
@@ -620,16 +604,6 @@ class HTTPClient
         end
       end
       nil
-    end
-
-    def src
-      if @socket
-        addr = @socket.addr
-        src = Site.new
-        src.host = addr[3]
-        src.port = addr[1]
-        src
-      end
     end
 
   private
@@ -717,11 +691,11 @@ class HTTPClient
 
     # wrap socket with OpenSSL.
     def create_ssl_socket(raw_socket)
-      SSLSocketWrap.new(raw_socket, @ssl_config, (DEBUG_SSL ? @debug_dev : nil))
+      SSLSocketWrap.new(raw_socket, @ssl_config, @debug_dev)
     end
 
     def connect_ssl_proxy(socket, uri)
-      req = HTTP::Message.new_connect_request(uri, "#{@dest.host}:#{@dest.port}")
+      req = HTTP::Message.new_connect_request(uri)
       @client.request_filter.each do |filter|
         filter.filter_request(req)
       end
@@ -785,7 +759,7 @@ class HTTPClient
             break
           end
           @version, @status, @reason = $1, $2.to_i, $3
-          @next_connection = HTTP.keep_alive_enabled?(@version.to_f)
+          @next_connection = HTTP::Message.keep_alive_enabled?(@version.to_f)
           @headers = []
           while true
             line = @socket.gets("\n")

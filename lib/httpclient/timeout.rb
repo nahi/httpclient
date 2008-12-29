@@ -7,20 +7,52 @@
 
 
 require 'timeout'
+require 'thread'
 
 
 class HTTPClient
 
 
+  # Replaces timeout.rb to avoid Thread creation and scheduling overhead.
+  #
+  # You should check another timeout replace in WEBrick.
+  # See lib/webrick/utils.rb in ruby/1.9.
+  #
+  # About this implementation:
+  # * Do not create Thread for each timeout() call.  Just create 1 Thread for
+  #   timeout scheduler.
+  # * Do not wakeup the scheduler thread so often.  Let scheduler thread sleep
+  #   until the nearest period.
   class TimeoutScheduler
-    class Period
-      attr_reader :thread, :time, :ex
 
+    # Represents timeout period.
+    class Period
+      attr_reader :thread, :time
+
+      # Creates new Period.
       def initialize(thread, time, ex)
         @thread, @time, @ex = thread, time, ex
+        @lock = Mutex.new
+      end
+
+      # Raises if thread exists and alive.
+      def raise(message)
+        @lock.synchronize do
+          if @thread and @thread.alive?
+            @thread.raise(@ex, message)
+          end
+        end
+      end
+
+      # Cancel this Period.  Mutex is needed to avoid too-late exception.
+      def cancel
+        @lock.synchronize do
+          @thread = nil
+        end
       end
     end
 
+    # Creates new TimeoutScheduler.
     def initialize
       @pool = {}
       @next = nil
@@ -28,6 +60,7 @@ class HTTPClient
       Thread.pass while @thread.status != 'sleep'
     end
 
+    # Registers new timeout period.
     def register(thread, sec, ex)
       period = Period.new(thread, Time.now + sec, ex || ::Timeout::Error)
       @pool[period] = true
@@ -37,8 +70,10 @@ class HTTPClient
       period
     end
 
+    # Cancels the given period.
     def cancel(period)
       @pool.delete(period)
+      period.cancel
     end
 
   private
@@ -60,7 +95,7 @@ class HTTPClient
           now = Time.now
           @pool.keys.each do |period|
             if period.time < now
-              period.thread.raise(period.ex, 'execution expired') if period.thread.alive?
+              period.raise('execution expired')
               cancel(period)
             end
           end

@@ -18,7 +18,7 @@ module HTTPAccess2
   RUBY_VERSION_STRING = ::HTTPClient::RUBY_VERSION_STRING
   SSLEnabled = ::HTTPClient::SSLEnabled
   SSPIEnabled = ::HTTPClient::SSPIEnabled
-  DEBUG_SSL = ::HTTPClient::DEBUG_SSL
+  DEBUG_SSL = true
 
   Util = ::HTTPClient::Util
 

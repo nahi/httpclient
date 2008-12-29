@@ -15,25 +15,61 @@ class HTTPClient
     SSLEnabled = false
   end
 
-  # HTTPClient::SSLConfig -- SSL configuration of a client.
+  # Represents SSL configuration for HTTPClient instance.
+  # The implementation depends on OpenSSL.
   #
+  # == Trust Anchor Control
+  #
+  # SSLConfig loads 'httpclient/cacert.p7s' as a trust anchor
+  # (trusted certificate(s)) with set_trust_ca in initialization time.
+  # This means that HTTPClient instance trusts some CA certificates by default,
+  # like Web browsers.  'httpclient/cacert.p7s' is created by the author and
+  # included in released package.
+  #
+  # 'cacert.p7s' is automatically generated from JDK 1.6.
+  #
+  # You may want to change trust anchor by yourself.  Call clear_cert_store
+  # then set_trust_ca for that purpose.
   class SSLConfig
     include OpenSSL if SSLEnabled
 
+    # OpenSSL::X509::Certificate:: certificate for SSL client authenticateion.
+    # nil by default. (no client authenticateion)
     attr_reader :client_cert
+    # OpenSSL::PKey::PKey:: private key for SSL client authentication.
+    # nil by default. (no client authenticateion)
     attr_reader :client_key
-    attr_reader :client_ca
 
+    # A number which represents OpenSSL's verify mode.  Default value is
+    # OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT.
     attr_reader :verify_mode
+    # A number of verify depth.  Certification path which length is longer than
+    # this depth is not allowed.
     attr_reader :verify_depth
+    # A callback handler for custom certificate verification.  nil by default.
+    # If the handler is set, handler.call is invoked just after general
+    # OpenSSL's verification.  handler.call is invoked with 2 arguments,
+    # ok and ctx; ok is a result of general OpenSSL's verification.  ctx is a
+    # OpenSSL::X509::StoreContext.
     attr_reader :verify_callback
-
+    # SSL timeout in sec.  nil by default.
     attr_reader :timeout
+    # A number of OpenSSL's SSL options.  Default value is
+    # OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2
     attr_reader :options
+    # A String of OpenSSL's cipher configuration.  Default value is
+    # ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH
+    # See ciphers(1) man in OpenSSL for more detail.
     attr_reader :ciphers
 
-    attr_reader :cert_store       # don't use if you don't know what it is.
+    # OpenSSL::X509::X509::Store used for verification.  You can reset the
+    # store with clear_cert_store and set the new store with cert_store=.
+    attr_reader :cert_store # don't use if you don't know what it is.
 
+    # For server side configuration.  Ignore this.
+    attr_reader :client_ca # :nodoc:
+
+    # Creates a SSLConfig.
     def initialize(client)
       return unless SSLEnabled
       @client = client
@@ -49,17 +85,63 @@ class HTTPClient
       load_cacerts
     end
 
+    # Sets certificate (OpenSSL::X509::Certificate) for SSL client
+    # authentication.
+    # client_key and client_cert must be a pair.
+    #
+    # Calling this method resets all existing sessions.
+    def client_cert=(client_cert)
+      @client_cert = client_cert
+      change_notify
+    end
+
+    # Sets private key (OpenSSL::PKey::PKey) for SSL client authentication.
+    # client_key and client_cert must be a pair.
+    #
+    # Calling this method resets all existing sessions.
+    def client_key=(client_key)
+      @client_key = client_key
+      change_notify
+    end
+
+    # Sets certificate and private key for SSL client authentication.
+    # cert_file:: must be a filename of PEM/DER formatted file.
+    # key_file:: must be a filename of PEM/DER formatted file.  Key must be an
+    #            RSA key.  If you want to use other PKey algorithm,
+    #            use client_key=.
+    #
+    # Calling this method resets all existing sessions.
     def set_client_cert_file(cert_file, key_file)
       @client_cert = X509::Certificate.new(File.open(cert_file).read)
       @client_key = PKey::RSA.new(File.open(key_file).read)
       change_notify
     end
 
+    # Drops current certificate store (OpenSSL::X509::Store) for SSL and create
+    # new one for the next session.
+    #
+    # Calling this method resets all existing sessions.
     def clear_cert_store
       @cert_store = X509::Store.new
       change_notify
     end
 
+    # Sets new certificate store (OpenSSL::X509::Store).
+    # don't use if you don't know what it is.
+    #
+    # Calling this method resets all existing sessions.
+    def cert_store=(cert_store)
+      @cert_store = cert_store
+      change_notify
+    end
+
+    # Sets trust anchor certificate(s) for verification.
+    # trust_ca_file_or_hashed_dir:: a filename of a PEM/DER formatted
+    #                               OpenSSL::X509::Certificate or
+    #                               a 'c-rehash'eddirectory name which stores
+    #                               trusted certificate files.
+    #
+    # Calling this method resets all existing sessions.
     def set_trust_ca(trust_ca_file_or_hashed_dir)
       if FileTest.directory?(trust_ca_file_or_hashed_dir)
         @cert_store.add_path(trust_ca_file_or_hashed_dir)
@@ -69,67 +151,78 @@ class HTTPClient
       change_notify
     end
 
-    def set_crl(crl_file)
-      crl = X509::CRL.new(File.open(crl_file).read)
+    # Adds CRL for verification.
+    # crl:: a OpenSSL::X509::CRL or a filename of a PEM/DER formatted
+    #       OpenSSL::X509::CRL.
+    #
+    # Calling this method resets all existing sessions.
+    def set_crl(crl)
+      unless crl.is_a?(X509::CRL)
+        crl = X509::CRL.new(File.open(crl).read)
+      end
       @cert_store.add_crl(crl)
       @cert_store.flags = X509::V_FLAG_CRL_CHECK | X509::V_FLAG_CRL_CHECK_ALL
       change_notify
     end
 
-    def client_cert=(client_cert)
-      @client_cert = client_cert
-      change_notify
-    end
-
-    def client_key=(client_key)
-      @client_key = client_key
-      change_notify
-    end
-
-    def client_ca=(client_ca)
-      @client_ca = client_ca
-      change_notify
-    end
-
+    # Sets verify mode of OpenSSL.  New value must be a combination of
+    # constants OpenSSL::SSL::VERIFY_*
+    #
+    # Calling this method resets all existing sessions.
     def verify_mode=(verify_mode)
       @verify_mode = verify_mode
       change_notify
     end
 
+    # Sets verify depth.  New value must be a number.
+    #
+    # Calling this method resets all existing sessions.
     def verify_depth=(verify_depth)
       @verify_depth = verify_depth
       change_notify
     end
 
+    # Sets callback handler for custom certificate verification.
+    # See verify_callback.
+    #
+    # Calling this method resets all existing sessions.
     def verify_callback=(verify_callback)
       @verify_callback = verify_callback
       change_notify
     end
 
+    # Sets SSL timeout in sec.
+    #
+    # Calling this method resets all existing sessions.
     def timeout=(timeout)
       @timeout = timeout
       change_notify
     end
 
+    # Sets SSL options.  New value must be a combination of # constants
+    # OpenSSL::SSL::OP_*
+    #
+    # Calling this method resets all existing sessions.
     def options=(options)
       @options = options
       change_notify
     end
 
+    # Sets cipher configuration.  New value must be a String.
+    #
+    # Calling this method resets all existing sessions.
     def ciphers=(ciphers)
       @ciphers = ciphers
       change_notify
     end
 
-    # don't use if you don't know what it is.
-    def cert_store=(cert_store)
-      @cert_store = cert_store
+    def client_ca=(client_ca) # :nodoc:
+      @client_ca = client_ca
       change_notify
     end
 
     # interfaces for SSLSocketWrap.
-
-    def set_context(ctx)
+    def set_context(ctx) # :nodoc:
       # Verification: Use Store#verify_callback instead of SSLContext#verify*?
       ctx.cert_store = @cert_store
       ctx.verify_mode = @verify_mode
@@ -144,8 +237,9 @@ class HTTPClient
       ctx.ciphers = @ciphers
     end
 
+    # post connection check proc for ruby < 1.8.5.
     # this definition must match with the one in ext/openssl/lib/openssl/ssl.rb
-    def post_connection_check(peer_cert, hostname)
+    def post_connection_check(peer_cert, hostname) # :nodoc:
       check_common_name = true
       cert = peer_cert
       cert.extensions.each{|ext|
@@ -247,7 +341,6 @@ class HTTPClient
     def load_cacerts
       file = File.join(File.dirname(__FILE__), 'cacert.p7s')
       if File.exist?(file)
-        require 'openssl'
         dist_cert =<<__DIST_CERT__
 -----BEGIN CERTIFICATE-----
 MIIC/jCCAmegAwIBAgIBATANBgkqhkiG9w0BAQUFADBNMQswCQYDVQQGEwJKUDER
