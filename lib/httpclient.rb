@@ -24,7 +24,7 @@ require 'httpclient/cookie'
 # via HTTP.
 #
 # HTTPClient instance is designed to be MT-safe.  You can call a HTTPClient
-# instance from several threads without syncronization after setting up an
+# instance from several threads without synchronization after setting up an
 # instance.
 #
 #   clnt = HTTPClient.new
@@ -142,7 +142,7 @@ require 'httpclient/cookie'
 #     clnt = HTTPClient.new
 #     clnt.cookie_manager = nil
 #
-# === Configuring authenticateion credentials
+# === Configuring authentication credentials
 #
 # 1. Authentication with Web server.  Supports BasicAuth, DigestAuth, and
 #    Negotiate/NTLM (requires ruby/ntlm module).
@@ -154,7 +154,7 @@ require 'httpclient/cookie'
 #     clnt.set_auth(domain, user, password)
 #     p clnt.get_content('http://dev.ctor.org/http-access2/login').status
 #
-# 2. Authentication witn Proxy server.  Supports BasicAuth and NTLM
+# 2. Authentication with Proxy server.  Supports BasicAuth and NTLM
 #    (requires win32/sspi)
 #
 #     clnt = HTTPClient.new(proxy)
@@ -277,8 +277,8 @@ class HTTPClient
   attr_reader :ssl_config
   # WebAgent::CookieManager:: Cookies configurator.
   attr_accessor :cookie_manager
-  # An array of response HTTP message body String which is used for loopback
-  # test.  See test/* to see how to use it.  If you want to do loopback test
+  # An array of response HTTP message body String which is used for loop-back
+  # test.  See test/* to see how to use it.  If you want to do loop-back test
   # of HTTP header, use test_loopback_http_response instead.
   attr_reader :test_loopback_response
   # An array of request filter which can trap HTTP request/response.
@@ -477,7 +477,7 @@ class HTTPClient
     @cookie_manager.save_cookies
   end
 
-  # Sets callback proc when HTTP redirest status is returned for get_content
+  # Sets callback proc when HTTP redirect status is returned for get_content
   # and post_content.  default_redirect_uri_callback is used by default.
   #
   # If you need strict implementation which does not allow relative URI
@@ -491,7 +491,7 @@ class HTTPClient
 
   # Retrieves a web resource.
   #
-  # uri:: a String or an URI object which reporesents an URL of web resource.
+  # uri:: a String or an URI object which represents an URL of web resource.
   # query:: a Hash or an Array of query part of URL.
   #         e.g. { "a" => "b" } => 'http://host/part?a=b'.
   #         Give an array to pass multiple value like
@@ -518,7 +518,7 @@ class HTTPClient
 
   # Posts a content.
   #
-  # uri:: a String or an URI object which reporesents an URL of web resource.
+  # uri:: a String or an URI object which represents an URL of web resource.
   # body:: a Hash or an Array of body part.
   #        e.g. { "a" => "b" } => 'a=b'.
   #        Give an array to pass multiple value like
@@ -622,7 +622,7 @@ class HTTPClient
   # Sends a request to the specified URL.
   #
   # method:: HTTP method to be sent.  method.to_s.upcase is used.
-  # uri:: a String or an URI object which reporesents an URL of web resource.
+  # uri:: a String or an URI object which represents an URL of web resource.
   # query:: a Hash or an Array of query part of URL.
   #         e.g. { "a" => "b" } => 'http://host/part?a=b'
   #         Give an array to pass multiple value like
@@ -715,7 +715,7 @@ class HTTPClient
     request_async(:trace, uri, query, body, extheader)
   end
 
-  # Sends a request in async style.  request method creats new Thread for
+  # Sends a request in async style.  request method creates new Thread for
   # HTTP connection and returns a HTTPClient::Connection instance immediately.
   #
   # Arguments definition is the same as request.
@@ -789,7 +789,7 @@ private
     if getenv('REQUEST_METHOD')
       # HTTP_PROXY conflicts with the environment variable usage in CGI where
       # HTTP_* is used for HTTP header information.  Unlike open-uri, we
-      # simpley ignore http_proxy in CGI env and use cgi_http_proxy instead.
+      # simply ignore http_proxy in CGI env and use cgi_http_proxy instead.
       self.proxy = getenv('cgi_http_proxy')
     else
       self.proxy = getenv('http_proxy')

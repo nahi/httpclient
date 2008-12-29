@@ -641,9 +641,9 @@ class HTTPClient
               @ssl_peer_cert = @socket.peer_cert
             end
           end
-          # Use Ruby internal buffering instead of passing data immediatly
+          # Use Ruby internal buffering instead of passing data immediately
           # to the underlying layer
-          # => we need to to call explicitely flush on the socket
+          # => we need to to call explicitly flush on the socket
           @socket.sync = @socket_sync
         end
       rescue RetryableResponse

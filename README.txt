@@ -29,6 +29,7 @@ See HTTPClient for documentation.
   * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.
     (of course you can set it in header by yourself)
 
+
 == Author
 
 Name:: NAKAMURA, Hiroshi
@@ -79,6 +80,40 @@ Thanks in advance.
 
 
 == Changes
+
+  Dec 29, 2008 - version 2.1.3
+    * Features
+      * Proxy Authentication for SSL.
+      * Performance improvements.
+      * Full RDoc. Please tell me any English problem. Thanks in advance.
+      * Do multipart file upload when a given body includes a File. You don't
+        need to set 'Content-Type' and boundary String any more.
+      * Added propfind and proppatch methods. 
+
+    * Changes
+      * Avoid unnecessary memory consuming for get_content/post_content with
+        block.  get_content returns nil when you call it with a block.
+      * post_content with IO did not work when redirect/auth cycle is required.
+        (CAUTION: post_content now correctly follows redirection and posts the
+        given content)
+      * Exception handling cleanups.
+        * Raises HTTPClient::ConfigurationError? for environment problem.
+          (trying to do SSL without openssl installed for example)
+        * Raises HTTPClient::BadResponse? for HTTP response problem.  You can
+          get the response HTTPMessage returned via $!.res.
+        * Raises SocketError? for connection problem (as same as before). 
+
+    * Bug fixes
+      * Avoid unnecessary negotiation cycle for Negotiate(NTLM) authentication.
+        Thanks Rishav for great support for debugging Negotiate authentication.
+      * get_content/post_content with block yielded unexpected message body
+        during redirect/auth cycle.
+      * Relative URI redirection should be allowed from 2.1.2 but it did not
+        work... fixed.
+      * Avoid unnecessary timeout waiting when no message body returned such as
+        '204 No Content' for DAV.
+      * Avoid blocking on socket closing when the socket is already closed by
+        foreign host and the client runs under MT-condition. 
 
   Sep 22, 2007 - version 2.1.2
 

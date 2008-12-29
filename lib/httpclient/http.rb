@@ -192,7 +192,7 @@ module HTTP
         @request_via_proxy = false
       end
 
-      # Initialize this instance as a resopnse.
+      # Initialize this instance as a response.
       def init_response(status_code)
         @is_request = false
         self.status_code = status_code
@@ -433,7 +433,7 @@ module HTTP
         dev
       end
 
-      # Dumps message body with chuned encoding to given dev.
+      # Dumps message body with chunked encoding to given dev.
       # dev needs to respond to <<.
       #
       # Message header must be given as the first argument for performance
@@ -612,7 +612,7 @@ module HTTP
 
       # Creates a Message instance of general request.
       # method:: HTTP method String.
-      # uri:: an URI object which reporesents an URL of web resource.
+      # uri:: an URI object which represents an URL of web resource.
       # query:: a Hash or an Array of query part of URL.
       #         e.g. { "a" => "b" } => 'http://host/part?a=b'
       #         Give an array to pass multiple value like
