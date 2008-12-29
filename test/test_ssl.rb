@@ -72,7 +72,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
+      assert_match(/certificate verify failed/, ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -83,7 +83,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
+      assert_match(/certificate verify failed/, ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -93,7 +93,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
+      assert_match(/certificate verify failed/, ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -108,7 +108,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
+      assert_match(/certificate verify failed/, ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -119,7 +119,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get_content(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("SSL_connect returned=1 errno=0 state=SSLv3 read server certificate B: certificate verify failed", ssle.message)
+      assert_match(/certificate verify failed/, ssle.message)
     end
     #
     cfg.verify_mode = nil

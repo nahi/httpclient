@@ -39,7 +39,7 @@ class TestHTTPClient < Test::Unit::TestCase
       @client = HTTPClient.new(@proxyurl)
       assert_equal(URI.parse(@proxyurl), @client.proxy)
       assert_equal(200, @client.head(@url).status)
-      assert(!@proxyio.string.empty?)
+      assert(/accept/ =~ @proxyio.string)
     end
   end
 
@@ -161,12 +161,12 @@ class TestHTTPClient < Test::Unit::TestCase
       @proxyio.string = ""
       @client.proxy = nil
       assert_equal(200, @client.head(@url).status)
-      assert(@proxyio.string.empty?)
+      assert(/accept/ !~ @proxyio.string)
       #
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(!@proxyio.string.empty?)
+      assert(/accept/ =~ @proxyio.string)
     end
   end
 
@@ -199,7 +199,7 @@ class TestHTTPClient < Test::Unit::TestCase
     @proxyio.string = ""
     @client.proxy = @proxyurl
     assert_equal(200, @client.head(@url).status)
-    assert(@proxyio.string.empty?)
+    assert(/accept/ !~ @proxyio.string)
   end
 
   def test_no_proxy
@@ -212,36 +212,36 @@ class TestHTTPClient < Test::Unit::TestCase
       @proxyio.string = ""
       @client.proxy = nil
       assert_equal(200, @client.head(@url).status)
-      assert(@proxyio.string.empty?)
+      assert(/accept/ !~ @proxyio.string)
       #
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(@proxyio.string.empty?)
+      assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar'
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(!@proxyio.string.empty?)
+      assert(/accept/ =~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:baz'
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(@proxyio.string.empty?)
+      assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:443'
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(!@proxyio.string.empty?)
+      assert(/accept/ =~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:443:localhost:17171,baz'
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(@proxyio.string.empty?)
+      assert(/accept/ !~ @proxyio.string)
     end
   end
 
@@ -789,18 +789,28 @@ EOS
     assert_equal('image/jpeg', HTTP::Message.mime_type('foo.jpeg'))
     assert_equal('application/octet-stream', HTTP::Message.mime_type('foo.unknown'))
     #
-    func = lambda { |path| 'hello/world' }
+    handler = lambda { |path| 'hello/world' }
+    assert_nil(HTTP::Message.mime_type_handler)
     assert_nil(HTTP::Message.get_mime_type_func)
-    HTTP::Message.set_mime_type_func(func)
+    HTTP::Message.mime_type_handler = handler
+    assert_not_nil(HTTP::Message.mime_type_handler)
     assert_not_nil(HTTP::Message.get_mime_type_func)
     assert_equal('hello/world', HTTP::Message.mime_type('foo.txt'))
+    HTTP::Message.mime_type_handler = nil
+    assert_equal('text/plain', HTTP::Message.mime_type('foo.txt'))
     HTTP::Message.set_mime_type_func(nil)
     assert_equal('text/plain', HTTP::Message.mime_type('foo.txt'))
+    #
+    handler = lambda { |path| nil }
+    HTTP::Message.mime_type_handler = handler
+    assert_equal('application/octet-stream', HTTP::Message.mime_type('foo.txt'))
   end
 
   def test_connect_request
-    req = HTTP::Message.new_connect_request(URI.parse('http://example.com/'), 'foo:443')
+    req = HTTP::Message.new_connect_request(URI.parse('https://foo/bar'))
     assert_equal("CONNECT foo:443 HTTP/1.0\r\n\r\n", req.dump)
+    req = HTTP::Message.new_connect_request(URI.parse('https://example.com/'))
+    assert_equal("CONNECT example.com:443 HTTP/1.0\r\n\r\n", req.dump)
   end
 
   def test_response
