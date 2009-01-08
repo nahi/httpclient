@@ -1,5 +1,5 @@
 # HTTPClient - HTTP client library.
-# Copyright (C) 2000-2008  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+# Copyright (C) 2000-2009  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 #
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;
@@ -199,7 +199,7 @@ require 'httpclient/cookie'
 #   ruby -rhttpclient -e 'p HTTPClient.head(ARGV.shift).header["last-modified"]' http://dev.ctor.org/
 #
 class HTTPClient
-  VERSION = '2.1.3'
+  VERSION = '2.1.3.1'
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
   /: (\S+) (\S+)/ =~ %q$Id$
   LIB_NAME = "(#{$1}/#{$2}, #{RUBY_VERSION_STRING})"
@@ -511,9 +511,7 @@ class HTTPClient
   # use get method.  get returns HTTP::Message as a response and you need to
   # follow HTTP redirect by yourself if you need.
   def get_content(uri, query = nil, extheader = {}, &block)
-    uri = urify(uri)
-    req = create_request('GET', uri, query, nil, extheader)
-    follow_redirect(req, &block).content
+    follow_redirect(:get, uri, query, nil, extheader, &block).content
   end
 
   # Posts a content.
@@ -539,9 +537,7 @@ class HTTPClient
   # If you need to get full HTTP response including HTTP status and headers,
   # use post method.
   def post_content(uri, body = nil, extheader = {}, &block)
-    uri = urify(uri)
-    req = create_request('POST', uri, nil, body, extheader)
-    follow_redirect(req, &block).content
+    follow_redirect(:post, uri, nil, body, extheader, &block).content
   end
 
   # A method for redirect uri callback.  How to use:
@@ -551,6 +547,9 @@ class HTTPClient
   # in HTTP header. (raises BadResponseError instead)
   def strict_redirect_uri_callback(uri, res)
     newuri = URI.parse(res.header['location'][0])
+    if https?(uri) && !https?(newuri)
+      raise BadResponseError.new("redirecting to non-https resource")
+    end
     unless newuri.is_a?(URI::HTTP)
       raise BadResponseError.new("unexpected location: #{newuri}", res)
     end
@@ -565,6 +564,9 @@ class HTTPClient
   # in HTTP header.
   def default_redirect_uri_callback(uri, res)
     newuri = URI.parse(res.header['location'][0])
+    if https?(uri) && !https?(newuri)
+      raise BadResponseError.new("redirecting to non-https resource")
+    end
     unless newuri.is_a?(URI::HTTP)
       newuri = uri + newuri
       STDERR.puts("could be a relative URI in location header which is not recommended")
@@ -652,7 +654,7 @@ class HTTPClient
   def request(method, uri, query = nil, body = nil, extheader = {}, &block)
     uri = urify(uri)
     proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method.to_s.upcase, uri, query, body, extheader)
+    req = create_request(method, uri, query, body, extheader)
     if block
       filtered_block = proc { |res, str|
         block.call(str)
@@ -722,7 +724,7 @@ class HTTPClient
   def request_async(method, uri, query = nil, body = nil, extheader = {})
     uri = urify(uri)
     proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method.to_s.upcase, uri, query, body, extheader)
+    req = create_request(method, uri, query, body, extheader)
     do_request_async(req, proxy)
   end
 
@@ -802,21 +804,26 @@ private
     ENV[name.downcase] || ENV[name.upcase]
   end
 
-  def follow_redirect(req, &block)
-    retry_number = 0
+  def follow_redirect(method, uri, query, body, extheader, &block)
+    uri = urify(uri)
     if block
       filtered_block = proc { |r, str|
         block.call(str) if HTTP::Status.successful?(r.status)
       }
     end
+    if HTTP::Message.file?(body)
+      pos = body.pos rescue nil
+    end
+    retry_number = 0
     while retry_number < @follow_redirect_count
+      body.pos = pos if pos
+      req = create_request(method, uri, query, body, extheader)
       proxy = no_proxy?(req.header.request_uri) ? nil : @proxy
       res = do_request(req, proxy, &filtered_block)
       if HTTP::Status.successful?(res.status)
         return res
       elsif HTTP::Status.redirect?(res.status)
         uri = urify(@redirect_uri_callback.call(req.header.request_uri, res))
-        req.header.request_uri = uri
         retry_number += 1
       else
         raise BadResponseError.new("unexpected response: #{res.header.inspect}", res)
@@ -834,6 +841,7 @@ private
   end
 
   def create_request(method, uri, query, body, extheader)
+    method = method.to_s.upcase
     if extheader.is_a?(Hash)
       extheader = extheader.to_a
     else
@@ -911,6 +919,10 @@ private
       end
     end
     false
+  end
+
+  def https?(uri)
+    uri.scheme.downcase == 'https'
   end
 
   # !! CAUTION !!

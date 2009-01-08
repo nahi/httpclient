@@ -1,8 +1,8 @@
 require 'rubygems'
 SPEC = Gem::Specification.new do |s|
   s.name = "httpclient"
-  s.version = "2.1.2"
-  s.date = "2007-09-22"
+  s.version = "2.1.3.1"
+  s.date = "2009-01-08"
   s.author = "NAKAMURA, Hiroshi"
   s.email = "nahi@ruby-lang.org"
   s.homepage = "http://dev.ctor.org/httpclient"

@@ -306,6 +306,42 @@ EOS
     assert_equal('message body 1', @client.get_content('http://somewhere'))
   end
 
+  def test_redirect_non_https
+    url = @url + 'redirect1'
+    https_url = URI.parse(url)
+    https_url.scheme = 'https'
+    #
+    redirect_to_http = "HTTP/1.0 302 OK\nLocation: #{url}\n\n"
+    redirect_to_https = "HTTP/1.0 302 OK\nLocation: #{https_url}\n\n"
+    #
+    # https -> http is denied
+    @client.test_loopback_http_response << redirect_to_http
+    assert_raises(HTTPClient::BadResponseError) do
+      @client.get_content(https_url)
+    end
+    #
+    # http -> http is OK
+    @client.reset_all
+    @client.test_loopback_http_response << redirect_to_http
+    assert_equal('hello', @client.get_content(url))
+    #
+    # http -> https is OK
+    @client.reset_all
+    @client.test_loopback_http_response << redirect_to_https
+    assert_raises(OpenSSL::SSL::SSLError) do
+      # trying to normal endpoint with SSL -> SSL negotiation failure
+      @client.get_content(url)
+    end
+    #
+    # https -> https is OK
+    @client.reset_all
+    @client.test_loopback_http_response << redirect_to_https
+    assert_raises(OpenSSL::SSL::SSLError) do
+      # trying to normal endpoint with SSL -> SSL negotiation failure
+      @client.get_content(https_url)
+    end
+  end
+
   def test_redirect_relative
     @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: hello\n\n"
     assert_equal('hello', @client.get_content(@url + 'redirect1'))

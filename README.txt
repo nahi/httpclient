@@ -1,5 +1,5 @@
 httpclient - HTTP accessing library.
-Copyright (C) 2000-2008  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+Copyright (C) 2000-2009  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
 'httpclient' gives something like the functionality of libwww-perl (LWP) in
 Ruby.  'httpclient' formerly known as 'http-access2'.
@@ -68,6 +68,27 @@ See HTTPClient for documentation.
 You can also check sample/howto.rb how to use APIs.
 
 
+== Download
+
+* Stable: http://dev.ctor.org/download/httpclient-2.1.3.1.tar.gz (tar + gzip)
+* Stable: http://dev.ctor.org/download/httpclient-2.1.3.1.zip (ZIP) 
+
+* Older versions: http://dev.ctor.org/download/archive/ 
+
+* Gem repository for stable version
+  * (at default remove source at rubyforge.org) 
+* Gem repository for development version
+  * http://dev.ctor.org/download/ 
+
+* svn: http://dev.ctor.org/svn/http-access2/trunk/ 
+
+=== Gem
+
+You can install httpclient with rubygems.
+
+  % gem install httpclient --source http://dev.ctor.org/download/
+
+
 == Bug report or Feature request
 
 Please file a ticket at the project web site.
@@ -80,6 +101,18 @@ Thanks in advance.
 
 
 == Changes
+
+  Jan 8, 2009 - version 2.1.3.1
+
+    * Security fix introduced at 2.1.3.
+      * get_content/post_content of httpclient/2.1.3 may send secure cookies
+        for a https site to non-secure (non-https) site when the https site
+        redirects the request to a non-https site.  httpclient/2.1.3 caches
+        request object and reuses it for redirection.  It should not be cached
+        and recreated for each time as httpclient <= 2.1.2 and http-access2.
+      * I realized this bug when I was reading open-uri story on
+        [ruby-core:21205].  Ruby users should use open-uri rather than using
+        net/http directly wherever possible.
 
   Dec 29, 2008 - version 2.1.3
     * Features
