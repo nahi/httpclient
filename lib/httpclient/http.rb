@@ -236,8 +236,20 @@ module HTTP
       end
 
       # Adds a header.  Addition order is preserved.
+      def add(key, value)
+        if value.is_a?(Array)
+          value.each do |v|
+            @header_item.push([key, v])
+          end
+        else
+          @header_item.push([key, value])
+        end
+      end
+
+      # Sets a header.
       def set(key, value)
-        @header_item.push([key, value])
+        delete(key)
+        add(key, value)
       end
 
       # Returns an Array of headers for the given key.  Each element is a pair

@@ -874,10 +874,10 @@ private
     end
     req = HTTP::Message.new_request(method, uri, query, body, boundary)
     extheader.each do |key, value|
-      req.header.set(key, value)
+      req.header.add(key, value)
     end
-    if @cookie_manager && cookies = @cookie_manager.find(uri)
-      req.header.set('Cookie', cookies)
+    if @cookie_manager && cookie = @cookie_manager.find(uri)
+      req.header.add('Cookie', cookie)
     end
     req
   end
@@ -991,7 +991,7 @@ private
   def do_get_header(req, res, sess)
     res.version, res.status, res.reason, headers = sess.get_header
     headers.each do |key, value|
-      res.header.set(key, value)
+      res.header.add(key, value)
     end
     if @cookie_manager
       res.header['set-cookie'].each do |cookie|

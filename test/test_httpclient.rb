@@ -810,7 +810,7 @@ EOS
     assert_equal(['bar'], res.header['foo'])
     #
     assert_equal([['foo', 'bar']], res.header.get('foo'))
-    res.header['foo'] = 'bar2'
+    res.header['foo'] = ['bar', 'bar2']
     assert_equal([['foo', 'bar'], ['foo', 'bar2']], res.header.get('foo'))
   end
 
