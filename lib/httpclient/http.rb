@@ -324,7 +324,12 @@ module HTTP
           set('Content-Length', @body_size.to_s)
         end
         if @http_version >= 1.1
-	  set('Host', "#{@request_uri.host}:#{@request_uri.port}")
+          if @request_uri.port == @request_uri.default_port
+            # GFE/1.3 dislikes default port number (returns 404)
+            set('Host', "#{@request_uri.host}")
+          else
+            set('Host', "#{@request_uri.host}:#{@request_uri.port}")
+          end
         end
       end
 
