@@ -165,9 +165,26 @@ class TestHTTPClient < Test::Unit::TestCase
       #
       @proxyio.string = ""
       @client.proxy = @proxyurl
+      @client.debug_dev = str = ""
       assert_equal(200, @client.head(@url).status)
       assert(/accept/ =~ @proxyio.string)
+      assert(/Host: localhost:17171/ =~ str)
     end
+  end
+
+  def test_host_header
+    @client.proxy = @proxyurl
+    @client.debug_dev = str = ""
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
+    assert_equal(200, @client.head('http://www.example.com/foo').status)
+    # ensure no ':80' is added.  some servers dislike that.
+    assert(/\r\nHost: www\.example\.com\r\n/ =~ str)
+    #
+    @client.debug_dev = str = ""
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
+    assert_equal(200, @client.head('http://www.example.com:12345/foo').status)
+    # ensure ':12345' exists.
+    assert(/\r\nHost: www\.example\.com:12345\r\n/ =~ str)
   end
 
   def test_proxy_env
