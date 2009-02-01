@@ -57,7 +57,6 @@ class HTTPClient
       @pool = {}
       @next = nil
       @thread = start_timer_thread
-      Thread.pass while @thread.status != 'sleep'
     end
 
     # Registers new timeout period.
@@ -65,7 +64,12 @@ class HTTPClient
       period = Period.new(thread, Time.now + sec, ex || ::Timeout::Error)
       @pool[period] = true
       if @next.nil? or period.time < @next
-        @thread.wakeup
+        begin
+          @thread.wakeup
+        rescue ThreadError
+          # Thread may be dead by fork.
+          @thread = start_timer_thread
+        end
       end
       period
     end
@@ -79,7 +83,7 @@ class HTTPClient
   private
 
     def start_timer_thread
-      Thread.new {
+      thread = Thread.new {
         while true
           if @pool.empty?
             @next = nil
@@ -101,19 +105,29 @@ class HTTPClient
           end
         end
       }
+      Thread.pass while thread.status != 'sleep'
+      thread
     end
   end
 
-  TIMEOUT_SCHEDULER = TimeoutScheduler.new
+  class << self
+    # CAUTION: caller must aware of race condition.
+    def timeout_scheduler
+      @timeout_scheduler ||= TimeoutScheduler.new
+    end
+  end
+  timeout_scheduler # initialize at first time.
 
   module Timeout
     def timeout(sec, ex = nil, &block)
       return yield if sec == nil or sec.zero?
+      scheduler = nil
       begin
-        period = TIMEOUT_SCHEDULER.register(Thread.current, sec, ex)
+        scheduler = HTTPClient.timeout_scheduler
+        period = scheduler.register(Thread.current, sec, ex)
         yield(sec)
       ensure
-        TIMEOUT_SCHEDULER.cancel(period)
+        scheduler.cancel(period) if scheduler and period
       end
     end
   end
