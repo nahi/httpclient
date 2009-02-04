@@ -721,7 +721,7 @@ class HTTPClient
 
     # Read status block.
     def read_header
-      @content_length = 0
+      @content_length = nil
       @chunked = false
       @chunk_length = 0
       parse_header
@@ -833,14 +833,14 @@ class HTTPClient
     end
 
     def read_body_rest
-      if @readbuf.length > 0
+      if @readbuf and @readbuf.length > 0
         yield @readbuf
         @readbuf = nil
       end
       buf = ''
       while true
         timeout(@receive_timeout, ReceiveTimeoutError) do
-          @socket.read(@read_block_size, buf)
+          @socket.readpartial(@read_block_size, buf) rescue EOFError
         end
         if buf && buf.length > 0
           yield buf
