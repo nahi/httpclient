@@ -108,13 +108,13 @@ class HTTPClient
 
     def initialize(client)
       @client = client
-      @proxy = nil
+      @proxy = client.proxy
 
       @agent_name = nil
       @from = nil
 
       @protocol_version = nil
-      @debug_dev = nil
+      @debug_dev = client.debug_dev
       @socket_sync = true
       @chunk_size = 4096
 

@@ -931,6 +931,17 @@ EOS
     end
   end
 
+  def test_session_manager
+    mgr = HTTPClient::SessionManager.new(@client)
+    assert_nil(mgr.instance_eval { @proxy })
+    assert_nil(mgr.debug_dev)
+    @client.debug_dev = Object.new
+    @client.proxy = 'http://myproxy:12345'
+    mgr = HTTPClient::SessionManager.new(@client)
+    assert_equal('http://myproxy:12345', mgr.instance_eval { @proxy }.to_s)
+    assert_equal(@client.debug_dev, mgr.debug_dev)
+  end
+
 private
 
   def check_query_get(query)
