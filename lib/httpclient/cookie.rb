@@ -71,8 +71,10 @@ class WebAgent
     OVERRIDE_OK = 32
 
     def initialize()
-      @discard = @use = @secure = @domain_orig = @path_orig = @override = nil
-      @path = nil
+      @name = @value = @domain = @path = nil
+      @expires = nil
+      @url = nil
+      @use = @secure = @discard = @domain_orig = @path_orig = @override = nil
     end
 
     def discard?
@@ -166,28 +168,19 @@ class WebAgent
 	## raise ArgumentError 'invalid cookie value'
       end
       @name = $1.strip
-      @value = $3
-      if @value
-	if @value =~ /^\s*"(.*)"\s*$/
-	  @value = $1
-	else
-	  @value.dup.strip!
-	end
-      end
+      @value = normalize_cookie_value($3)
       cookie_elem.each{|pair|
 	key, value = pair.split(/=/)  ## value may nil
 	key.strip!
-        if value
-          value = value.strip.sub(/\A"(.*)"\z/) { $1 }
-        end
+        value = normalize_cookie_value(value)
 	case key.downcase
 	when 'domain'
 	  @domain = value
 	when 'expires'
+          @expires = nil
 	  begin
-	    @expires = Time.parse(value)
+	    @expires = Time.parse(value).gmtime() if value
 	  rescue ArgumentError
-	    @expires = nil
 	  end
 	when 'path'
 	  @path = value
@@ -199,6 +192,14 @@ class WebAgent
       }
     end
 
+    def normalize_cookie_value(value)
+      if value
+        value = value.strip.sub(/\A"(.*)"\z/) { $1 }
+        value = nil if value.empty?
+      end
+      value
+    end
+    private :normalize_cookie_value
   end
 
   class CookieManager
@@ -403,6 +404,7 @@ class WebAgent
     def load_cookies()
       return if !File.readable?(@cookies_file)
       @cookies.synchronize do
+        @cookies.clear
         File.open(@cookies_file,'r'){|f|
           while line = f.gets
             cookie = WebAgent::Cookie.new()
@@ -411,7 +413,11 @@ class WebAgent
             cookie.url = URI.parse(col[0])
             cookie.name = col[1]
             cookie.value = col[2]
-            cookie.expires = Time.at(col[3].to_i)
+            if col[3].empty? or col[3] == '0'
+              cookie.expires = nil
+            else
+              cookie.expires = Time.at(col[3].to_i).gmtime
+            end
             cookie.domain = col[4]
             cookie.path = col[5]
             cookie.set_flag(col[6])

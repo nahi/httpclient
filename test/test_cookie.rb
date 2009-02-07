@@ -178,13 +178,42 @@ class TestCookieManager < Test::Unit::TestCase
     c1 = WebAgent::Cookie.new()
     c2 = c1.dup
     c3 = c1.dup
+    c4 = c1.dup
     c1.expires = Time.now - 100
     c2.expires = Time.now + 100
     c3.expires = Time.now - 10
-    cookies = [c1,c2,c3]
+    c4.expires = nil
+    cookies = [c1,c2,c3,c4]
     @cm.cookies = cookies
     @cm.check_expired_cookies()
-    assert_equal([c2], @cm.cookies)
+    # expires == nil cookies (session cookie) exists.
+    assert_equal([c2,c4], @cm.cookies)
+  end
+
+  def test_parse_expires
+    str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=; path=/"
+    @cm.parse(str,URI.parse('http://www.test.jp'))
+    cookie = @cm.cookies[0]
+    assert_equal("inkid", cookie.name)
+    assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
+    assert_equal(nil, cookie.expires)
+    assert_equal("/", cookie.path)
+    #
+    str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; path=/; expires="
+    @cm.parse(str,URI.parse('http://www.test.jp'))
+    cookie = @cm.cookies[0]
+    assert_equal("inkid", cookie.name)
+    assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
+    assert_equal(nil, cookie.expires)
+    assert_equal("/", cookie.path)
+    #
+    str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; path=/; expires=\"\""
+    @cm.parse(str,URI.parse('http://www.test.jp'))
+    cookie = @cm.cookies[0]
+    assert_equal("inkid", cookie.name)
+    assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
+    assert_equal(nil, cookie.expires)
+    assert_equal("/", cookie.path)
   end
 
   def test_find_cookie()
@@ -208,12 +237,14 @@ class TestCookieManager < Test::Unit::TestCase
 	f.write <<EOF
 http://www.zdnet.co.jp/news/0106/08/e_gibson.html	NGUserID	d29b8f49-10875-992421294-1	2145801600	www.zdnet.co.jp	/	9	0			
 http://www.zdnet.co.jp/news/0106/08/e_gibson.html	PACK	zd3-992421294-7436	1293839999	.zdnet.co.jp	/	13	0			
+http://example.org/	key	value	0	.example.org	/	13	0			
+http://example.org/	key	value		.example.org	/	13	0			
 EOF
       }
 
       @cm.cookies_file = 'tmp_test.tmp'
       @cm.load_cookies()
-      c0, c1 = @cm.cookies
+      c0, c1, c2, c3 = @cm.cookies
       assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c0.url.to_s)
       assert_equal('NGUserID', c0.name)
       assert_equal('d29b8f49-10875-992421294-1', c0.value)
@@ -221,6 +252,7 @@ EOF
       assert_equal('www.zdnet.co.jp', c0.domain)
       assert_equal('/', c0.path)
       assert_equal(9, c0.flag)
+      #
       assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c1.url.to_s)
       assert_equal('PACK', c1.name)
       assert_equal('zd3-992421294-7436', c1.value)
@@ -228,6 +260,9 @@ EOF
       assert_equal('.zdnet.co.jp', c1.domain)
       assert_equal('/', c1.path)
       assert_equal(13, c1.flag)
+      #
+      assert_equal(nil, c2.expires)
+      assert_equal(nil, c3.expires) # allow empty 'expires' (should not happen)
     ensure
       File.unlink("tmp_test.tmp")
     end
@@ -264,6 +299,23 @@ EOF
       if FileTest.exist?("tmp_test2.tmp")
 	File.unlink("tmp_test2.tmp")
       end
+    end
+  end
+
+  def test_not_saved_expired_cookies
+    begin
+      @cm.cookies_file = 'tmp_test.tmp'
+      uri = URI.parse('http://www.example.org')
+      @cm.parse("foo=1; path=/", uri)
+      @cm.parse("bar=2; path=/; expires=", uri)
+      @cm.parse("baz=3; path=/; expires=\"\"", uri)
+      @cm.parse("qux=4; path=/; expires=#{(Time.now + 10).asctime}", uri)
+      @cm.parse("quxx=5; path=/; expires=#{(Time.now - 10).asctime}", uri)
+      @cm.save_cookies()
+      @cm.load_cookies
+      assert_equal(1, @cm.cookies.size) # +10 cookies only
+    ensure
+      File.unlink("tmp_test.tmp") if File.exist?("tmp_test.tmp")
     end
   end
 
