@@ -931,6 +931,13 @@ EOS
     end
   end
 
+  def test_timeout_scheduler
+    assert_equal('hello', @client.get_content(@url + 'hello'))
+    status =  HTTPClient.timeout_scheduler.instance_eval { @thread.kill; @thread.status }
+    assert(!status) # dead
+    assert_equal('hello', @client.get_content(@url + 'hello'))
+  end
+
   def test_session_manager
     mgr = HTTPClient::SessionManager.new(@client)
     assert_nil(mgr.instance_eval { @proxy })
