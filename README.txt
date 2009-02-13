@@ -70,8 +70,8 @@ You can also check sample/howto.rb how to use APIs.
 
 == Download
 
-* Stable: http://dev.ctor.org/download/httpclient-2.1.3.1.tar.gz (tar + gzip)
-* Stable: http://dev.ctor.org/download/httpclient-2.1.3.1.zip (ZIP) 
+* Stable: http://dev.ctor.org/download/httpclient-2.1.4.tar.gz (tar + gzip)
+* Stable: http://dev.ctor.org/download/httpclient-2.1.4.zip (ZIP) 
 
 * Older versions: http://dev.ctor.org/download/archive/ 
 
@@ -102,6 +102,23 @@ Thanks in advance.
 
 == Changes
 
+  Feb 13, 2009 - version 2.1.4
+
+    * Bug fixes
+      * When we hit some site through http-proxy we get a response without
+        Content-Length header.  httpclient/2.1.3 drops response body for such
+        case. fixed. (#199)
+      * Avoid duplicated 'Date' header in request. Fixed. (#194)
+      * Avoid to add port number to 'Host' header.  Some servers like GFE/1.3
+        dislike it. Thanks to anonymous user for investigating the behavior.
+        (#195)
+      * httpclient/2.1.3 does not work when you fork a process after requiring
+        httpclient module (Passenger). Thanks to Akira Yamada for tracing down
+        this bug. (#197)
+      * httpclient/2.1.3 cannot handle Cookie header with 'expires=' and
+        'expires=""'.  Empty String for Time.parse returns Time.now unlike
+        ParseDate.parsedate. Thanks to Mark for the patch. (#200) 
+
   Jan 8, 2009 - version 2.1.3.1
 
     * Security fix introduced at 2.1.3.
@@ -115,6 +132,7 @@ Thanks in advance.
         net/http directly wherever possible.
 
   Dec 29, 2008 - version 2.1.3
+
     * Features
       * Proxy Authentication for SSL.
       * Performance improvements.

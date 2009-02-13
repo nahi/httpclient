@@ -91,7 +91,7 @@ require 'httpclient/cookie'
 #     res = clnt.post(uri, body)
 #
 # 2. Do multipart file upload with POST.  No need to set extra header by
-#    yourself from httpclient/2.1.3.
+#    yourself from httpclient/2.1.4.
 #
 #     File.open('/tmp/post_data') do |file|
 #       body = { 'upload' => file, 'user' => 'nahi' }
@@ -199,7 +199,7 @@ require 'httpclient/cookie'
 #   ruby -rhttpclient -e 'p HTTPClient.head(ARGV.shift).header["last-modified"]' http://dev.ctor.org/
 #
 class HTTPClient
-  VERSION = '2.1.3.1'
+  VERSION = '2.1.4'
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
   /: (\S+) (\S+)/ =~ %q$Id$
   LIB_NAME = "(#{$1}/#{$2}, #{RUBY_VERSION_STRING})"
