@@ -250,8 +250,13 @@ class HTTPClient
   class << self
     %w(get_content post_content head get post put delete options propfind proppatch trace).each do |name|
       eval <<-EOD
-        def #{name}(*arg)
-          new.#{name}(*arg)
+        def #{name}(*arg, &block)
+          clnt = new
+          begin
+            clnt.#{name}(*arg, &block)
+          ensure
+            clnt.reset_all
+          end
         end
       EOD
     end
