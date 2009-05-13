@@ -770,6 +770,62 @@ EOS
     assert_match(%r(http://rubyforge.org/account/login.php	foo	bar	1924873200	rubyforge.org	/login.php	1), str)
   end
 
+  def test_eof_error_length
+    io = StringIO.new('')
+    def io.gets(*arg)
+      @buf ||= ["HTTP/1.0 200 OK\n", "content-length: 123\n", "\n"]
+      @buf.shift
+    end
+    def io.readpartial(size, buf)
+      @second ||= false
+      if !@second
+        @second = '1st'
+        buf << "abc"
+        buf
+      elsif @second == '1st'
+        @second = '2nd'
+        raise EOFError.new
+      else
+        raise Exception.new
+      end
+    end
+    def io.eof?
+      true
+    end
+    @client.test_loopback_http_response << io
+    assert_nothing_raised do
+      @client.get('http://foo/bar')
+    end
+  end
+
+  def test_eof_error_rest
+    io = StringIO.new('')
+    def io.gets(*arg)
+      @buf ||= ["HTTP/1.0 200 OK\n", "\n"]
+      @buf.shift
+    end
+    def io.readpartial(size, buf)
+      @second ||= false
+      if !@second
+        @second = '1st'
+        buf << "abc"
+        buf
+      elsif @second == '1st'
+        @second = '2nd'
+        raise EOFError.new
+      else
+        raise Exception.new
+      end
+    end
+    def io.eof?
+      true
+    end
+    @client.test_loopback_http_response << io
+    assert_nothing_raised do
+      @client.get('http://foo/bar')
+    end
+  end
+
   def test_urify
     extend HTTPClient::Util
     assert_nil(urify(nil))

@@ -445,7 +445,7 @@ class HTTPClient
     include SocketWrap
 
     def initialize(host, port, response)
-      super(StringIO.new(response))
+      super(response.is_a?(StringIO) ? response : StringIO.new(response))
       @host = host
       @port = port
     end
@@ -800,9 +800,13 @@ class HTTPClient
         maxbytes = @read_block_size
         maxbytes = @content_length if maxbytes > @content_length
         timeout(@receive_timeout, ReceiveTimeoutError) do
-          @socket.readpartial(maxbytes, buf) rescue EOFError
+          begin
+            @socket.readpartial(maxbytes, buf)
+          rescue EOFError
+            buf = nil
+          end
         end
-        if buf.length > 0
+        if buf && buf.length > 0
           @content_length -= buf.length
           yield buf
         else
@@ -840,7 +844,11 @@ class HTTPClient
       buf = ''
       while true
         timeout(@receive_timeout, ReceiveTimeoutError) do
-          @socket.readpartial(@read_block_size, buf) rescue EOFError
+          begin
+            @socket.readpartial(@read_block_size, buf)
+          rescue EOFError
+            buf = nil
+          end
         end
         if buf && buf.length > 0
           yield buf
