@@ -160,8 +160,10 @@ class WebAgent
 
     def parse(str, url)
       @url = url
+      # TODO: should not depend on join_quotedstr. scan with escape like CSV.
       cookie_elem = str.split(/;/)
       cookie_elem = join_quotedstr(cookie_elem, ';')
+      cookie_elem -= [""] # del empty elements, a cookie might included ";;"
       first_elem = cookie_elem.shift
       if first_elem !~ /([^=]*)(\=(.*))?/
 	return
@@ -170,7 +172,7 @@ class WebAgent
       @name = $1.strip
       @value = normalize_cookie_value($3)
       cookie_elem.each{|pair|
-	key, value = pair.split(/=/)  ## value may nil
+	key, value = pair.split(/=/, 2)  ## value may nil
 	key.strip!
         value = normalize_cookie_value(value)
 	case key.downcase

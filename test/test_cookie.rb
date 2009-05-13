@@ -168,6 +168,18 @@ class TestCookieManager < Test::Unit::TestCase
     assert_equal(Time.gm(2009,12,31,12,0,0), cookie.expires)
   end
 
+  def test_parse_double_semicolon()
+    str = "xmen=off,0,0,1;; path=\"/;;\"; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2009 12:00:00 GMT"
+    @cm.parse(str,URI.parse('http://www.excite.co.jp'))
+    cookie = @cm.cookies[0]
+    assert_instance_of(WebAgent::Cookie, cookie)
+    assert_equal("xmen", cookie.name)
+    assert_equal("off,0,0,1", cookie.value)
+    assert_equal("/;;", cookie.path)
+    assert_equal(".excite.co.jp", cookie.domain)
+    assert_equal(Time.gm(2009,12,31,12,0,0), cookie.expires)
+  end
+
 #  def test_make_portlist()
 #    assert_equal([80,8080], @cm.instance_eval{make_portlist("80,8080")})
 #    assert_equal([80], @cm.instance_eval{make_portlist("80")})
