@@ -61,21 +61,24 @@ class HTTPClient
   # It traps HTTP response header and maintains authentication state, and
   # traps HTTP request header for inserting necessary authentication header.
   #
-  # WWWAuth has sub filters (BasicAuth, DigestAuth, and NegotiateAuth) and
-  # delegates some operations to it.
+  # WWWAuth has sub filters (BasicAuth, DigestAuth, NegotiateAuth and
+  # SSPINegotiateAuth) and delegates some operations to it.
   # NegotiateAuth requires 'ruby/ntlm' module.
+  # SSPINegotiateAuth requires 'win32/sspi' module.
   class WWWAuth < AuthFilterBase
     attr_reader :basic_auth
     attr_reader :digest_auth
     attr_reader :negotiate_auth
+    attr_reader :sspi_negotiate_auth
 
     # Creates new WWWAuth.
     def initialize
       @basic_auth = BasicAuth.new
       @digest_auth = DigestAuth.new
       @negotiate_auth = NegotiateAuth.new
+      @sspi_negotiate_auth = SSPINegotiateAuth.new
       # sort authenticators by priority
-      @authenticator = [@negotiate_auth, @digest_auth, @basic_auth]
+      @authenticator = [@negotiate_auth, @sspi_negotiate_auth, @digest_auth, @basic_auth]
     end
 
     # Resets challenge state.  See sub filters for more details.
@@ -481,7 +484,7 @@ class HTTPClient
       case state
       when :init
         authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
-        return authenticator.get_initial_token
+        return authenticator.get_initial_token(@scheme)
       when :response
         @challenge.delete(domain_uri)
         return authenticator.complete_authentication(authphrase)
