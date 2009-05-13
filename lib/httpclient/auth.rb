@@ -320,26 +320,35 @@ class HTTPClient
     def calc_cred(method, uri, user, passwd, param)
       a_1 = "#{user}:#{param['realm']}:#{passwd}"
       a_2 = "#{method}:#{uri.path}"
+      nonce = param['nonce']
+      cnonce = generate_cnonce()
       @nonce_count += 1
       message_digest = []
       message_digest << Digest::MD5.hexdigest(a_1)
-      message_digest << param['nonce']
+      message_digest << nonce
       message_digest << ('%08x' % @nonce_count)
-      message_digest << param['nonce']
+      message_digest << cnonce
       message_digest << param['qop']
       message_digest << Digest::MD5.hexdigest(a_2)
       header = []
       header << "username=\"#{user}\""
       header << "realm=\"#{param['realm']}\""
-      header << "nonce=\"#{param['nonce']}\""
+      header << "nonce=\"#{nonce}\""
       header << "uri=\"#{uri.path}\""
-      header << "cnonce=\"#{param['nonce']}\""
+      header << "cnonce=\"#{cnonce}\""
       header << "nc=#{'%08x' % @nonce_count}"
       header << "qop=\"#{param['qop']}\""
       header << "response=\"#{Digest::MD5.hexdigest(message_digest.join(":"))}\""
       header << "algorithm=\"MD5\""
       header << "opaque=\"#{param['opaque']}\"" if param.key?('opaque')
       header.join(", ")
+    end
+
+    # cf. WEBrick::HTTPAuth::DigestAuth#generate_next_nonce(aTime)
+    def generate_cnonce
+      now = "%012d" % Time.now.to_i
+      pk = Digest::MD5.hexdigest([now, self.__id__, Process.pid, rand(65535)].join)[0, 32]
+      [now + ':' + pk].pack('m*').chop
     end
 
     def parse_challenge_param(param_str)
