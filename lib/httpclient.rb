@@ -658,14 +658,12 @@ class HTTPClient
   # cgi.rb does not support it.
   def request(method, uri, query = nil, body = nil, extheader = {}, &block)
     uri = urify(uri)
-    proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method, uri, query, body, extheader)
     if block
       filtered_block = proc { |res, str|
         block.call(str)
       }
     end
-    do_request(req, proxy, &filtered_block)
+    do_request(method, uri, query, body, extheader, &filtered_block)
   end
 
   # Sends HEAD request in async style.  See request_async for arguments.
@@ -728,9 +726,7 @@ class HTTPClient
   # Arguments definition is the same as request.
   def request_async(method, uri, query = nil, body = nil, extheader = {})
     uri = urify(uri)
-    proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method, uri, query, body, extheader)
-    do_request_async(req, proxy)
+    do_request_async(method, uri, query, body, extheader)
   end
 
   # Resets internal session for the given URL.  Keep-alive connection for the
@@ -753,10 +749,12 @@ private
   class KeepAliveDisconnected < StandardError # :nodoc:
   end
 
-  def do_request(req, proxy, &block)
+  def do_request(method, uri, query, body, extheader, &block)
     conn = Connection.new
     res = nil
     retry_count = @session_manager.protocol_retry_count
+    proxy = no_proxy?(uri) ? nil : @proxy
+    req = create_request(method, uri, query, body, extheader)
     while retry_count > 0
       begin
         protect_keep_alive_disconnected do
@@ -772,10 +770,12 @@ private
     res
   end
 
-  def do_request_async(req, proxy)
+  def do_request_async(method, uri, query, body, extheader)
     conn = Connection.new
     t = Thread.new(conn) { |tconn|
       retry_count = @session_manager.protocol_retry_count
+      proxy = no_proxy?(uri) ? nil : @proxy
+      req = create_request(method, uri, query, body, extheader)
       while retry_count > 0
         begin
           protect_keep_alive_disconnected do
@@ -822,13 +822,11 @@ private
     retry_number = 0
     while retry_number < @follow_redirect_count
       body.pos = pos if pos
-      req = create_request(method, uri, query, body, extheader)
-      proxy = no_proxy?(req.header.request_uri) ? nil : @proxy
-      res = do_request(req, proxy, &filtered_block)
+      res = do_request(method, uri, query, body, extheader, &filtered_block)
       if HTTP::Status.successful?(res.status)
         return res
       elsif HTTP::Status.redirect?(res.status)
-        uri = urify(@redirect_uri_callback.call(req.header.request_uri, res))
+        uri = urify(@redirect_uri_callback.call(uri, res))
         retry_number += 1
       else
         raise BadResponseError.new("unexpected response: #{res.header.inspect}", res)
