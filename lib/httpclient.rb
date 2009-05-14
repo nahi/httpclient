@@ -752,10 +752,14 @@ private
   def do_request(method, uri, query, body, extheader, &block)
     conn = Connection.new
     res = nil
+    if HTTP::Message.file?(body)
+      pos = body.pos rescue nil
+    end
     retry_count = @session_manager.protocol_retry_count
     proxy = no_proxy?(uri) ? nil : @proxy
-    req = create_request(method, uri, query, body, extheader)
     while retry_count > 0
+      body.pos = pos if pos
+      req = create_request(method, uri, query, body, extheader)
       begin
         protect_keep_alive_disconnected do
           do_get_block(req, proxy, conn, &block)
@@ -773,10 +777,14 @@ private
   def do_request_async(method, uri, query, body, extheader)
     conn = Connection.new
     t = Thread.new(conn) { |tconn|
+      if HTTP::Message.file?(body)
+        pos = body.pos rescue nil
+      end
       retry_count = @session_manager.protocol_retry_count
       proxy = no_proxy?(uri) ? nil : @proxy
-      req = create_request(method, uri, query, body, extheader)
       while retry_count > 0
+        body.pos = pos if pos
+        req = create_request(method, uri, query, body, extheader)
         begin
           protect_keep_alive_disconnected do
             do_get_stream(req, proxy, tconn)

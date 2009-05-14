@@ -262,6 +262,33 @@ class TestHTTPClient < Test::Unit::TestCase
     end
   end
 
+  def test_cookie_update_while_authentication
+    escape_noproxy do
+      @client.test_loopback_http_response << <<EOS
+HTTP/1.0 401\r
+Date: Fri, 19 Dec 2008 11:57:29 GMT\r
+Content-Type: text/plain\r
+Content-Length: 0\r
+WWW-Authenticate: Basic realm="hello"\r
+Set-Cookie: foo=bar; path=/; domain=.example.org; expires=#{Time.mktime(2030, 12, 31).httpdate}\r
+\r
+EOS
+      @client.test_loopback_http_response << <<EOS
+HTTP/1.1 200 OK\r
+Content-Length: 5\r
+Connection: close\r
+\r
+hello
+EOS
+      @client.debug_dev = str = ''
+      @client.set_auth("http://www.example.org/baz/", 'admin', 'admin')
+      assert_equal('hello', @client.get('http://www.example.org/baz/foo').content)
+      assert_match(/^Cookie: foo=bar/, str)
+      assert_match(/^Authorization: Basic YWRtaW46YWRtaW4=/, str)
+    end
+  end
+
+
   def test_proxy_ssl
     escape_noproxy do
       @client.proxy = 'http://admin:admin@localhost:8080/'
