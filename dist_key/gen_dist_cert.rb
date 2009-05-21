@@ -5,10 +5,10 @@ keypair = PKey::RSA.new(File.read("keypair.pem"))
 
 now = Time.now
 cert = X509::Certificate.new
-name = X509::Name.parse("/C=JP/O=ctor.org/OU=Development/CN=http-access2")
+name = X509::Name.parse("/C=JP/O=ctor.org/OU=Development/CN=httpclient")
 cert.subject = cert.issuer = X509::Name.new(name)
 cert.not_before = now
-cert.not_after = now + 2 * 365 * 24 * 60 * 60
+cert.not_after = Time.mktime(2038, 1, 1, 8, 59, 59)
 cert.public_key = keypair.public_key
 cert.serial = 0x1
 cert.version = 2 # X509v3
@@ -24,6 +24,6 @@ ext4 = ef.create_extension("keyUsage", key_usage.join(","), true)
 cert.extensions = [ext1, ext2, ext3, ext4]
 ext0 = ef.create_extension("authorityKeyIdentifier", "keyid:always,issuer:always")
 cert.add_extension(ext0)
-cert.sign(keypair, Digest::SHA1.new)
+cert.sign(keypair, OpenSSL::Digest::SHA512.new)
 
 print cert.to_pem
