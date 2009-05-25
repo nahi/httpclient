@@ -320,7 +320,7 @@ module HTTP
         end
         if @chunked
           set('Transfer-Encoding', 'chunked')
-        elsif keep_alive or @body_size != 0
+        elsif @body_size and (keep_alive or @body_size != 0)
           set('Content-Length', @body_size.to_s)
         end
         if @http_version >= 1.1
@@ -623,7 +623,7 @@ module HTTP
       def new_connect_request(uri)
         m = new
         m.header.init_connect_request(uri)
-        m.header.body_size = 0
+        m.header.body_size = nil
         m
       end
 
@@ -645,8 +645,12 @@ module HTTP
         m.header.init_request(method, uri, query)
         m.body = Body.new
         m.body.init_request(body || '', boundary)
-        m.header.body_size = m.body.size
-        m.header.chunked = true if m.body.size.nil?
+        if body
+          m.header.body_size = m.body.size
+          m.header.chunked = true if m.body.size.nil?
+        else
+          m.header.body_size = nil
+        end
         m
       end
 

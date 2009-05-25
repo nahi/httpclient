@@ -592,12 +592,12 @@ class HTTPClient
   end
 
   # Sends POST request to the specified URL.  See request for arguments.
-  def post(uri, body = nil, extheader = {}, &block)
+  def post(uri, body = '', extheader = {}, &block)
     request(:post, uri, nil, body, extheader, &block)
   end
 
   # Sends PUT request to the specified URL.  See request for arguments.
-  def put(uri, body = nil, extheader = {}, &block)
+  def put(uri, body = '', extheader = {}, &block)
     request(:put, uri, nil, body, extheader, &block)
   end
 

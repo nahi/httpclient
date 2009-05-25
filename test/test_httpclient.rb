@@ -123,7 +123,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
-    assert_equal("Host: localhost:#{Port}", lines[6])
+    assert_equal("Host: localhost:#{Port}", lines[5])
     @client.protocol_version = 'HTTP/1.1'
     assert_equal('HTTP/1.1', @client.protocol_version)
     str = ""
