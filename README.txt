@@ -70,8 +70,8 @@ You can also check sample/howto.rb how to use APIs.
 
 == Download
 
-* Stable: http://dev.ctor.org/download/httpclient-2.1.5.1.tar.gz (tar + gzip)
-* Stable: http://dev.ctor.org/download/httpclient-2.1.5.1.zip (ZIP) 
+* Stable: http://dev.ctor.org/download/httpclient-2.1.5.2.tar.gz (tar + gzip)
+* Stable: http://dev.ctor.org/download/httpclient-2.1.5.2.zip (ZIP) 
 
 * Older versions: http://dev.ctor.org/download/archive/ 
 
@@ -104,6 +104,19 @@ Thanks in advance.
 
 
 = Changes in 2.1.5 =
+
+  Jun 25, 2009 - version 2.1.5.2
+
+    * Added another cacert distribution certificate which uses
+      sha1WithRSAEncryption.  OpenSSL/0.9.7 cannot handle non-SHA1 digest
+      algorithm for certificate.  The new certificate is
+      RSA 2048 bit + SHA1 + notAfter:2010/12/31.  Corresponding CA bundle file
+      is cacert_sha1.p7s.  It is loaded only when cacert.p7s cannot be loaded
+      with the original distribution certificate.
+
+  Jun 11, 2009 - version 2.1.5.1
+
+    * README update.
 
   Jun 8, 2009 - version 2.1.5
 
