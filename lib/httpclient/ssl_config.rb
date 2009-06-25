@@ -339,9 +339,26 @@ class HTTPClient
     end
 
     def load_cacerts
-      file = File.join(File.dirname(__FILE__), 'cacert.p7s')
-      if File.exist?(file)
-        dist_cert =<<__DIST_CERT__
+      [
+        [DIST_CERT, 'cacert.p7s'],
+        [DIST_CERT_SHA1, 'cacert_sha1.p7s']
+      ].each do |cert_str, ca_file|
+        file = File.join(File.dirname(__FILE__), ca_file)
+        if File.exist?(file)
+          p7 = PKCS7.read_smime(File.open(file) { |f| f.read })
+          selfcert = X509::Certificate.new(cert_str)
+          store = X509::Store.new
+          store.add_cert(selfcert)
+          if (p7.verify(nil, store, p7.data, 0))
+            set_trust_ca(file)
+            return
+          end
+        end
+      end
+      STDERR.puts("cacerts loading failed")
+    end
+
+    DIST_CERT =<<__DIST_CERT__
 -----BEGIN CERTIFICATE-----
 MIID/TCCAuWgAwIBAgIBATANBgkqhkiG9w0BAQ0FADBLMQswCQYDVQQGEwJKUDER
 MA8GA1UECgwIY3Rvci5vcmcxFDASBgNVBAsMC0RldmVsb3BtZW50MRMwEQYDVQQD
@@ -367,17 +384,33 @@ JQm+Qj+K8qXcRTzZZGIBjw2n46xJgW6YncNCHU/WWfNCYwdkngHS/aN8IbEjhCwf
 viXFisVrDN/+pZZGMf67ZaY=
 -----END CERTIFICATE-----
 __DIST_CERT__
-        p7 = PKCS7.read_smime(File.open(file) { |f| f.read })
-        selfcert = X509::Certificate.new(dist_cert)
-        store = X509::Store.new
-        store.add_cert(selfcert)
-        if (p7.verify(nil, store, p7.data, 0))
-          set_trust_ca(file)
-        else
-          STDERR.puts("cacerts: #{file} loading failed")
-        end
-      end
-    end
+
+    DIST_CERT_SHA1 =<<__DIST_CERT__
+-----BEGIN CERTIFICATE-----
+MIID/TCCAuWgAwIBAgIBAjANBgkqhkiG9w0BAQUFADBLMQswCQYDVQQGEwJKUDER
+MA8GA1UECgwIY3Rvci5vcmcxFDASBgNVBAsMC0RldmVsb3BtZW50MRMwEQYDVQQD
+DApodHRwY2xpZW50MB4XDTA5MDYyNTE0MjUzN1oXDTEwMTIzMTIzNTk1OVowSzEL
+MAkGA1UEBhMCSlAxETAPBgNVBAoMCGN0b3Iub3JnMRQwEgYDVQQLDAtEZXZlbG9w
+bWVudDETMBEGA1UEAwwKaHR0cGNsaWVudDCCASIwDQYJKoZIhvcNAQEBBQADggEP
+ADCCAQoCggEBAM2PlkdTH97zvIHoPIMj87wnNvpqIQUD7L/hlysO0XBsmR/XZUeU
+ZKB10JQqMXviWpTnU9KU6xGTx3EI4wfd2dpLwH/d4d7K4LngW1kY7kJlZeJhakno
+GzQ40RSI9WkQ0R9KOE888f7OkTBafcL8UyWFVIMhQBw2d9iNl4Jc69QojayCDoSX
+XbbEP0n8yi7HwIU3RFuX6DtMpOx4/1K7Z002ccOGJ3J9kHgeDQSQtF42cQYC7qj2
+67I/OQgnB7ycxTCP0E7bdXQg+zqsngrhaoNn/+I+CoO7nD4t4uQ+B4agALh4PPxs
+bQD9MCL+VurNGLYv0HVd+ZlLblpddC9PLTsCAwEAAaOB6zCB6DAPBgNVHRMBAf8E
+BTADAQH/MDEGCWCGSAGG+EIBDQQkFiJSdWJ5L09wZW5TU0wgR2VuZXJhdGVkIENl
+cnRpZmljYXRlMB0GA1UdDgQWBBRAnB6XlMoOcm7HVAw+JWxY205PHTAOBgNVHQ8B
+Af8EBAMCAQYwcwYDVR0jBGwwaoAUQJwel5TKDnJux1QMPiVsWNtOTx2hT6RNMEsx
+CzAJBgNVBAYTAkpQMREwDwYDVQQKDAhjdG9yLm9yZzEUMBIGA1UECwwLRGV2ZWxv
+cG1lbnQxEzARBgNVBAMMCmh0dHBjbGllbnSCAQIwDQYJKoZIhvcNAQEFBQADggEB
+AGKhgByl/ur6SBFFKJcISJONFRaxf2ji0l6ut9XO1H2BSOSRjUbsFDWdWZG+D24Q
+JKKseSWPWAC5uHq00sBWkvmtip+duESPeDEdumdBhdiUUgGamW2Ew2y4yAdAVDeG
+t1p2fs8SylQN6AMTG/+R+MGHxhvg+UELYLcvAjjcDW2VhDQaJ1eFEfcMW1zRtvvh
+LJmVErouwFKyAjwhbF6sNxmToSnbO1ciWwIILMsOBNHMETCp+SzkRDIRWIkm6m+q
+RwRyYoHysODGvnu8VXS1hGRr2GIxeBga7dAGa2VLE/iUQ0d4lEskYU+6C4ZLyAWF
+O89dvLNRzpL10MaWCYVREks=
+-----END CERTIFICATE-----
+__DIST_CERT__
   end
 
 
