@@ -70,6 +70,7 @@ class HTTPClient
     attr_reader :digest_auth
     attr_reader :negotiate_auth
     attr_reader :sspi_negotiate_auth
+    attr_reader :oauth
 
     # Creates new WWWAuth.
     def initialize
@@ -77,8 +78,9 @@ class HTTPClient
       @digest_auth = DigestAuth.new
       @negotiate_auth = NegotiateAuth.new
       @sspi_negotiate_auth = SSPINegotiateAuth.new
+      @oauth = OAuth.new
       # sort authenticators by priority
-      @authenticator = [@negotiate_auth, @sspi_negotiate_auth, @digest_auth, @basic_auth]
+      @authenticator = [@oauth, @negotiate_auth, @sspi_negotiate_auth, @digest_auth, @basic_auth]
     end
 
     # Resets challenge state.  See sub filters for more details.
@@ -207,6 +209,8 @@ class HTTPClient
   # Authentication filter for handling BasicAuth negotiation.
   # Used in WWWAuth and ProxyAuth.
   class BasicAuth
+    include HTTPClient::Util
+
     # Authentication scheme.
     attr_reader :scheme
 
@@ -251,8 +255,8 @@ class HTTPClient
     end
 
     # Challenge handler: remember URL for response.
-    def challenge(uri, param_str)
-      @challengeable[uri] = true
+    def challenge(uri, param_str = nil)
+      @challengeable[urify(uri)] = true
       true
     end
   end
@@ -515,6 +519,200 @@ class HTTPClient
         c[:authphrase] = param_str
       end
       true
+    end
+  end
+
+  # Authentication filter for handling OAuth negotiation.
+  # Used in WWWAuth.
+  #
+  # CAUTION: This impl only support '#7 Accessing Protected Resources' in OAuth
+  # Core 1.0 spec for now. You need to obtain Access token and Access secret by
+  # yourself.
+  #
+  # CAUTION: This impl does NOT support OAuth Request Body Hash spec for now.
+  # http://oauth.googlecode.com/svn/spec/ext/body_hash/1.0/oauth-bodyhash.html
+  #
+  class OAuth
+    include HTTPClient::Util
+
+    # Authentication scheme.
+    attr_reader :scheme
+
+    class Config
+      include HTTPClient::Util
+
+      attr_accessor :realm
+      attr_accessor :consumer_key
+      attr_accessor :consumer_secret
+      attr_accessor :token
+      attr_accessor :secret
+      attr_accessor :signature_method
+      attr_accessor :version
+      attr_reader :signature_handler
+
+      attr_accessor :debug_timestamp
+      attr_accessor :debug_nonce
+
+      def initialize(*args)
+        @realm,
+          @consumer_key,
+          @consumer_secret,
+          @token,
+          @secret,
+          @signature_method,
+          @version =
+        keyword_argument(args,
+          :realm,
+          :consumer_key,
+          :consumer_secret,
+          :token,
+          :secret,
+          :signature_method,
+          :version
+        )
+        @signature_handler = {}
+      end
+    end
+
+    def self.escape(str) # :nodoc:
+      str.gsub(/([^a-zA-Z0-9_.~-]+)/n) {
+        '%' + $1.unpack('H2' * $1.size).join('%').upcase
+      }
+    end
+
+    def escape(str)
+      self.class.escape(str)
+    end
+
+    # Creates new DigestAuth filter.
+    def initialize
+      @auth = {}
+      @challengeable = {}
+      @nonce_count = 0
+      @signature_handler = {
+        'HMAC-SHA1' => method(:sign_hmac_sha1)
+      }
+      @scheme = "OAuth"
+    end
+
+    # Resets challenge state.  Do not send '*Authorization' header until the
+    # server sends '*Authentication' again.
+    def reset_challenge
+      @challengeable.clear
+    end
+
+    # Set authentication credential.
+    # You cannot set OAuth config via WWWAuth#set_auth. Use OAuth#config=
+    def set(uri, user, passwd)
+      # not supported
+    end
+
+    # Set authentication credential.
+    def set_config(uri, config)
+      if uri
+        uri = Util.uri_dirname(urify(uri))
+        @auth[uri] = config
+      end
+    end
+
+    # Response handler: returns credential.
+    # It sends cred only when a given uri is;
+    # * child page of challengeable(got *Authenticate before) uri and,
+    # * child page of defined credential
+    def get(req)
+      target_uri = req.header.request_uri
+      return nil unless @challengeable.find { |uri, ok|
+        Util.uri_part_of(target_uri, uri) and ok
+      }
+      config = Util.hash_find_value(@auth) { |uri, cred|
+        Util.uri_part_of(target_uri, uri)
+      }
+      return nil unless config
+      calc_cred(req, config)
+    end
+
+    # Challenge handler: remember URL for response.
+    def challenge(uri, param_str = nil)
+      @challengeable[urify(uri)] = true
+      true
+    end
+
+  private
+
+    def calc_cred(req, config)
+      header = {}
+      header['oauth_consumer_key'] = config.consumer_key
+      header['oauth_token'] = config.token
+      header['oauth_signature_method'] = config.signature_method
+      header['oauth_timestamp'] = config.debug_timestamp || Time.now.to_i.to_s
+      header['oauth_nonce'] = config.debug_nonce || generate_nonce()
+      header['oauth_version'] = config.version if config.version
+      signature = sign(config, header, req)
+      header['oauth_signature'] = signature
+      str = header.map { |k, v| encode_header(k, v) }.join(', ')
+      if config.realm
+        str = %Q(realm="#{config.realm}", ) + str
+      end
+      str
+    end
+
+    def generate_nonce
+      @nonce_count += 1
+      now = "%012d" % Time.now.to_i
+      pk = Digest::MD5.hexdigest([@nonce_count.to_s, now, self.__id__, Process.pid, rand(65535)].join)[0, 32]
+      [now + ':' + pk].pack('m*').chop
+    end
+
+    def encode_header(k, v)
+      %Q(#{escape(k.to_s)}="#{escape(v.to_s)}")
+    end
+
+    def encode_param(params)
+      params.map { |k, v|
+        %Q(#{escape(k.to_s)}=#{escape(v.to_s)})
+      }
+    end
+
+    def sign(config, header, req)
+      base_string = create_base_string(config, header, req)
+      if handler = config.signature_handler[config.signature_method] || @signature_handler[config.signature_method.to_s]
+        handler.call(config, base_string)
+      else
+        raise ConfigurationError.new("Unknown OAuth signature method: #{config.signature_method}")
+      end
+    end
+
+    def create_base_string(config, header, req)
+      params = encode_param(header)
+      query = req.header.request_query
+      if query and HTTP::Message.multiparam_query?(query)
+        params += encode_param(query)
+      end
+      # captures HTTP Message body only for 'application/x-www-form-urlencoded'
+      if req.header.contenttype == 'application/x-www-form-urlencoded' and req.body.size
+        params += encode_param(HTTP::Message.parse(req.body.content))
+      end
+      uri = req.header.request_uri
+      if uri.query
+        params += encode_param(HTTP::Message.parse(uri.query))
+      end
+      if uri.port == uri.default_port
+        request_url = "#{uri.scheme.downcase}://#{uri.host}#{uri.path}"
+      else
+        request_url = "#{uri.scheme.downcase}://#{uri.host}:#{uri.port}#{uri.path}"
+      end
+      [req.header.request_method.upcase, request_url, params.sort.join('&')].map { |e|
+        escape(e)
+      }.join('&')
+    end
+
+    def sign_hmac_sha1(config, base_string)
+      unless SSLEnabled
+        raise ConfigurationError.new("openssl required for OAuth implementation")
+      end
+      key = [escape(config.consumer_secret), escape(config.secret)].join('&')
+      digester = OpenSSL::Digest::SHA1.new
+      [OpenSSL::HMAC.digest(digester, key, base_string)].pack('m*').chomp
     end
   end
 

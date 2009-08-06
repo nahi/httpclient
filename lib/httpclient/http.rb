@@ -285,10 +285,37 @@ module HTTP
         get(key).collect { |item| item[1] }
       end
 
+      def create_query_uri()
+        if @request_method == 'CONNECT'
+          return "#{@request_uri.host}:#{@request_uri.port}"
+        end
+        path = @request_uri.path
+        path = '/' if path.nil? or path.empty?
+        if query_str = create_query_part()
+          path += "?#{query_str}"
+        end
+        path
+      end
+
+      def create_query_part()
+        query_str = nil
+        if @request_uri.query
+          query_str = @request_uri.query
+        end
+        if @request_query
+          if query_str
+            query_str += "&#{Message.create_query_part_str(@request_query)}"
+          else
+            query_str = Message.create_query_part_str(@request_query)
+          end
+        end
+        query_str
+      end
+
     private
 
       def request_line
-        path = create_query_uri(@request_uri, @request_query)
+        path = create_query_uri()
         if @request_via_proxy
           path = "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port }#{ path }"
         end
@@ -357,29 +384,6 @@ module HTTP
 
       def charset_label(charset)
         CHARSET_MAP[charset] || 'us-ascii'
-      end
-
-      def create_query_uri(uri, query)
-        if @request_method == 'CONNECT'
-          return "#{uri.host}:#{uri.port}"
-        end
-        path = uri.path
-        path = '/' if path.nil? or path.empty?
-        query_str = nil
-        if uri.query
-          query_str = uri.query
-        end
-        if query
-          if query_str
-            query_str += "&#{Message.create_query_part_str(query)}"
-          else
-            query_str = Message.create_query_part_str(query)
-          end
-        end
-        if query_str
-          path += "?#{query_str}"
-        end
-        path
       end
     end
 
@@ -583,6 +587,8 @@ module HTTP
             }.join("; ")
             if value.respond_to?(:mime_type)
               content_type = value.mime_type
+            elsif value.respond_to?(:content_type)
+              content_type = value.content_type
             else
               content_type = Message.mime_type(value.path)
             end
@@ -771,6 +777,27 @@ module HTTP
         str.gsub(/([^ a-zA-Z0-9_.-]+)/n) {
           '%' + $1.unpack('H2' * $1.size).join('%').upcase
         }.tr(' ', '+')
+      end
+
+      # from CGI.parse
+      def parse(query)
+        params = Hash.new([].freeze)
+        query.split(/[&;]/n).each do |pairs|
+          key, value = pairs.split('=',2).collect{|v| unescape(v) }
+          if params.has_key?(key)
+            params[key].push(value)
+          else
+            params[key] = [value]
+          end
+        end
+        params
+      end
+
+      # from CGI.unescape
+      def unescape(string)
+        string.tr('+', ' ').gsub(/((?:%[0-9a-fA-F]{2})+)/n) do
+          [$1.delete('%')].pack('H*')
+        end
       end
     end
 
