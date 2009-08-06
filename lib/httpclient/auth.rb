@@ -710,7 +710,7 @@ class HTTPClient
       unless SSLEnabled
         raise ConfigurationError.new("openssl required for OAuth implementation")
       end
-      key = [escape(config.consumer_secret), escape(config.secret)].join('&')
+      key = [escape(config.consumer_secret.to_s), escape(config.secret.to_s)].join('&')
       digester = OpenSSL::Digest::SHA1.new
       [OpenSSL::HMAC.digest(digester, key, base_string)].pack('m*').chomp
     end
