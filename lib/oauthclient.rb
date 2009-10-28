@@ -29,14 +29,6 @@ class OAuthClient < HTTPClient
     self.www_auth.oauth.challenge(nil)
   end
 
-  def with_oauth(token, secret, &block)
-    @mutex.synchronize do
-      @oauth_config.token = token
-      @oauth_config.secret = secret
-      yield
-    end
-  end
-
   def get_request_token(uri)
     oauth_config.token = nil
     oauth_config.secret = nil
@@ -47,14 +39,16 @@ class OAuthClient < HTTPClient
     res
   end
 
-  def get_access_token(uri, token, secret)
-    oauth_config.token = token
-    oauth_config.secret = secret
+  def get_access_token(uri, request_token, request_token_secret)
+    oauth_config.token = request_token
+    oauth_config.secret = request_token_secret
     res = get(uri)
     if res.status == 200
       res.oauth_params = h = get_oauth_response(res)
-      oauth_config.token = h['oauth_token']
-      oauth_config.secret = h['oauth_token_secret']
+      if h
+        oauth_config.token = h['oauth_token']
+        oauth_config.secret = h['oauth_token_secret']
+      end
     end
     res
   end
