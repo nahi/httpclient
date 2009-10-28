@@ -586,7 +586,8 @@ class HTTPClient
 
     # Creates new DigestAuth filter.
     def initialize
-      @auth = {}
+      @config = nil # common config
+      @auth = {} # configs for each site
       @challengeable = {}
       @nonce_count = 0
       @signature_handler = {
@@ -609,9 +610,23 @@ class HTTPClient
 
     # Set authentication credential.
     def set_config(uri, config)
-      if uri
+      if uri.nil?
+        @config = config
+      else
         uri = Util.uri_dirname(urify(uri))
         @auth[uri] = config
+      end
+    end
+
+    # Get authentication credential.
+    def get_config(uri = nil)
+      if uri.nil?
+        @config
+      else
+        uri = urify(uri)
+        Util.hash_find_value(@auth) { |cand_uri, cred|
+          Util.uri_part_of(uri, cand_uri)
+        }
       end
     end
 
@@ -621,19 +636,21 @@ class HTTPClient
     # * child page of defined credential
     def get(req)
       target_uri = req.header.request_uri
-      return nil unless @challengeable.find { |uri, ok|
+      return nil unless @challengeable[nil] or @challengeable.find { |uri, ok|
         Util.uri_part_of(target_uri, uri) and ok
       }
-      config = Util.hash_find_value(@auth) { |uri, cred|
-        Util.uri_part_of(target_uri, uri)
-      }
+      config = get_config(target_uri) || @config
       return nil unless config
       calc_cred(req, config)
     end
 
     # Challenge handler: remember URL for response.
     def challenge(uri, param_str = nil)
-      @challengeable[urify(uri)] = true
+      if uri.nil?
+        @challengeable[nil] = true
+      else
+        @challengeable[urify(uri)] = true
+      end
       true
     end
 
