@@ -541,6 +541,7 @@ class HTTPClient
     class Config
       include HTTPClient::Util
 
+      attr_accessor :http_method
       attr_accessor :realm
       attr_accessor :consumer_key
       attr_accessor :consumer_secret
@@ -548,28 +549,37 @@ class HTTPClient
       attr_accessor :secret
       attr_accessor :signature_method
       attr_accessor :version
+      attr_accessor :callback
+      attr_accessor :verifier
       attr_reader :signature_handler
 
       attr_accessor :debug_timestamp
       attr_accessor :debug_nonce
 
       def initialize(*args)
-        @realm,
+        @http_method,
+          @realm,
           @consumer_key,
           @consumer_secret,
           @token,
           @secret,
           @signature_method,
-          @version =
+          @version,
+          @callback,
+          @verifier =
         keyword_argument(args,
+          :http_method,
           :realm,
           :consumer_key,
           :consumer_secret,
           :token,
           :secret,
           :signature_method,
-          :version
+          :version,
+          :callback,
+          :verifier
         )
+        @http_method ||= :post
         @signature_handler = {}
       end
     end
@@ -664,6 +674,8 @@ class HTTPClient
       header['oauth_timestamp'] = config.debug_timestamp || Time.now.to_i.to_s
       header['oauth_nonce'] = config.debug_nonce || generate_nonce()
       header['oauth_version'] = config.version if config.version
+      header['oauth_callback'] = config.callback if config.callback
+      header['oauth_verifier'] = config.verifier if config.verifier
       signature = sign(config, header, req)
       header['oauth_signature'] = signature
       str = header.map { |k, v| encode_header(k, v) }.join(', ')

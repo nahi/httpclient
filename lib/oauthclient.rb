@@ -29,27 +29,23 @@ class OAuthClient < HTTPClient
     self.www_auth.oauth.challenge(nil)
   end
 
-  def get_request_token(uri)
+  def get_request_token(uri, callback = nil, param = nil)
     oauth_config.token = nil
     oauth_config.secret = nil
-    res = get(uri)
-    if res.status == 200
-      res.oauth_params = get_oauth_response(res)
-    end
+    oauth_config.callback = callback
+    oauth_config.verifier = nil
+    res = request(oauth_config.http_method, uri, param)
+    filter_response(res)
     res
   end
 
-  def get_access_token(uri, request_token, request_token_secret)
+  def get_access_token(uri, request_token, request_token_secret, verifier = nil)
     oauth_config.token = request_token
     oauth_config.secret = request_token_secret
-    res = get(uri)
-    if res.status == 200
-      res.oauth_params = h = get_oauth_response(res)
-      if h
-        oauth_config.token = h['oauth_token']
-        oauth_config.secret = h['oauth_token_secret']
-      end
-    end
+    oauth_config.callback = nil
+    oauth_config.verifier = verifier
+    res = request(oauth_config.http_method, uri)
+    filter_response(res)
     res
   end
 
@@ -57,6 +53,15 @@ private
 
   def unescape(escaped)
     ::HTTPClient::HTTP::Message.unescape(escaped)
+  end
+
+  def filter_response(res)
+    if res.status == 200
+      if res.oauth_params = get_oauth_response(res)
+        oauth_config.token = res.oauth_params['oauth_token']
+        oauth_config.secret = res.oauth_params['oauth_token_secret']
+      end
+    end
   end
 
   def get_oauth_response(res)
