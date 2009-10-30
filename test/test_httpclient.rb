@@ -345,9 +345,18 @@ EOS
     assert_equal('message body 2', @client.get_content('http://somewhere'))
   end
 
+  def test_multiline_header
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\nX-Foo: XXX\n   YYY\nX-Bar: \n XXX\n\tYYY\ncontent-length: 100\n\nmessage body 1"
+    res = @client.get('http://somewhere')
+    assert_equal('message body 1', res.content)
+    assert_equal(['XXX YYY'], res.header['x-foo'])
+    assert_equal(['XXX YYY'], res.header['x-bar'])
+  end
+
   def test_broken_header
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\nXXXXX\ncontent-length: 100\n\nmessage body 1"
-    assert_equal('message body 1', @client.get_content('http://somewhere'))
+    res = @client.get('http://somewhere')
+    assert_equal('message body 1', res.content)
   end
 
   def test_redirect_non_https

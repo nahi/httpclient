@@ -768,9 +768,15 @@ class HTTPClient
             end
             line.chomp!
             break if line.empty?
-            key, value = line.split(/\s*:\s*/, 2)
-            parse_keepalive_header(key, value)
-            @headers << [key, value]
+            if line[0] == ?\  or line[0] == ?\t
+              last = @headers.last[1]
+              last << ' ' unless last.empty?
+              last << line.strip
+            else
+              key, value = line.strip.split(/\s*:\s*/, 2)
+              parse_keepalive_header(key, value)
+              @headers << [key, value]
+            end
           end
         end while (@version == '1.1' && @status == 100)
       end
