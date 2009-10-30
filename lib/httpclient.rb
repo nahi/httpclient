@@ -989,7 +989,7 @@ private
     do_get_header(req, res, sess)
     conn.push(res)
     sess.get_body do |part|
-      pipew.syswrite(part)
+      pipew.write(part)
     end
     pipew.close
     @session_manager.keep(sess) unless sess.closed?

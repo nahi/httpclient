@@ -515,6 +515,12 @@ EOS
     assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
+  def test_get_async_for_largebody
+    conn = @client.get_async(@url + 'largebody')
+    res = conn.pop
+    assert_equal(1000*1000, res.content.read.length)
+  end
+
   def test_get_with_block
     called = false
     res = @client.get(@url + 'servlet') { |str|
@@ -1063,7 +1069,7 @@ private
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
-    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked].each do |sym|
+    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked, :largebody].each do |sym|
       @server.mount(
 	"/#{sym}",
 	WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
@@ -1177,6 +1183,11 @@ private
     res.body = piper
     pipew << req.query['msg']
     pipew.close
+  end
+
+  def do_largebody(req, res)
+    res['content-type'] = 'text/html'
+    res.body = "a" * 1000 * 1000
   end
 
   class TestServlet < WEBrick::HTTPServlet::AbstractServlet
