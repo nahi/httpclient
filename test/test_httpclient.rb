@@ -775,6 +775,18 @@ EOS
     assert_equal('hello', @client.get_content(@url + 'sleep?sec=2'))
   end
 
+  def test_receive_timeout_post
+    # this test takes 2 sec
+    assert_equal('hello', @client.post(@url + 'sleep', :sec => 2).content)
+    @client.receive_timeout = 1
+    assert_equal('hello', @client.post(@url + 'sleep', :sec => 0).content)
+    assert_raise(HTTPClient::ReceiveTimeoutError) do
+      @client.post(@url + 'sleep', :sec => 2)
+    end
+    @client.receive_timeout = 3
+    assert_equal('hello', @client.post(@url + 'sleep', :sec => 2).content)
+  end
+
   def test_reset
     url = @url + 'servlet'
     assert_nothing_raised do
