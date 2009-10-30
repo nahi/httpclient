@@ -7,7 +7,6 @@
 
 
 require 'httpclient'
-require 'monitor'
 
 module HTTP
   class Message
