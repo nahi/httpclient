@@ -412,6 +412,16 @@ EOS
     end
   end
 
+  def test_no_content
+    assert_nothing_raised do
+      timeout(2) do
+        @client.get(@url + 'status', :status => 101)
+        @client.get(@url + 'status', :status => 204)
+        @client.get(@url + 'status', :status => 304)
+      end
+    end
+  end
+
   def test_get_content
     assert_equal('hello', @client.get_content(@url + 'hello'))
     assert_equal('hello', @client.get_content(@url + 'redirect1'))
@@ -1081,7 +1091,7 @@ private
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
-    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked, :largebody].each do |sym|
+    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked, :largebody, :status].each do |sym|
       @server.mount(
 	"/#{sym}",
 	WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
@@ -1200,6 +1210,10 @@ private
   def do_largebody(req, res)
     res['content-type'] = 'text/html'
     res.body = "a" * 1000 * 1000
+  end
+
+  def do_status(req, res)
+    res.status = req.query['status'].to_i
   end
 
   class TestServlet < WEBrick::HTTPServlet::AbstractServlet

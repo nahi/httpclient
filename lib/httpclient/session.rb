@@ -725,12 +725,10 @@ class HTTPClient
       @chunked = false
       @chunk_length = 0
       parse_header
-
-      # Head of the request has been parsed.
+      # Header of the request has been parsed.
       @state = :DATA
       req = @requests.shift
-
-      if req.header.request_method == 'HEAD'
+      if req.header.request_method == 'HEAD' or no_message_body?(@status)
         @content_length = 0
         if @next_connection
           @state = :WAIT
@@ -780,6 +778,11 @@ class HTTPClient
           end
         end while (@version == '1.1' && @status == 100)
       end
+    end
+
+    def no_message_body?(status)
+      !status.nil? && # HTTP/0.9
+        ((status >= 100 && status < 200) || status == 204 || status == 304)
     end
 
     def parse_keepalive_header(key, value)
