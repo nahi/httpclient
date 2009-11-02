@@ -831,7 +831,7 @@ EOS
     @client.get_content('http://rubyforge.org/account/login.php')
     @client.save_cookie_store
     str = File.read(cookiefile)
-    assert_match(%r(http://rubyforge.org/account/login.php	foo	bar	1924873200	rubyforge.org	/login.php	1), str)
+    assert_match(%r(http://rubyforge.org/account/login.php	foo	bar	1924873200	rubyforge.org	/account	1), str)
   end
 
   def test_eof_error_length

@@ -372,7 +372,7 @@ class WebAgent
         # and IE does not check, too.
       end
 
-      path ||= url.path.sub(%r|/[^/]*|, '')
+      path ||= url.path.sub(%r|/[^/]*\z|, '')
       domain ||= domainname
       @cookies.synchronize do
         cookie = find_cookie_info(domain, path, name)

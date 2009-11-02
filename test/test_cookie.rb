@@ -343,6 +343,26 @@ EOF
     assert_equal(nil, c.expires)
   end
 
+  def test_add2()
+    c = WebAgent::Cookie.new()
+    c.name = "hoge"
+    c.value = "funi"
+    c.path = ''
+    c.url = URI.parse("http://www.inac.co.jp/hoge/hoge2/hoge3")
+    @cm.add(c)
+    #
+    c = WebAgent::Cookie.new()
+    c.name = "hoge"
+    c.value = "funi"
+    #c.path = '' NO path given -> same as URL
+    c.url = URI.parse("http://www.inac.co.jp/hoge/hoge2/hoge3")
+    @cm.add(c)
+    #
+    c1, c2 = @cm.cookies
+    assert_equal('', c1.path)
+    assert_equal('/hoge/hoge2', c2.path)
+  end
+
   def test_check_cookie_accept_domain()
     @cm.accept_domains = [".example1.co.jp", "www1.example.jp"]
     @cm.reject_domains = [".example2.co.jp", "www2.example.jp"]
