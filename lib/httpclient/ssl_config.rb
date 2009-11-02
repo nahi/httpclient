@@ -112,8 +112,8 @@ class HTTPClient
     #
     # Calling this method resets all existing sessions.
     def set_client_cert_file(cert_file, key_file)
-      @client_cert = X509::Certificate.new(File.open(cert_file).read)
-      @client_key = PKey::RSA.new(File.open(key_file).read)
+      @client_cert = X509::Certificate.new(File.open(cert_file) { |f| f.read })
+      @client_key = PKey::RSA.new(File.open(key_file) { |f| f.read })
       change_notify
     end
 
@@ -158,7 +158,7 @@ class HTTPClient
     # Calling this method resets all existing sessions.
     def set_crl(crl)
       unless crl.is_a?(X509::CRL)
-        crl = X509::CRL.new(File.open(crl).read)
+        crl = X509::CRL.new(File.open(crl) { |f| f.read })
       end
       @cert_store.add_crl(crl)
       @cert_store.flags = X509::V_FLAG_CRL_CHECK | X509::V_FLAG_CRL_CHECK_ALL
