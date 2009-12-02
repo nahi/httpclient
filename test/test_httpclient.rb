@@ -114,6 +114,27 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("= Response", lines[6])
   end
 
+  def test_host_given
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url)
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_equal("! CONNECTION ESTABLISHED", lines[2])
+    assert_equal("GET / HTTP/1.1", lines[3])
+    assert_equal("Host: localhost:#{Port}", lines[5])
+    #
+    @client.reset_all
+    str = ""
+    @client.debug_dev = str
+    @client.get(@url, nil, {'Host' => 'foo'})
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("= Request", lines[0])
+    assert_equal("! CONNECTION ESTABLISHED", lines[2])
+    assert_equal("GET / HTTP/1.1", lines[3])
+    assert_equal("Host: foo", lines[4]) # use given param
+  end
+
   def test_protocol_version_http11
     assert_equal(nil, @client.protocol_version)
     str = ""
@@ -621,6 +642,12 @@ EOS
     assert_equal("put", @client.put(@url + 'servlet').content)
     res = @client.put(@url + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
+  end
+
+  def test_put_bytesize
+    res = @client.put(@url + 'servlet', 'txt' => 'あいうえお')
+    assert_equal('txt=%E3%81%82%E3%81%84%E3%81%86%E3%81%88%E3%81%8A', res.header["x-query"][0])
+    assert_equal('15', res.header["x-size"][0])
   end
 
   def test_put_async
@@ -1239,6 +1266,8 @@ private
     def do_PUT(req, res)
       res.body = 'put'
       res["x-query"] = body_response(req)
+      param = WEBrick::HTTPUtils.parse_query(req.body) || {}
+      res["x-size"] = (param['txt'] || '').size
     end
 
     def do_DELETE(req, res)
