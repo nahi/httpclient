@@ -77,10 +77,11 @@ class HTTPClient
       @basic_auth = BasicAuth.new
       @digest_auth = DigestAuth.new
       @negotiate_auth = NegotiateAuth.new
+      @ntlm_auth = NegotiateAuth.new('NTLM')
       @sspi_negotiate_auth = SSPINegotiateAuth.new
       @oauth = OAuth.new
       # sort authenticators by priority
-      @authenticator = [@oauth, @negotiate_auth, @sspi_negotiate_auth, @digest_auth, @basic_auth]
+      @authenticator = [@oauth, @negotiate_auth, @ntlm_auth, @sspi_negotiate_auth, @digest_auth, @basic_auth]
     end
 
     # Resets challenge state.  See sub filters for more details.
@@ -153,9 +154,10 @@ class HTTPClient
     def initialize
       @basic_auth = BasicAuth.new
       @negotiate_auth = NegotiateAuth.new
+      @ntlm_auth = NegotiateAuth.new('NTLM')
       @sspi_negotiate_auth = SSPINegotiateAuth.new
       # sort authenticators by priority
-      @authenticator = [@negotiate_auth, @sspi_negotiate_auth, @basic_auth]
+      @authenticator = [@negotiate_auth, @ntlm_auth, @sspi_negotiate_auth, @basic_auth]
     end
 
     # Resets challenge state.  See sub filters for more details.
@@ -380,11 +382,11 @@ class HTTPClient
     attr_reader :ntlm_opt
 
     # Creates new NegotiateAuth filter.
-    def initialize
+    def initialize(scheme = "Negotiate")
       @auth = {}
       @auth_default = nil
       @challenge = {}
-      @scheme = "Negotiate"
+      @scheme = scheme
       @ntlm_opt = {
         :ntlmv2 => true
       }
