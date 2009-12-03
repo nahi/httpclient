@@ -9,6 +9,13 @@
 require 'uri'
 
 
+unless ''.respond_to?(:bytesize)
+  class String
+    alias bytesize size
+  end
+end
+
+
 class HTTPClient
 
 

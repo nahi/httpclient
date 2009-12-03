@@ -587,9 +587,15 @@ class HTTPClient
     end
 
     def self.escape(str) # :nodoc:
-      str.gsub(/([^a-zA-Z0-9_.~-]+)/n) {
-        '%' + $1.unpack('H2' * $1.size).join('%').upcase
-      }
+      if str.respond_to?(:force_encoding)
+        s = str.dup.force_encoding('BINARY').gsub(/([^a-zA-Z0-9_.~-]+)/) {
+          '%' + $1.unpack('H2' * $1.bytesize).join('%').upcase
+        }
+      else
+        str.gsub(/([^a-zA-Z0-9_.~-]+)/n) {
+          '%' + $1.unpack('H2' * $1.bytesize).join('%').upcase
+        }
+      end
     end
 
     def escape(str)
@@ -680,7 +686,8 @@ class HTTPClient
       header['oauth_verifier'] = config.verifier if config.verifier
       signature = sign(config, header, req)
       header['oauth_signature'] = signature
-      str = header.map { |k, v| encode_header(k, v) }.join(', ')
+      # no need to do but we should sort for easier to test.
+      str = header.sort_by { |k, v| k }.map { |k, v| encode_header(k, v) }.join(', ')
       if config.realm
         str = %Q(realm="#{config.realm}", ) + str
       end
@@ -700,8 +707,10 @@ class HTTPClient
 
     def encode_param(params)
       params.map { |k, v|
-        %Q(#{escape(k.to_s)}=#{escape(v.to_s)})
-      }
+        [v].flatten.map { |vv|
+          %Q(#{escape(k.to_s)}=#{escape(vv.to_s)})
+        }
+      }.flatten
     end
 
     def sign(config, header, req)
