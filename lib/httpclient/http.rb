@@ -597,6 +597,13 @@ module HTTP
             end
             headers << %{Content-Disposition: form-data; name="#{attr}"; #{param_str}}
             headers << %{Content-Type: #{content_type}}
+          elsif attr.is_a?(Hash)
+            h = attr
+            value = h[:content]
+            h.each do |h_key, h_val|
+              headers << %{#{h_key}: #{h_val}} if h_key != :content
+            end
+            remember_pos(value) if Message.file?(value)
           else
             headers << %{Content-Disposition: form-data; name="#{attr}"}
           end

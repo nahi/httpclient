@@ -641,6 +641,12 @@ class HTTPClient
   #        When the given method is 'POST' and the given body contains a file
   #        as a value, it will be posted as a multipart/form-data.
   #        e.g. { 'upload' => file }
+  #        You can also send custom multipart by passing an array of hashes.
+  #        Each part must have a :content attribute which can be a file, all
+  #        other keys will become headers.
+  #          [{ 'Content-Type' => 'text/plain', :content => "some text" },
+  #           { 'Content-Type' => 'video/mp4', :content => File.new('video.mp4') }]
+  #          => <Two parts with custom Content-Type header>
   #        See HTTP::Message.file? for actual condition of 'a file'.
   # extheader:: a Hash or an Array of extra headers.  e.g.
   #             { 'Accept' => '*/*' } or
