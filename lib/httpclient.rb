@@ -634,13 +634,15 @@ class HTTPClient
   #         e.g. { "a" => "b" } => 'http://host/part?a=b'
   #         Give an array to pass multiple value like
   #         [["a", "b"], ["a", "c"]] => 'http://host/part?a=b&a=c'
-  # body:: a Hash or an Array of body part.
-  #        e.g. { "a" => "b" } => 'a=b'.
+  # body:: a Hash or an Array of body part. e.g.
+  #          { "a" => "b" }
+  #          => 'a=b'
   #        Give an array to pass multiple value like
-  #        [["a", "b"], ["a", "c"]] => 'a=b&a=c'.
+  #          [["a", "b"], ["a", "c"]]
+  #          => 'a=b&a=c'.
   #        When the given method is 'POST' and the given body contains a file
-  #        as a value, it will be posted as a multipart/form-data.
-  #        e.g. { 'upload' => file }
+  #        as a value, it will be posted as a multipart/form-data. e.g.
+  #          { 'upload' => file }
   #        You can also send custom multipart by passing an array of hashes.
   #        Each part must have a :content attribute which can be a file, all
   #        other keys will become headers.
