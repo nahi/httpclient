@@ -19,7 +19,7 @@ require 'httpclient/http'
 require 'httpclient/auth'
 require 'httpclient/cookie'
 
-
+# :main:HTTPClient
 # The HTTPClient class provides several methods for accessing Web resources
 # via HTTP.
 #
@@ -95,6 +95,17 @@ require 'httpclient/cookie'
 #
 #     File.open('/tmp/post_data') do |file|
 #       body = { 'upload' => file, 'user' => 'nahi' }
+#       res = clnt.post(uri, body)
+#     end
+#
+# 3. Do multipart wth custom body.
+#
+#     File.open('/tmp/post_data') do |file|
+#       body = [{ 'Content-Type' => 'application/atom+xml; charset=UTF-8',
+#                 :content => '<entry>...</entry>' },
+#               { 'Content-Type' => 'video/mp4',
+#                 'Content-Transfer-Encoding' => 'binary',
+#                 :content => file }]
 #       res = clnt.post(uri, body)
 #     end
 #
@@ -522,17 +533,25 @@ class HTTPClient
   # Posts a content.
   #
   # uri:: a String or an URI object which represents an URL of web resource.
-  # body:: a Hash or an Array of body part.
-  #        e.g. { "a" => "b" } => 'a=b'.
+  # body:: a Hash or an Array of body part. e.g.
+  #          { "a" => "b" } => 'a=b'
   #        Give an array to pass multiple value like
-  #        [["a", "b"], ["a", "c"]] => 'a=b&a=c'.
+  #          [["a", "b"], ["a", "c"]] => 'a=b&a=c'
   #        When you pass a File as a value, it will be posted as a
-  #        multipart/form-data.  e.g. { 'upload' => file }
-  # extheader:: a Hash or an Array of extra headers.  e.g.
-  #             { 'Accept' => '*/*' } or
-  #             [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
+  #        multipart/form-data.  e.g.
+  #          { 'upload' => file }
+  #        You can also send custom multipart by passing an array of hashes.
+  #        Each part must have a :content attribute which can be a file, all
+  #        other keys will become headers.
+  #          [{ 'Content-Type' => 'text/plain', :content => "some text" },
+  #           { 'Content-Type' => 'video/mp4', :content => File.new('video.mp4') }]
+  #          => <Two parts with custom Content-Type header>
+  # extheader:: a Hash or an Array of extra headers. e.g.
+  #               { 'Accept' => '*/*' }
+  #             or
+  #               [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
   # &block:: Give a block to get chunked message-body of response like
-  #          post_content(uri) { |chunked_body| ... }.
+  #            post_content(uri) { |chunked_body| ... }.
   #          Size of each chunk may not be the same.
   #
   # post_content follows HTTP redirect status (see HTTP::Status.redirect?)
