@@ -1,4 +1,4 @@
-# -*- encoding: UTF-8 -*-
+# -*- encoding: utf-8 -*-
 require 'test/unit'
 require 'httpclient'
 require 'webrick'
@@ -596,7 +596,6 @@ EOS
       res = @client.post(@url + 'servlet', {1=>2, 3=>file})
       assert_match(/^Content-Disposition: form-data; name="1"\r\n/m, res.content)
       assert_match(/^Content-Disposition: form-data; name="3";/, res.content)
-      # FIND_TAG_IN_THIS_FILE
       assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
     end
   end
@@ -637,6 +636,37 @@ EOS
     assert(called)
     assert_equal('1=2&3=4', res.header["x-query"][0])
     assert_nil(res.content)
+  end
+
+  def test_post_with_custom_multipart
+    ext = {'content-type' => 'multipart/form-data'}
+    assert_equal("post", @client.post(@url + 'servlet').content[0, 4], ext)
+    body = [{ 'Content-Disposition' => 'form-data; name="1"', :content => "2"},
+            { 'Content-Disposition' => 'form-data; name="3"', :content => "4"}]
+    res = @client.post(@url + 'servlet', body, ext)
+    assert_match(/Content-Disposition: form-data; name="1"/, res.content)
+    assert_match(/Content-Disposition: form-data; name="3"/, res.content)
+    #
+    ext = {'content-type' => 'multipart/form-data; boundary=hello'}
+    assert_equal("post", @client.post(@url + 'servlet').content[0, 4], ext)
+    res = @client.post(@url + 'servlet', body, ext)
+    assert_match(/Content-Disposition: form-data; name="1"/, res.content)
+    assert_match(/Content-Disposition: form-data; name="3"/, res.content)
+    assert_equal("post,--hello\r\nContent-Disposition: form-data; name=\"1\"\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\"\r\n\r\n4\r\n--hello--\r\n\r\n", res.content)
+  end
+
+  def test_post_with_custom_multipart_and_file
+    STDOUT.sync = true
+    File.open(__FILE__) do |file|
+      ext = { 'Content-Type' => 'multipart/alternative' }
+      body = [{ 'Content-Type' => 'text/plain', :content => "this is only a test" },
+              { 'Content-Type' => 'application/x-ruby', :content => file }]
+      res = @client.post(@url + 'servlet', body, ext)
+      assert_match(/^Content-Type: text\/plain\r\n/m, res.content)
+      assert_match(/^this is only a test\r\n/m, res.content)
+      assert_match(/^Content-Type: application\/x-ruby\r\n/m, res.content)
+      assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
+    end
   end
 
   def test_put
