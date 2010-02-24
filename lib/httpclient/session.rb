@@ -218,7 +218,7 @@ class HTTPClient
       @sess_pool_mutex.synchronize do
         new_pool = []
         @sess_pool.each do |s|
-          if s.dest.match(uri)
+          if !cached && s.dest.match(uri)
             cached = s
           else
             new_pool << s
