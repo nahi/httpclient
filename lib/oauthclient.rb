@@ -48,21 +48,6 @@ class OAuthClient < HTTPClient
     res
   end
 
-private
-
-  def unescape(escaped)
-    ::HTTPClient::HTTP::Message.unescape(escaped)
-  end
-
-  def filter_response(res)
-    if res.status == 200
-      if res.oauth_params = get_oauth_response(res)
-        oauth_config.token = res.oauth_params['oauth_token']
-        oauth_config.secret = res.oauth_params['oauth_token_secret']
-      end
-    end
-  end
-
   def get_oauth_response(res)
     enc = res.header['content-encoding']
     body = nil
@@ -76,5 +61,20 @@ private
       r[unescape(key)] = unescape(value)
       r
     }
+  end
+
+private
+
+  def unescape(escaped)
+    escaped ? ::HTTP::Message.unescape(escaped) : nil
+  end
+
+  def filter_response(res)
+    if res.status == 200
+      if res.oauth_params = get_oauth_response(res)
+        oauth_config.token = res.oauth_params['oauth_token']
+        oauth_config.secret = res.oauth_params['oauth_token_secret']
+      end
+    end
   end
 end
