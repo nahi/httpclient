@@ -69,8 +69,6 @@ class TestAuth < Test::Unit::TestCase
 
   def teardown_server
     @server.shutdown
-    @server_thread.kill
-    @server_thread.join
   end
 
   def do_basic_auth(req, res)

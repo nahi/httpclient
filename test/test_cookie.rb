@@ -157,7 +157,7 @@ class TestCookieManager < Test::Unit::TestCase
   end
 
   def test_parse2()
-    str = "xmen=off,0,0,1; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2009 12:00:00 GMT"
+    str = "xmen=off,0,0,1; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str,URI.parse('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
     assert_instance_of(WebAgent::Cookie, cookie)
@@ -165,11 +165,11 @@ class TestCookieManager < Test::Unit::TestCase
     assert_equal("off,0,0,1", cookie.value)
     assert_equal("/", cookie.path)
     assert_equal(".excite.co.jp", cookie.domain)
-    assert_equal(Time.gm(2009,12,31,12,0,0), cookie.expires)
+    assert_equal(Time.gm(2037,12,31,12,0,0), cookie.expires)
   end
 
   def test_parse_double_semicolon()
-    str = "xmen=off,0,0,1;; path=\"/;;\"; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2009 12:00:00 GMT"
+    str = "xmen=off,0,0,1;; path=\"/;;\"; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str,URI.parse('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
     assert_instance_of(WebAgent::Cookie, cookie)
@@ -177,7 +177,7 @@ class TestCookieManager < Test::Unit::TestCase
     assert_equal("off,0,0,1", cookie.value)
     assert_equal("/;;", cookie.path)
     assert_equal(".excite.co.jp", cookie.domain)
-    assert_equal(Time.gm(2009,12,31,12,0,0), cookie.expires)
+    assert_equal(Time.gm(2037,12,31,12,0,0), cookie.expires)
   end
 
 #  def test_make_portlist()
@@ -229,10 +229,10 @@ class TestCookieManager < Test::Unit::TestCase
   end
 
   def test_find_cookie()
-    str = "xmen=off,0,0,1; path=/; domain=.excite2.co.jp; expires=Wednesday, 31-Dec-2009 12:00:00 GMT"
+    str = "xmen=off,0,0,1; path=/; domain=.excite2.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str, URI.parse("http://www.excite2.co.jp/"))
 
-    str = "xmen=off,0,0,2; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2009 12:00:00 GMT"
+    str = "xmen=off,0,0,2; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str, URI.parse("http://www.excite.co.jp/"))
 
     @cm.cookies[0].use = true

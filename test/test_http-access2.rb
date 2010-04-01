@@ -425,14 +425,10 @@ private
 
   def teardown_server
     @server.shutdown
-    @server_thread.kill
-    @server_thread.join
   end
 
   def teardown_proxyserver
     @proxyserver.shutdown
-    @proxyserver_thread.kill
-    @proxyserver_thread.join
   end
 
   def teardown_client

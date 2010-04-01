@@ -1,25 +1,24 @@
 require 'test/unit'
 require 'httpclient'
+require 'logger'
+require 'webrick/https'
 
 
 class TestSSL < Test::Unit::TestCase
   PORT = 17171
   DIR = File.dirname(File.expand_path(__FILE__))
-  require 'rbconfig'
-  RUBY = File.join(
-    Config::CONFIG["bindir"],
-    Config::CONFIG["ruby_install_name"] + Config::CONFIG["EXEEXT"]
-  )
 
   def setup
     @url = "https://localhost:#{PORT}/hello"
     @serverpid = @client = nil
     @verify_callback_called = false
+    @verbose, $VERBOSE = $VERBOSE, nil
     setup_server
     setup_client
   end
 
   def teardown
+    $VERBOSE = @verbose
     teardown_client
     teardown_server
   end
@@ -139,7 +138,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_equal("SSL_CTX_set_cipher_list:: no cipher match", ssle.message)
+      assert_match(/no cipher match/, ssle.message)
     end
     #
     cfg.ciphers = "ALL"
@@ -152,15 +151,11 @@ class TestSSL < Test::Unit::TestCase
 private
 
   def cert(filename)
-    OpenSSL::X509::Certificate.new(File.open(File.join(DIR, filename)) { |f|
-      f.read
-    })
+    OpenSSL::X509::Certificate.new(File.read(File.join(DIR, filename)))
   end
 
   def key(filename)
-    OpenSSL::PKey::RSA.new(File.open(File.join(DIR, filename)) { |f|
-      f.read
-    })
+    OpenSSL::PKey::RSA.new(File.read(File.join(DIR, filename)))
   end
 
   def q(str)
@@ -168,11 +163,49 @@ private
   end
 
   def setup_server
-    svrcmd = "#{q(RUBY)} "
-    svrcmd << "-d " if $DEBUG
-    svrcmd << File.join(DIR, "sslsvr.rb")
-    svrout = IO.popen(svrcmd)
-    @serverpid = Integer(svrout.gets.chomp)
+    logger = Logger.new(STDERR)
+    logger.level = Logger::Severity::FATAL	# avoid logging SSLError (ERROR level)
+    @server = WEBrick::HTTPServer.new(
+      :BindAddress => "localhost",
+      :Logger => logger,
+      :Port => PORT,
+      :AccessLog => [],
+      :DocumentRoot => DIR,
+      :SSLEnable => true,
+      :SSLCACertificateFile => File.join(DIR, 'ca.cert'),
+      :SSLCertificate => cert('server.cert'),
+      :SSLPrivateKey => key('server.key'),
+      :SSLVerifyClient => nil, #OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT|OpenSSL::SSL::VERIFY_PEER,
+      :SSLClientCA => cert('ca.cert'),
+      :SSLCertName => nil
+    )
+    [:hello].each do |sym|
+      @server.mount(
+        "/#{sym}",
+        WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
+      )
+    end
+    @server_thread = start_server_thread(@server)
+  end
+
+  def do_hello(req, res)
+    res['content-type'] = 'text/html'
+    res.body = "hello"
+  end
+
+  def start_server_thread(server)
+    t = Thread.new {
+      Thread.current.abort_on_exception = true
+      server.start
+    }
+    while server.status != :Running
+      sleep 0.1
+      unless t.alive?
+	t.join
+	raise
+      end
+    end
+    t
   end
 
   def setup_client
@@ -181,10 +214,7 @@ private
   end
 
   def teardown_server
-    if @serverpid
-      Process.kill('INT', @serverpid)
-      Process.waitpid(@serverpid) rescue nil
-    end
+    @server.shutdown if @server
   end
 
   def teardown_client
