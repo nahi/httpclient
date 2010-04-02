@@ -170,36 +170,36 @@ class TestClient < Test::Unit::TestCase
       @proxyio.string = ""
       @client.proxy = nil
       assert_equal(200, @client.head(@url).status)
-      assert(@proxyio.string.empty?)
+      assert(/accept/ !~ @proxyio.string)
       #
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(@proxyio.string.empty?)
+      assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar'
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(!@proxyio.string.empty?)
+      assert(/accept/ =~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:baz'
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(@proxyio.string.empty?)
+      assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:443'
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(!@proxyio.string.empty?)
+      assert(/accept/ =~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:443:localhost:17171,baz'
       @proxyio.string = ""
       @client.proxy = @proxyurl
       assert_equal(200, @client.head(@url).status)
-      assert(@proxyio.string.empty?)
+      assert(/accept/ !~ @proxyio.string)
     end
   end
 
