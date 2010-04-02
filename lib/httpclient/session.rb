@@ -529,6 +529,7 @@ class HTTPClient
           @socket.flush unless @socket_sync
         end
       rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE
+        # JRuby can raise IOError instead of ECONNRESET for now
         close
         raise KeepAliveDisconnected.new
       rescue HTTPClient::TimeoutError
@@ -742,11 +743,19 @@ class HTTPClient
     StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d\d\d)\s*([^\r\n]+)?\r?\n\z)
     def parse_header
       timeout(@receive_timeout, ReceiveTimeoutError) do
+        initial_line = nil
         begin
           initial_line = @socket.gets("\n")
           if initial_line.nil?
+            close
             raise KeepAliveDisconnected.new
           end
+        rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE, IOError
+          # JRuby can raise IOError instead of ECONNRESET for now
+          close
+          raise KeepAliveDisconnected.new
+        end
+        begin
           if StatusParseRegexp !~ initial_line
             @version = '0.9'
             @status = nil
