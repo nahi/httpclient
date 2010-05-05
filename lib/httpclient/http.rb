@@ -444,6 +444,7 @@ module HTTP
               while !part.read(@chunk_size, buf).nil?
                 dev << buf
               end
+              part.rewind
             else
               dev << part
             end
