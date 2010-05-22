@@ -45,6 +45,7 @@ class OAuthClient < HTTPClient
     oauth_config.verifier = verifier
     res = request(oauth_config.http_method, uri)
     filter_response(res)
+    oauth_config.verifier = nil
     res
   end
 
