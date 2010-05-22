@@ -35,6 +35,7 @@ end
 
 begin
   install('httpclient.rb')
+  install('oauthclient.rb')
   install('httpclient')
   install('httpclient', 'cacert.p7s')
   install('http-access2.rb')
