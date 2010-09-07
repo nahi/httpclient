@@ -435,7 +435,13 @@ class HTTPClient
   private
 
     def debug(str)
-      @debug_dev << str if str && @debug_dev
+      if str && @debug_dev
+        if str.include? "\0" then
+          @debug_dev << "#{str.length} bytes of possible binary data\n"
+        else
+          @debug_dev << str
+        end
+      end
     end
   end
 
