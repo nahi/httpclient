@@ -338,7 +338,7 @@ class HTTPClient
   # You can use a keyword argument style Hash.  Keys are :proxy, :agent_name
   # and :from.
   #
-  #   HTTPClient.new(:agent_name = 'MyAgent/0.1')
+  #   HTTPClient.new(:agent_name => 'MyAgent/0.1')
   def initialize(*args)
     proxy, agent_name, from = keyword_argument(args, :proxy, :agent_name, :from)
     @proxy = nil        # assigned later.
