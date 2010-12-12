@@ -317,6 +317,8 @@ class HTTPClient
   # An array of response HTTP String (not a HTTP message body) which is used
   # for loopback test.  See test/* to see how to use it.
   attr_proxy(:test_loopback_http_response)
+  # Decompress a compressed (with gzip or deflate) content body transparently. false by default.
+  attr_proxy(:transparent_gzip_decompression, true)
 
   # Default extheader for PROPFIND request.
   PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }

@@ -472,6 +472,22 @@ EOS
     assert(called)
   end
 
+  GZIP_CONTENT = "\x1f\x8b\x08\x00\x1a\x96\xe0\x4c\x00\x03\xcb\x48\xcd\xc9\xc9\x07\x00\x86\xa6\x10\x36\x05\x00\x00\x00"
+  DEFLATE_CONTENT = "\x78\x9c\xcb\x48\xcd\xc9\xc9\x07\x00\x06\x2c\x02\x15"
+  GZIP_CONTENT.force_encoding('BINARY') if GZIP_CONTENT.respond_to?(:force_encoding)
+  DEFLATE_CONTENT.force_encoding('BINARY') if DEFLATE_CONTENT.respond_to?(:force_encoding)
+  def test_get_gzipped_content
+    @client.transparent_gzip_decompression = false
+    content = @client.get_content(@url + 'compressed?enc=gzip')
+    content.force_encoding('BINARY') if content.respond_to?(:force_encoding)
+    assert_not_equal('hello', content)
+    assert_equal(GZIP_CONTENT, content)
+    @client.transparent_gzip_decompression = true
+    assert_equal('hello', @client.get_content(@url + 'compressed?enc=gzip'))
+    assert_equal('hello', @client.get_content(@url + 'compressed?enc=deflate'))
+    @client.transparent_gzip_decompression = false
+  end
+
   def test_get_content_with_block
     @client.get_content(@url + 'hello') do |str|
       assert_equal('hello', str)
@@ -1119,7 +1135,7 @@ private
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
-    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked, :largebody, :status].each do |sym|
+    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked, :largebody, :status, :compressed].each do |sym|
       @server.mount(
 	"/#{sym}",
 	WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
@@ -1234,6 +1250,16 @@ private
   def do_largebody(req, res)
     res['content-type'] = 'text/html'
     res.body = "a" * 1000 * 1000
+  end
+
+  def do_compressed(req, res)
+    if req.query['enc'] == 'gzip'
+      res['content-encoding'] = 'gzip'
+      res.body = GZIP_CONTENT
+    elsif req.query['enc'] == 'deflate'
+      res['content-encoding'] = 'deflate'
+      res.body = DEFLATE_CONTENT
+    end
   end
 
   def do_status(req, res)

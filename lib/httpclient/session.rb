@@ -13,6 +13,7 @@
 require 'socket'
 require 'thread'
 require 'stringio'
+require 'zlib'
 
 require 'httpclient/timeout'
 require 'httpclient/ssl_config'
@@ -106,6 +107,8 @@ class HTTPClient
 
     attr_reader :test_loopback_http_response
 
+    attr_accessor :transparent_gzip_decompression
+
     def initialize(client)
       @client = client
       @proxy = client.proxy
@@ -127,6 +130,8 @@ class HTTPClient
 
       @ssl_config = nil
       @test_loopback_http_response = []
+
+      @transparent_gzip_decompression = false
 
       @sess_pool = []
       @sess_pool_mutex = Mutex.new
@@ -185,6 +190,7 @@ class HTTPClient
         sess.ssl_config = @ssl_config
         sess.debug_dev = @debug_dev
         sess.test_loopback_http_response = @test_loopback_http_response
+        sess.transparent_gzip_decompression = @transparent_gzip_decompression
       end
       sess
     end
@@ -491,6 +497,8 @@ class HTTPClient
     attr_reader :ssl_peer_cert
     attr_accessor :test_loopback_http_response
 
+    attr_accessor :transparent_gzip_decompression
+
     def initialize(client, dest, agent_name, from)
       @client = client
       @dest = dest
@@ -524,6 +532,8 @@ class HTTPClient
 
       @socket = nil
       @readbuf = nil
+
+      @transparent_gzip_decompression = false
     end
 
     # Send a request to the server
@@ -596,6 +606,19 @@ class HTTPClient
       begin
         read_header if @state == :META
         return nil if @state != :DATA
+        if @gzipped and @transparent_gzip_decompression
+          # zlib itself has a functionality to decompress gzip stream.
+          # - zlib 1.2.5 Manual
+          #   http://www.zlib.net/manual.html#Advanced
+          # > windowBits can also be greater than 15 for optional gzip decoding. Add 32 to
+          # > windowBits to enable zlib and gzip decoding with automatic header detection,
+          # > or add 16 to decode only the gzip format
+          inflate_stream = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
+          original_block = block
+          block = Proc.new { |buf|
+            original_block.call(inflate_stream.inflate(buf))
+          }
+        end
         if @chunked
           read_body_chunked(&block)
         elsif @content_length
@@ -630,6 +653,9 @@ class HTTPClient
       end
       if @from
         req.header.set('From', @from)
+      end
+      if @transparent_gzip_decompression
+        req.header.set('Accept-Encoding', 'gzip,deflate')
       end
       req.header.set('Date', Time.now.httpdate)
     end
@@ -734,6 +760,7 @@ class HTTPClient
     def read_header
       @content_length = nil
       @chunked = false
+      @gzipped = false
       @chunk_length = 0
       parse_header
       # Header of the request has been parsed.
@@ -808,6 +835,9 @@ class HTTPClient
       key = key.downcase
       if key == 'content-length'
         @content_length = value.to_i
+      elsif key == 'content-encoding' and ( value.downcase == 'gzip' or
+                                            value.downcase == 'x-gzip' or value.downcase == 'deflate' )
+        @gzipped = true
       elsif key == 'transfer-encoding' and value.downcase == 'chunked'
         @chunked = true
         @chunk_length = 0
