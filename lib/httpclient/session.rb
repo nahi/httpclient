@@ -436,8 +436,10 @@ class HTTPClient
 
     def debug(str)
       if str && @debug_dev
-        if str.include? "\0" then
-          @debug_dev << "#{str.length} bytes of possible binary data\n"
+        if str.index("\0")
+          require 'hexdump'
+          str.force_encoding('BINARY') if str.respond_to?(:force_encoding)
+          @debug_dev << HexDump.encode(str).join("\n")
         else
           @debug_dev << str
         end
