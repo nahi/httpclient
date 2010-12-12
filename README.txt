@@ -18,8 +18,8 @@ See HTTPClient for documentation.
   * MT-safe
   * streaming POST (POST with File/IO)
   * Digest auth
-  * Negotiate/NTLM auth for WWW-Authenticate (requires net/htlm module)
-  * NTLM auth for Proxy-Authenticate (requires win32/sspi module)
+  * Negotiate/NTLM auth for WWW-Authenticate (requires net/htlm module; rubyntlm gem)
+  * NTLM auth for Proxy-Authenticate (requires 'win32/sspi' module; rubysspi gem)
   * extensible with filter interface
   * you don't have to care HTTP/1.1 persistent connection
     (httpclient cares instead of you)
