@@ -434,6 +434,15 @@ EOS
     end
   end
 
+  def test_redirect_https_relative
+    url = @url + 'redirect1'
+    https_url = URI.parse(url)
+    https_url.scheme = 'https'
+    @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: /foo\n\n"
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\n\nhello"
+    assert_equal('hello', @client.get_content(https_url))
+  end
+
   def test_no_content
     assert_nothing_raised do
       timeout(2) do
