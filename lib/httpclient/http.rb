@@ -95,7 +95,7 @@ module HTTP
 
     # Represents HTTP message header.
     class Headers
-      # HTTP version in a HTTP header.  Float.
+      # HTTP version in a HTTP header.  String.
       attr_accessor :http_version
       # Size of body.  nil when size is unknown (e.g. chunked response).
       attr_reader :body_size
@@ -151,7 +151,7 @@ module HTTP
       # Creates a Message::Headers.  Use init_request, init_response, or
       # init_connect_request for acutual initialize.
       def initialize
-        @http_version = 1.1
+        @http_version = '1.1'
         @body_size = nil
         @chunked = false
 
@@ -178,7 +178,7 @@ module HTTP
         @request_method = 'CONNECT'
         @request_uri = uri
         @request_query = nil
-        @http_version = 1.0
+        @http_version = '1.0'
       end
 
       # Placeholder URI object for nil uri.
@@ -350,7 +350,7 @@ module HTTP
         elsif @body_size and (keep_alive or @body_size != 0)
           set('Content-Length', @body_size.to_s)
         end
-        if @http_version >= 1.1 and get('Host').empty?
+        if @http_version >= '1.1' and get('Host').empty?
           if @request_uri.port == @request_uri.default_port
             # GFE/1.3 dislikes default port number (returns 404)
             set('Host', "#{@request_uri.host}")
@@ -735,9 +735,9 @@ module HTTP
       end
 
       # Returns true if the given HTTP version allows keep alive connection.
-      # version:: Float
+      # version:: String
       def keep_alive_enabled?(version)
-        version >= 1.1
+        version >= '1.1'
       end
 
       # Returns true if the given query (or body) has a multiple parameter.
@@ -850,13 +850,24 @@ module HTTP
       @header.body_size = @body.size if @header
     end
 
-    # Returns HTTP version in a HTTP header.  Float.
-    def version
+    # Returns HTTP version in a HTTP header.  String.
+    def http_version
       @header.http_version
     end
 
-    # Sets HTTP version in a HTTP header.  Float.
+    # Sets HTTP version in a HTTP header.  String.
+    def http_version=(http_version)
+      @header.http_version = http_version
+    end
+
+    VERSION_WARNING = 'Message#version (Float) is deprecated. Use Message#http_version (String) instead.'
+    def version
+      warn(VERSION_WARNING)
+      @header.http_version.to_f
+    end
+
     def version=(version)
+      warn(VERSION_WARNING)
       @header.http_version = version
     end
 

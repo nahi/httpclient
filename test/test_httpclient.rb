@@ -86,7 +86,7 @@ class TestHTTPClient < Test::Unit::TestCase
     @client.debug_dev = str = ''
     @client.test_loopback_http_response << "hello\nworld\n"
     res = @client.get(@url + 'hello')
-    assert_equal('0.9', res.version)
+    assert_equal('0.9', res.http_version)
     assert_equal(nil, res.status)
     assert_equal(nil, res.reason)
     assert_equal("hello\nworld\n", res.content)

@@ -645,7 +645,7 @@ class HTTPClient
     def set_header(req)
       if @requested_version
         if /^(?:HTTP\/|)(\d+.\d+)$/ =~ @requested_version
-          req.version = $1.to_f
+          req.http_version = $1
         end
       end
       if @agent_name
@@ -741,7 +741,7 @@ class HTTPClient
       @socket.flush unless @socket_sync
       res = HTTP::Message.new_response('')
       parse_header
-      res.version, res.status, res.reason = @version, @status, @reason
+      res.http_version, res.status, res.reason = @version, @status, @reason
       @headers.each do |key, value|
         res.header.set(key, value)
       end
@@ -803,7 +803,7 @@ class HTTPClient
             break
           end
           @version, @status, @reason = $1, $2.to_i, $3
-          @next_connection = HTTP::Message.keep_alive_enabled?(@version.to_f)
+          @next_connection = HTTP::Message.keep_alive_enabled?(@version)
           @headers = []
           while true
             line = @socket.gets("\n")

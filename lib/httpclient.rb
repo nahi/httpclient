@@ -998,7 +998,7 @@ private
   end
 
   def do_get_header(req, res, sess)
-    res.version, res.status, res.reason, headers = sess.get_header
+    res.http_version, res.status, res.reason, headers = sess.get_header
     headers.each do |key, value|
       res.header.add(key, value)
     end
