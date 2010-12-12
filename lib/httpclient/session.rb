@@ -467,6 +467,7 @@ class HTTPClient
   # Manages a HTTP session with a Site.
   class Session
     include HTTPClient::Timeout
+    include Util
 
     # Destination site
     attr_reader :dest
@@ -528,7 +529,8 @@ class HTTPClient
     # Send a request to the server
     def query(req)
       connect if @state == :INIT
-      req.header.request_via_proxy = !@proxy.nil?
+      # Use absolute URI (not absolute path) iif via proxy AND not HTTPS.
+      req.header.request_absolute_uri = !@proxy.nil? and !https?(@dest)
       begin
         timeout(@send_timeout, SendTimeoutError) do
           set_header(req)
@@ -639,7 +641,7 @@ class HTTPClient
       begin
         timeout(@connect_timeout, ConnectTimeoutError) do
           @socket = create_socket(site)
-          if @dest.scheme == 'https'
+          if https?(@dest)
             if @socket.is_a?(LoopBackSocket)
               connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
             else

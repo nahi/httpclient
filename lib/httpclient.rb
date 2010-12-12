@@ -932,10 +932,6 @@ private
     false
   end
 
-  def https?(uri)
-    uri.scheme.downcase == 'https'
-  end
-
   # !! CAUTION !!
   #   Method 'do_get*' runs under MT conditon. Be careful to change.
   def do_get_block(req, proxy, conn, &block)

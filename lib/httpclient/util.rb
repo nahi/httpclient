@@ -87,6 +87,11 @@ class HTTPClient
       v ? v[1] : nil
     end
     module_function :hash_find_value
+
+    # Checks if the given URI is https.
+    def https?(uri)
+      uri.scheme.downcase == 'https'
+    end
   end
 
 

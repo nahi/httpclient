@@ -109,7 +109,7 @@ module HTTP
       # Request only.  Requested query.
       attr_accessor :request_query
       # Request only.  Requested via proxy or not.
-      attr_accessor :request_via_proxy
+      attr_accessor :request_absolute_uri
 
       # Response only.  HTTP status
       attr_reader :status_code
@@ -158,7 +158,7 @@ module HTTP
         @request_method = nil
         @request_uri = nil
         @request_query = nil
-        @request_via_proxy = nil
+        @request_absolute_uri = nil
 
         @status_code = nil
         @reason_phrase = nil
@@ -189,7 +189,7 @@ module HTTP
         @request_method = method
         @request_uri = uri || NIL_URI
         @request_query = query
-        @request_via_proxy = false
+        @request_absolute_uri = false
       end
 
       # Initialize this instance as a response.
@@ -316,7 +316,7 @@ module HTTP
 
       def request_line
         path = create_query_uri()
-        if @request_via_proxy
+        if @request_absolute_uri
           path = "#{ @request_uri.scheme }://#{ @request_uri.host }:#{ @request_uri.port }#{ path }"
         end
         "#{ @request_method } #{ path } HTTP/#{ @http_version }#{ CRLF }"
