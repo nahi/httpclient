@@ -2,7 +2,7 @@ require 'rubygems'
 SPEC = Gem::Specification.new do |s|
   s.name = "httpclient"
   s.version = "2.1.6"
-  s.date = "2010-03-25"
+  s.date = "2010-12-12"
   s.author = "NAKAMURA, Hiroshi"
   s.email = "nahi@ruby-lang.org"
   s.homepage = "http://dev.ctor.org/httpclient"
