@@ -63,8 +63,8 @@ class HTTPClient
   #
   # WWWAuth has sub filters (BasicAuth, DigestAuth, NegotiateAuth and
   # SSPINegotiateAuth) and delegates some operations to it.
-  # NegotiateAuth requires 'ruby/ntlm' module.
-  # SSPINegotiateAuth requires 'win32/sspi' module.
+  # NegotiateAuth requires 'ruby/ntlm' module (rubyntlm gem).
+  # SSPINegotiateAuth requires 'win32/sspi' module (rubysspi gem).
   class WWWAuth < AuthFilterBase
     attr_reader :basic_auth
     attr_reader :digest_auth
@@ -553,6 +553,10 @@ class HTTPClient
       attr_accessor :version
       attr_accessor :callback
       attr_accessor :verifier
+
+      # for OAuth Session 1.0 (draft)
+      attr_accessor :session_handle
+
       attr_reader :signature_handler
 
       attr_accessor :debug_timestamp
@@ -582,6 +586,7 @@ class HTTPClient
           :verifier
         )
         @http_method ||= :post
+        @session_handle = nil
         @signature_handler = {}
       end
     end
@@ -684,6 +689,7 @@ class HTTPClient
       header['oauth_version'] = config.version if config.version
       header['oauth_callback'] = config.callback if config.callback
       header['oauth_verifier'] = config.verifier if config.verifier
+      header['oauth_session_handle'] = config.session_handle if config.session_handle
       signature = sign(config, header, req)
       header['oauth_signature'] = signature
       # no need to do but we should sort for easier to test.
