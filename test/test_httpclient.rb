@@ -594,7 +594,7 @@ EOS
     STDOUT.sync = true
     File.open(__FILE__) do |file|
       res = @client.post(@url + 'servlet', {1=>2, 3=>file})
-      assert_match(/^Content-Disposition: form-data; name="1"\r\n/m, res.content)
+      assert_match(/^Content-Disposition: form-data; name="1"\r\n/nm, res.content)
       assert_match(/^Content-Disposition: form-data; name="3";/, res.content)
       # FIND_TAG_IN_THIS_FILE
       assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
