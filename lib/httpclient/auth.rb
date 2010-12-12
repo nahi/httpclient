@@ -308,7 +308,7 @@ class HTTPClient
       }
       return nil unless user
       uri = req.header.request_uri
-      calc_cred(req.header.request_method, uri, user, passwd, param)
+      calc_cred(req, user, passwd, param)
     end
 
     # Challenge handler: remember URL and challenge token for response.
@@ -323,9 +323,11 @@ class HTTPClient
     # http://tools.assembla.com/breakout/wiki/DigestForSoap
     # Thanks!
     # supported algorithm: MD5 only for now
-    def calc_cred(method, uri, user, passwd, param)
+    def calc_cred(req, user, passwd, param)
+      method = req.header.request_method
+      path = req.header.create_query_uri
       a_1 = "#{user}:#{param['realm']}:#{passwd}"
-      a_2 = "#{method}:#{uri.path}"
+      a_2 = "#{method}:#{path}"
       nonce = param['nonce']
       cnonce = generate_cnonce()
       @nonce_count += 1
@@ -340,7 +342,7 @@ class HTTPClient
       header << "username=\"#{user}\""
       header << "realm=\"#{param['realm']}\""
       header << "nonce=\"#{nonce}\""
-      header << "uri=\"#{uri.path}\""
+      header << "uri=\"#{path}\""
       header << "cnonce=\"#{cnonce}\""
       header << "nc=#{'%08x' % @nonce_count}"
       header << "qop=\"#{param['qop']}\""

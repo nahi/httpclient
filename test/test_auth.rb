@@ -81,7 +81,7 @@ class TestAuth < Test::Unit::TestCase
     @digest_auth.authenticate(req, res)
     res['content-type'] = 'text/plain'
     res['x-query'] = req.body
-    res.body = 'digest_auth OK'
+    res.body = 'digest_auth OK' + req.query_string.to_s
   end
 
   def test_basic_auth
@@ -144,6 +144,13 @@ class TestAuth < Test::Unit::TestCase
     post_body = StringIO.new("1234567890")
     post_body.read(5)
     assert_equal('67890', c.post("http://localhost:#{Port}/digest_auth", post_body).header['x-query'][0])
+  end
+
+  def test_digest_auth_with_querystring
+    c = HTTPClient.new
+    c.debug_dev = STDERR if $DEBUG
+    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
+    assert_equal('digest_auth OKbar=baz', c.get_content("http://localhost:#{Port}/digest_auth/foo?bar=baz"))
   end
 
   def test_proxy_auth
