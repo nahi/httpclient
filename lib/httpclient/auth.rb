@@ -345,9 +345,9 @@ class HTTPClient
       header << "uri=\"#{path}\""
       header << "cnonce=\"#{cnonce}\""
       header << "nc=#{'%08x' % @nonce_count}"
-      header << "qop=\"#{param['qop']}\""
+      header << "qop=#{param['qop']}"
       header << "response=\"#{Digest::MD5.hexdigest(message_digest.join(":"))}\""
-      header << "algorithm=\"MD5\""
+      header << "algorithm=MD5"
       header << "opaque=\"#{param['opaque']}\"" if param.key?('opaque')
       header.join(", ")
     end
