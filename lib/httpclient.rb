@@ -797,7 +797,7 @@ private
             retry_count -= 1
           end
         end
-      rescue
+      rescue Exception
         conn.push $!
       end
     }
