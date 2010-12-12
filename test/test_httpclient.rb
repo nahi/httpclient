@@ -841,6 +841,13 @@ EOS
     assert_equal('hello', @client.post(@url + 'sleep', :sec => 2).content)
   end
 
+  def test_async_error
+    assert_raise( SocketError ) do
+      conn = @client.get_async("http://non-existing-host/")
+      conn.pop
+    end
+  end
+
   def test_reset
     url = @url + 'servlet'
     assert_nothing_raised do

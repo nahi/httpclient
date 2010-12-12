@@ -779,22 +779,26 @@ private
   def do_request_async(method, uri, query, body, extheader)
     conn = Connection.new
     t = Thread.new(conn) { |tconn|
-      if HTTP::Message.file?(body)
-        pos = body.pos rescue nil
-      end
-      retry_count = @session_manager.protocol_retry_count
-      proxy = no_proxy?(uri) ? nil : @proxy
-      while retry_count > 0
-        body.pos = pos if pos
-        req = create_request(method, uri, query, body, extheader)
-        begin
-          protect_keep_alive_disconnected do
-            do_get_stream(req, proxy, tconn)
-          end
-          break
-        rescue RetryableResponse
-          retry_count -= 1
+      begin
+        if HTTP::Message.file?(body)
+          pos = body.pos rescue nil
         end
+        retry_count = @session_manager.protocol_retry_count
+        proxy = no_proxy?(uri) ? nil : @proxy
+        while retry_count > 0
+          body.pos = pos if pos
+          req = create_request(method, uri, query, body, extheader)
+          begin
+            protect_keep_alive_disconnected do
+              do_get_stream(req, proxy, tconn)
+            end
+            break
+          rescue RetryableResponse
+            retry_count -= 1
+          end
+        end
+      rescue
+        conn.push $!
       end
     }
     conn.async_thread = t

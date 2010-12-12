@@ -64,7 +64,11 @@ class HTTPClient
     # Retrieves a HTTP::Message instance of HTTP response.  Do not invoke this
     # method twice for now.  The second invocation will be blocked.
     def pop
-      @queue.pop
+      response_or_exception = @queue.pop
+      if response_or_exception.is_a? Exception
+        raise response_or_exception
+      end
+      response_or_exception
     end
 
     def push(result) # :nodoc:
