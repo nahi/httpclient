@@ -119,15 +119,17 @@ class HTTPClient
   timeout_scheduler # initialize at first time.
 
   module Timeout
-    def timeout(sec, ex = nil, &block)
-      return yield if sec == nil or sec.zero?
-      scheduler = nil
-      begin
-        scheduler = HTTPClient.timeout_scheduler
-        period = scheduler.register(Thread.current, sec, ex)
-        yield(sec)
-      ensure
-        scheduler.cancel(period) if scheduler and period
+    if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'
+      def timeout(sec, ex = nil, &block)
+        return yield if sec == nil or sec.zero?
+        scheduler = nil
+        begin
+          scheduler = HTTPClient.timeout_scheduler
+          period = scheduler.register(Thread.current, sec, ex)
+          yield(sec)
+        ensure
+          scheduler.cancel(period) if scheduler and period
+        end
       end
     end
   end
