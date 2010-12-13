@@ -307,7 +307,6 @@ class HTTPClient
         Util.uri_part_of(target_uri, uri)
       }
       return nil unless user
-      uri = req.header.request_uri
       calc_cred(req, user, passwd, param)
     end
 
@@ -595,7 +594,7 @@ class HTTPClient
 
     def self.escape(str) # :nodoc:
       if str.respond_to?(:force_encoding)
-        s = str.dup.force_encoding('BINARY').gsub(/([^a-zA-Z0-9_.~-]+)/) {
+        str.dup.force_encoding('BINARY').gsub(/([^a-zA-Z0-9_.~-]+)/) {
           '%' + $1.unpack('H2' * $1.bytesize).join('%').upcase
         }
       else

@@ -619,6 +619,7 @@ EOS
     STDOUT.sync = true
     File.open(__FILE__) do |file|
       res = @client.post(@url + 'servlet', {1=>2, 3=>file})
+      res.content.force_encoding('BINARY') if res.content.respond_to?(:force_encoding)
       assert_match(/^Content-Disposition: form-data; name="1"\r\n/nm, res.content)
       assert_match(/^Content-Disposition: form-data; name="3";/, res.content)
       # FIND_TAG_IN_THIS_FILE

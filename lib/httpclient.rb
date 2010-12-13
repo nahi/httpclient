@@ -866,7 +866,7 @@ private
     end
     boundary = nil
     if body
-      dummy, content_type = extheader.find { |key, value|
+      _, content_type = extheader.find { |key, value|
         key.downcase == 'content-type'
       }
       if content_type
@@ -995,7 +995,7 @@ private
     end
     pipew.close
     @session_manager.keep(sess) unless sess.closed?
-    commands = @request_filter.collect { |filter|
+    _ = @request_filter.collect { |filter|
       filter.filter_response(req, res)
     }
     # ignore commands (not retryable in async mode)

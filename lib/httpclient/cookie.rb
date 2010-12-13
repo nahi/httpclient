@@ -337,7 +337,6 @@ class WebAgent
 
       domainname = url.host
       domain_orig, path_orig = domain, path
-      use_security = override
 
       if domain
 
