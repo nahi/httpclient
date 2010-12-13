@@ -17,10 +17,17 @@ end
 
 # OAuthClient provides OAuth related methods in addition to HTTPClient.
 #
-# TODO
+# See sample/ dir how to use OAuthClient. There are sample clients for Twitter,
+# FriendFeed and Google Buzz.
 class OAuthClient < HTTPClient
+
+  # HTTPClient::OAuth::Config:: OAuth configurator.
   attr_accessor :oauth_config
 
+  # Creates a OAuthClient instance which provides OAuth related methods in
+  # addition to HTTPClient.
+  #
+  # Method signature is as same as HTTPClient.  See HTTPClient.new
   def initialize(*arg)
     super
     @oauth_config = HTTPClient::OAuth::Config.new
@@ -28,6 +35,17 @@ class OAuthClient < HTTPClient
     self.www_auth.oauth.challenge(nil)
   end
 
+  # Get request token.
+  # uri:: URI for request token.
+  # callback:: callback String. This can be nil for OAuth 1.0a
+  # param:: Additional query parameter Hash.
+  #
+  # It returns a HTTP::Message instance as a response. When the request is made
+  # successfully, you can retrieve a pair of request token and secret like
+  # following;
+  #   res = client.get_request_token(...)
+  #   token = res.oauth_params['oauth_token']
+  #   secret = res.oauth_params['oauth_token_secret']
   def get_request_token(uri, callback = nil, param = nil)
     oauth_config.token = nil
     oauth_config.secret = nil
@@ -38,6 +56,16 @@ class OAuthClient < HTTPClient
     res
   end
 
+  # Get access token.
+  # uri:: URI for request token.
+  # request_token:: a request token String. See get_access_token.
+  # request_token_secret:: a request secret String. See get_access_token.
+  # verifier:: a verifier tag String.
+  #
+  # When the request succeeds and the server returns a pair of access token
+  # and secret, oauth_config.token and oauth_token.secret are updated with
+  # the access token. Then you can call OAuthClient#get, #post, #delete, etc.
+  # All requests are signed.
   def get_access_token(uri, request_token, request_token_secret, verifier = nil)
     oauth_config.token = request_token
     oauth_config.secret = request_token_secret
@@ -49,6 +77,7 @@ class OAuthClient < HTTPClient
     res
   end
 
+  # Parse response and returns a Hash.
   def get_oauth_response(res)
     enc = res.header['content-encoding']
     body = nil

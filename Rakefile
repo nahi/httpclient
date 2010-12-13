@@ -39,6 +39,6 @@ Rake::RDocTask.new("doc") do |rdoc|
 end
 
 task 'tags' do
-  chdir 'lib'
-  sh 'rtags --vi httpclient.rb httpclient/*.rb'
+  #sh 'rtags --vi lib/httpclient.rb lib/oauthclient.rb lib/hexdump.rb lib/httpclient/*.rb'
+  sh 'ctags lib/httpclient.rb lib/oauthclient.rb lib/hexdump.rb lib/httpclient/*.rb'
 end
