@@ -177,6 +177,16 @@ class HTTPClient
       add_cached_session(sess)
     end
 
+    def invalidate(site)
+      @sess_pool_mutex.synchronize do
+        @sess_pool.each do |sess|
+          if sess.dest == site
+            sess.invalidate
+          end
+        end
+      end
+    end
+
   private
 
     def open(uri, via_proxy = false)
@@ -227,7 +237,9 @@ class HTTPClient
       @sess_pool_mutex.synchronize do
         new_pool = []
         @sess_pool.each do |s|
-          if !cached && s.dest.match(uri)
+          if s.invalidated?
+            s.close # close & remove from the pool
+          elsif !cached && s.dest.match(uri)
             cached = s
           else
             new_pool << s
@@ -515,6 +527,7 @@ class HTTPClient
     def initialize(client, dest, agent_name, from)
       @client = client
       @dest = dest
+      @invalidated = false
       @proxy = nil
       @socket_sync = true
       @requested_version = nil
@@ -567,13 +580,14 @@ class HTTPClient
       rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE
         # JRuby can raise IOError instead of ECONNRESET for now
         close
-        raise KeepAliveDisconnected.new
+        raise KeepAliveDisconnected.new(self)
       rescue HTTPClient::TimeoutError
         close
         raise
       rescue
+        close
         if SSLEnabled and $!.is_a?(OpenSSL::SSL::SSLError)
-          raise KeepAliveDisconnected.new
+          raise KeepAliveDisconnected.new(self)
         else
           raise
         end
@@ -595,6 +609,14 @@ class HTTPClient
 
     def closed?
       @state == :INIT
+    end
+
+    def invalidate
+      @invalidated = true
+    end
+
+    def invalidated?
+      @invalidated
     end
 
     def get_header
@@ -801,12 +823,12 @@ class HTTPClient
           initial_line = @socket.gets("\n")
           if initial_line.nil?
             close
-            raise KeepAliveDisconnected.new
+            raise KeepAliveDisconnected.new(self)
           end
         rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE, IOError
           # JRuby can raise IOError instead of ECONNRESET for now
           close
-          raise KeepAliveDisconnected.new
+          raise KeepAliveDisconnected.new(self)
         end
         begin
           if StatusParseRegexp !~ initial_line

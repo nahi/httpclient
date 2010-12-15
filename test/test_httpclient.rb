@@ -415,6 +415,13 @@ EOS
       # trying to normal endpoint with SSL -> SSL negotiation failure
       @client.get_content(https_url)
     end
+    #
+    # https -> http with strict_redirect_uri_callback
+    @client.redirect_uri_callback = @client.method(:strict_redirect_uri_callback)
+    @client.test_loopback_http_response << redirect_to_http
+    assert_raises(HTTPClient::BadResponseError) do
+      @client.get_content(https_url)
+    end
   end
 
   def test_redirect_relative
@@ -1158,6 +1165,38 @@ EOS
     mgr = HTTPClient::SessionManager.new(@client)
     assert_equal('http://myproxy:12345', mgr.instance_eval { @proxy }.to_s)
     assert_equal(@client.debug_dev, mgr.debug_dev)
+  end
+
+  def test_keepalive_disconnected
+    client = HTTPClient.new
+    server = TCPServer.open('127.0.0.1', 0)
+    server.listen(30) # set enough backlogs
+    addr = server.addr
+    server_thread = Thread.new {
+      5.times do
+        # emulate 5 keep-alive connections
+        sock = server.accept
+        sock.gets
+        sock.gets
+        sock.write("HTTP/1.1 200 OK\r\n")
+        sock.write("Content-Length: 5\r\n")
+        sock.write("\r\n")
+        sock.write("12345")
+      end
+      while true
+        # then emulate KeepAliveDisconnected
+        sock = server.accept
+        sock.close
+      end
+    }
+    10.times.to_enum.map {
+      Thread.new {
+        begin
+          client.get("http://127.0.0.1:#{addr[1]}/")
+        rescue HTTPClient::KeepAliveDisconnected
+        end
+      }
+    }.map { |t| t.join }
   end
 
 private

@@ -781,6 +781,10 @@ private
   end
 
   class KeepAliveDisconnected < StandardError # :nodoc:
+    attr_reader :sess
+    def initialize(sess = nil)
+      @sess = sess
+    end
   end
 
   def do_request(method, uri, query, body, extheader, &block)
@@ -884,7 +888,10 @@ private
   def protect_keep_alive_disconnected
     begin
       yield
-    rescue KeepAliveDisconnected
+    rescue KeepAliveDisconnected => e
+      if e.sess
+        @session_manager.invalidate(e.sess.dest)
+      end
       yield
     end
   end
