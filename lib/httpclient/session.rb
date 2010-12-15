@@ -103,9 +103,6 @@ class HTTPClient
     attr_accessor :read_block_size
     attr_accessor :protocol_retry_count
 
-    # Local sockaddr structure to bind() to before connect
-    attr_accessor :local_sockaddr
-
     attr_accessor :ssl_config
 
     attr_reader :test_loopback_http_response
@@ -135,9 +132,6 @@ class HTTPClient
       @test_loopback_http_response = []
 
       @transparent_gzip_decompression = false
-
-      @local_sockaddr = nil
-
       @sess_pool = []
       @sess_pool_mutex = Mutex.new
     end
@@ -204,7 +198,6 @@ class HTTPClient
         sess.protocol_retry_count = @protocol_retry_count
         sess.ssl_config = @ssl_config
         sess.debug_dev = @debug_dev
-        sess.local_sockaddr = @local_sockaddr
         sess.test_loopback_http_response = @test_loopback_http_response
         sess.transparent_gzip_decompression = @transparent_gzip_decompression
       end
@@ -511,9 +504,6 @@ class HTTPClient
     attr_accessor :read_block_size
     attr_accessor :protocol_retry_count
 
-    # Local sockaddr to bind() to for connect
-    attr_accessor :local_sockaddr
-
     attr_accessor :ssl_config
     attr_reader :ssl_peer_cert
     attr_accessor :test_loopback_http_response
@@ -541,8 +531,6 @@ class HTTPClient
       @ssl_peer_cert = nil
 
       @test_loopback_http_response = nil
-
-      @local_sockaddr = nil
 
       @agent_name = agent_name
       @from = from
@@ -700,7 +688,6 @@ class HTTPClient
       begin
         timeout(@connect_timeout, ConnectTimeoutError) do
           @socket = create_socket(site)
-          @socket.bind = @local_sockaddr if @local_sockaddr
           if https?(@dest)
             if @socket.is_a?(LoopBackSocket)
               connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
