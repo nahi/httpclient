@@ -213,6 +213,7 @@ class HTTPClient
       @sess_pool.clear
     end
 
+    # This method might not work as you expected...
     def close(dest)
       if cached = get_cached_session(dest)
         cached.close

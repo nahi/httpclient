@@ -998,6 +998,8 @@ private
         content << part
       end
     end
+    # there could be a race condition but it's OK to cache unreusable
+    # connection because we do retry for that case.
     @session_manager.keep(sess) unless sess.closed?
     commands = @request_filter.collect { |filter|
       filter.filter_response(req, res)

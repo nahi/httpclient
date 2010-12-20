@@ -695,6 +695,7 @@ EOS
       body = [{ 'Content-Type' => 'text/plain', :content => "this is only a test" },
               { 'Content-Type' => 'application/x-ruby', :content => file }]
       res = @client.post(@url + 'servlet', body, ext)
+      res.content.force_encoding('BINARY') if res.content.respond_to?(:force_encoding)
       assert_match(/^Content-Type: text\/plain\r\n/m, res.content)
       assert_match(/^this is only a test\r\n/m, res.content)
       assert_match(/^Content-Type: application\/x-ruby\r\n/m, res.content)
@@ -1167,36 +1168,76 @@ EOS
     assert_equal(@client.debug_dev, mgr.debug_dev)
   end
 
+  def create_keepalive_thread(idx, sock)
+    Thread.new {
+      # return "12345" for the first connection
+      sock.gets
+      sock.gets
+      sock.write("HTTP/1.1 200 OK\r\n")
+      sock.write("Content-Length: 5\r\n")
+      sock.write("\r\n")
+      sock.write("12345")
+      # for the next connection, close while reading the request for emulating
+      # KeepAliveDisconnected
+      sock.gets
+      sock.close
+    }
+  end
+
   def test_keepalive_disconnected
     client = HTTPClient.new
     server = TCPServer.open('127.0.0.1', 0)
     server.listen(30) # set enough backlogs
-    addr = server.addr
+    endpoint = "http://127.0.0.1:#{server.addr[1]}/"
     server_thread = Thread.new {
+      Thread.abort_on_exception = true
+      # emulate 10 keep-alive connections
+      10.times do |idx|
+        sock = server.accept
+        create_keepalive_thread(idx, sock)
+      end
+      # return "23456" for the request which gets KeepAliveDisconnected
       5.times do
-        # emulate 5 keep-alive connections
         sock = server.accept
         sock.gets
         sock.gets
         sock.write("HTTP/1.1 200 OK\r\n")
+        sock.write("\r\n")
+        sock.write("23456")
+        sock.close
+      end
+      # return "34567" for the rest requests
+      while true
+        sock = server.accept
+        sock.gets
+        sock.gets
+        sock.write("HTTP/1.1 200 OK\r\n")
+        sock.write("Connection: close\r\n")
         sock.write("Content-Length: 5\r\n")
         sock.write("\r\n")
-        sock.write("12345")
-      end
-      while true
-        # then emulate KeepAliveDisconnected
-        sock = server.accept
+        sock.write("34567")
         sock.close
       end
     }
+    # allocate 10 keep-alive connections
     10.times.to_enum.map {
       Thread.new {
-        begin
-          client.get("http://127.0.0.1:#{addr[1]}/")
-        rescue HTTPClient::KeepAliveDisconnected
-        end
+        assert_equal("12345", client.get(endpoint).content)
       }
-    }.map { |t| t.join }
+    }.each(&:join)
+    # send 5 requests, which should get KeepAliveDesconnected.
+    # doing these requests, rest keep-alive connections are invalidated.
+    5.times.to_enum.map {
+      Thread.new {
+        assert_equal("23456", client.get(endpoint).content)
+      }
+    }.each(&:join)
+    # rest requests won't get KeepAliveDisconnected; how can I check this?
+    10.times.to_enum.map {
+      Thread.new {
+        assert_equal("34567", client.get(endpoint).content)
+      }
+    }.each(&:join)
   end
 
 private
