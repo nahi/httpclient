@@ -495,7 +495,6 @@ EOS
   def test_get_gzipped_content
     @client.transparent_gzip_decompression = false
     content = @client.get_content(@url + 'compressed?enc=gzip')
-    content.force_encoding('BINARY') if content.respond_to?(:force_encoding)
     assert_not_equal('hello', content)
     assert_equal(GZIP_CONTENT, content)
     @client.transparent_gzip_decompression = true
@@ -626,7 +625,6 @@ EOS
     STDOUT.sync = true
     File.open(__FILE__) do |file|
       res = @client.post(@url + 'servlet', {1=>2, 3=>file})
-      res.content.force_encoding('BINARY') if res.content.respond_to?(:force_encoding)
       assert_match(/^Content-Disposition: form-data; name="1"\r\n/nm, res.content)
       assert_match(/^Content-Disposition: form-data; name="3";/, res.content)
       assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
@@ -695,7 +693,6 @@ EOS
       body = [{ 'Content-Type' => 'text/plain', :content => "this is only a test" },
               { 'Content-Type' => 'application/x-ruby', :content => file }]
       res = @client.post(@url + 'servlet', body, ext)
-      res.content.force_encoding('BINARY') if res.content.respond_to?(:force_encoding)
       assert_match(/^Content-Type: text\/plain\r\n/m, res.content)
       assert_match(/^this is only a test\r\n/m, res.content)
       assert_match(/^Content-Type: application\/x-ruby\r\n/m, res.content)

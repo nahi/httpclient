@@ -785,8 +785,8 @@ module HTTP
 
       # from CGI.escape
       def escape(str) # :nodoc:
-        if str.respond_to?(:force_encoding)
-          str.dup.force_encoding('BINARY').gsub(/([^ a-zA-Z0-9_.-]+)/) {
+        if defined?(Encoding::ASCII_8BIT)
+          str.dup.force_encoding(Encoding::ASCII_8BIT).gsub(/([^ a-zA-Z0-9_.-]+)/) {
             '%' + $1.unpack('H2' * $1.bytesize).join('%').upcase
           }.tr(' ', '+')
         else

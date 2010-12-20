@@ -992,6 +992,7 @@ private
     do_get_header(req, res, sess)
     conn.push(res)
     sess.get_body do |part|
+      force_binary(part)
       if block
         block.call(res, part)
       else
@@ -1027,6 +1028,7 @@ private
     do_get_header(req, res, sess)
     conn.push(res)
     sess.get_body do |part|
+      force_binary(part)
       pipew.write(part)
     end
     pipew.close
