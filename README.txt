@@ -1,5 +1,5 @@
 httpclient - HTTP accessing library.
-Copyright (C) 2000-2009  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+Copyright (C) 2000-2010  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
 'httpclient' gives something like the functionality of libwww-perl (LWP) in
 Ruby.  'httpclient' formerly known as 'http-access2'.
@@ -34,7 +34,7 @@ See HTTPClient for documentation.
 
 Name:: NAKAMURA, Hiroshi
 E-mail:: nahi@ruby-lang.org
-Project web site:: http://dev.ctor.org/httpclient/
+Project web site:: http://github.com/nahi/httpclient
 
 
 == License
@@ -70,38 +70,88 @@ You can also check sample/howto.rb how to use APIs.
 
 == Download
 
-* Stable: http://dev.ctor.org/download/httpclient-2.1.5.2.tar.gz (tar + gzip)
-* Stable: http://dev.ctor.org/download/httpclient-2.1.5.2.zip (ZIP) 
+* Stable: http://dev.ctor.org/download/httpclient-2.1.6.tar.gz (tar + gzip)
+* Stable: http://dev.ctor.org/download/httpclient-2.1.6.zip (ZIP) 
 
 * Older versions: http://dev.ctor.org/download/archive/ 
 
 * Gem repository for stable version
   * (at default remove source at rubyforge.org) 
-* Gem repository for development version
-  * http://dev.ctor.org/download/ 
 
-* svn: http://dev.ctor.org/svn/http-access2/trunk/ 
+* git: git://github.com/nahi/httpclient.git
 
 === Gem
 
 You can install httpclient with rubygems.
 
-  % gem install httpclient --source http://dev.ctor.org/download/
+  % gem install httpclient
 
 
 == Bug report or Feature request
 
 Please file a ticket at the project web site.
 
-1. find a similar ticket from http://dev.ctor.org/http-access2/search?ticket=on
-2. login as an anonymous user from http://dev.ctor.org/http-access2/login
-3. create a new ticket from http://dev.ctor.org/http-access2/newticket 
+1. find a similar ticket from https://github.com/nahi/httpclient/issues
+2. create a new ticket by clicking 'Create Issue' button.
+3. you can use github features such as pull-request if you like.
 
 Thanks in advance. 
 
 
 == Changes
 
+
+= Changes in 2.1.6 =
+
+  Dec 20, 2010 - version 2.1.6
+
+    * IMPORTANT update for HTTPS(SSL) connection
+      * Trusted CA bundle file cacert_sha1.p7s for older environment (where
+        you cannot use SHA512 algorithm such as an old Mac OS X) included in
+        httpclient 2.1.5 expires in Dec 31, 2010.  Please update to 2.1.6 if
+        you're on such an environment.
+      * Updated trusted CA certificates file (cacert.p7s and cacert_sha1.p7s).
+        CA certs are imported from
+        'Java(TM) SE Runtime Environment (build 1.6.0_22-b04)'. 
+
+    * IMPORTANT bug fix for persistent connection
+      * #29 Resource Leak: If httpclient establishes two connections to the
+        same server in parallel, one of these connections will be leaked, patch
+        by xb.
+      * #30 When retrying a failed persistent connection, httpclient should use
+        a fresh connection, reported by xb.
+        These 2 fixes should fix 'Too many open files' error as well if you're
+        getting this. Please check 2.1.6 and let me know how it goes!
+
+    * Features
+      * #4 Added OAuthClient. See sample clients in sample/ dir.
+      * #42 Added transparent_gzip_decompression property, patch by Teshootub7.
+        All you need to use it is done by;
+        client.transparent_gzip_decompression = true
+        Then you can retrieve a document as usural in decompressed format.
+      * #38 Debug dump binary data (checking it includes \0 or not) in hex
+        encoded format, patch by chetan.
+
+    * Bug fixes
+      * #8 Opened certificate and key files for SSL not closed properly.
+      * #10 "get" method gets blocked in "readpartial" when receiving a 304
+        with no Content-Length.
+      * #11 Possible data corruption problem in asynchronous methods, patch by
+        a user. (http://dev.ctor.org/http-access2/ticket/228)
+      * #13 illegal Cookie PATH handling. When no PATH part given in Set-Cookie
+        header, URL's path part should be used for path variable.
+      * #16 httpclient doesn't support multiline server headers.
+      * #19 set_request_header clobbers 'Host' header setting if given, patch
+        by meuserj.
+      * #20 Relative Location on https redirect fails, patch by zenchild.
+      * #22 IIS/6 + MicrosoftSharePointTeamServices uses "NTLM" instead of
+        "Negotiate".
+      * #27 DigestAuth header: 'qop' parameter must not be enclosed between
+        double quotation, patch by ibc.
+      * #36 Wrong HTTP version in headers with Qt4 applications, reported by
+        gauleng.
+      * #38 DigestAuth + posting IO fails, patch by chetan.
+      * #41 https-over-proxy fails with IIS, patch by tai.
 
 = Changes in 2.1.5 =
 
