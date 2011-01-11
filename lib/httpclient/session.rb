@@ -261,7 +261,10 @@ class HTTPClient
       @debug_dev = debug_dev
     end
 
-    def ssl_connect
+    def ssl_connect(hostname = nil)
+      if hostname && @ssl_socket.respond_to?(:hostname=)
+        @ssl_socket.hostname = hostname
+      end
       @ssl_socket.connect
     end
 
@@ -695,7 +698,7 @@ class HTTPClient
             else
               @socket = create_ssl_socket(@socket)
               connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
-              @socket.ssl_connect
+              @socket.ssl_connect(@dest.host)
               @socket.post_connection_check(@dest)
               @ssl_peer_cert = @socket.peer_cert
             end
