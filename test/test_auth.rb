@@ -36,6 +36,10 @@ class TestAuth < Test::Unit::TestCase
       '/digest_auth',
       WEBrick::HTTPServlet::ProcHandler.new(method(:do_digest_auth).to_proc)
     )
+    @server.mount(
+      '/digest_sess_auth',
+      WEBrick::HTTPServlet::ProcHandler.new(method(:do_digest_sess_auth).to_proc)
+    )
     htpasswd = File.join(File.dirname(__FILE__), 'htpasswd')
     htpasswd_userdb = WEBrick::HTTPAuth::Htpasswd.new(htpasswd)
     htdigest = File.join(File.dirname(__FILE__), 'htdigest')
@@ -46,6 +50,11 @@ class TestAuth < Test::Unit::TestCase
     )
     @digest_auth = WEBrick::HTTPAuth::DigestAuth.new(
       :Algorithm => 'MD5',
+      :Realm => 'auth',
+      :UserDB => htdigest_userdb
+    )
+    @digest_sess_auth = WEBrick::HTTPAuth::DigestAuth.new(
+      :Algorithm => 'MD5-sess',
       :Realm => 'auth',
       :UserDB => htdigest_userdb
     )
@@ -82,6 +91,13 @@ class TestAuth < Test::Unit::TestCase
     res['content-type'] = 'text/plain'
     res['x-query'] = req.body
     res.body = 'digest_auth OK' + req.query_string.to_s
+  end
+
+  def do_digest_sess_auth(req, res)
+    @digest_sess_auth.authenticate(req, res)
+    res['content-type'] = 'text/plain'
+    res['x-query'] = req.body
+    res.body = 'digest_sess_auth OK' + req.query_string.to_s
   end
 
   def test_basic_auth
@@ -151,6 +167,12 @@ class TestAuth < Test::Unit::TestCase
     c.debug_dev = STDERR if $DEBUG
     c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
     assert_equal('digest_auth OKbar=baz', c.get_content("http://localhost:#{Port}/digest_auth/foo?bar=baz"))
+  end
+
+  def test_digest_sess_auth
+    c = HTTPClient.new
+    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
+    assert_equal('digest_sess_auth OK', c.get_content("http://localhost:#{Port}/digest_sess_auth"))
   end
 
   def test_proxy_auth
