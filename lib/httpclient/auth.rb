@@ -321,7 +321,7 @@ class HTTPClient
     # this method is implemented by sromano and posted to
     # http://tools.assembla.com/breakout/wiki/DigestForSoap
     # Thanks!
-    # supported algorithm: MD5 only for now
+    # supported algorithms: MD5, MD5-sess
     def calc_cred(req, user, passwd, param)
       method = req.header.request_method
       path = req.header.create_query_uri
@@ -330,8 +330,15 @@ class HTTPClient
       nonce = param['nonce']
       cnonce = generate_cnonce()
       @nonce_count += 1
+      a_1_md5sum = Digest::MD5.hexdigest(a_1)
+      if param['algorithm'] =~ /MD5-sess/
+        a_1_md5sum = Digest::MD5.hexdigest("#{a_1_md5sum}:#{nonce}:#{cnonce}")
+        algorithm = "MD5-sess"
+      else
+        algorithm = "MD5"
+      end
       message_digest = []
-      message_digest << Digest::MD5.hexdigest(a_1)
+      message_digest << a_1_md5sum
       message_digest << nonce
       message_digest << ('%08x' % @nonce_count)
       message_digest << cnonce
@@ -346,7 +353,7 @@ class HTTPClient
       header << "nc=#{'%08x' % @nonce_count}"
       header << "qop=#{param['qop']}"
       header << "response=\"#{Digest::MD5.hexdigest(message_digest.join(":"))}\""
-      header << "algorithm=MD5"
+      header << "algorithm=#{algorithm}"
       header << "opaque=\"#{param['opaque']}\"" if param.key?('opaque')
       header.join(", ")
     end
