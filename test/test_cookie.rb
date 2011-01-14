@@ -283,7 +283,7 @@ EOF
   def test_save_cookie()
     str = <<EOF
 http://www.zdnet.co.jp/news/0106/08/e_gibson.html	NGUserID	d29b8f49-10875-992421294-1	2145801600	www.zdnet.co.jp	/	9
-http://www.zdnet.co.jp/news/0106/08/e_gibson.html	PACK	zd3-992421294-7436	1293839999	.zdnet.co.jp	/	13
+http://www.zdnet.co.jp/news/0106/08/e_gibson.html	PACK	zd3-992421294-7436	2145801600	.zdnet.co.jp	/	13
 EOF
     begin
       File.open("tmp_test.tmp","w") {|f|
