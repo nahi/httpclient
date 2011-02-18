@@ -330,9 +330,8 @@ class HTTPClient
   attr_proxy(:test_loopback_http_response)
   # Decompress a compressed (with gzip or deflate) content body transparently. false by default.
   attr_proxy(:transparent_gzip_decompression, true)
-  # Local IP Address to bind() local side of the socket to
-  attr_proxy(:local_host,true)
-  attr_proxy(:local_port,true)
+  # Local socket address
+  attr_proxy(:socket_local, true)
 
   # Default extheader for PROPFIND request.
   PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }
@@ -369,8 +368,6 @@ class HTTPClient
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
     @cookie_manager = WebAgent::CookieManager.new
     @follow_redirect_count = 10
-    @local_host = nil
-    @local_port = nil
     load_environment
     self.proxy = proxy if proxy
   end
