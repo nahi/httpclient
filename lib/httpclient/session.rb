@@ -25,12 +25,14 @@ class HTTPClient
 
   # Represents a Site: protocol scheme, host String and port Number.
   class Site
+    EMPTY = Site.new.freeze
+
     # Protocol scheme.
     attr_accessor :scheme
     # Host String.
-    attr_reader :host
+    attr_accessor :host
     # Port number.
-    attr_reader :port
+    attr_accessor :port
 
     # Creates a new Site based on the given URI.
     def initialize(uri = nil)
@@ -103,9 +105,8 @@ class HTTPClient
     attr_accessor :read_block_size
     attr_accessor :protocol_retry_count
 
-    # Local host/port to bind() to before connect
-    attr_accessor :local_host
-    attr_accessor :local_port
+    # Local address to bind local side of the socket to
+    attr_accessor :socket_local
 
     attr_accessor :ssl_config
 
@@ -136,8 +137,7 @@ class HTTPClient
       @test_loopback_http_response = []
 
       @transparent_gzip_decompression = false
-      @local_host = nil
-      @local_port = nil
+      @socket_local = Site.new
 
       @sess_pool = []
       @sess_pool_mutex = Mutex.new
@@ -205,8 +205,7 @@ class HTTPClient
         sess.protocol_retry_count = @protocol_retry_count
         sess.ssl_config = @ssl_config
         sess.debug_dev = @debug_dev
-        sess.local_host = @local_host
-        sess.local_port = @local_port
+        sess.socket_local = @socket_local
         sess.test_loopback_http_response = @test_loopback_http_response
         sess.transparent_gzip_decompression = @transparent_gzip_decompression
       end
@@ -517,9 +516,7 @@ class HTTPClient
     attr_accessor :read_block_size
     attr_accessor :protocol_retry_count
 
-    # Local host/port to bind() to for connect
-    attr_accessor :local_host
-    attr_accessor :local_port
+    attr_accessor :socket_local
 
     attr_accessor :ssl_config
     attr_reader :ssl_peer_cert
@@ -548,9 +545,7 @@ class HTTPClient
       @ssl_peer_cert = nil
 
       @test_loopback_http_response = nil
-
-      @local_host = nil
-      @local_port = nil
+      @socket_local = Site::EMPTY
 
       @agent_name = agent_name
       @from = from
@@ -750,7 +745,7 @@ class HTTPClient
         if str = @test_loopback_http_response.shift
           socket = LoopBackSocket.new(site.host, site.port, str)
         else
-          socket = TCPSocket.new(site.host, site.port, @local_host, @local_port)
+          socket = TCPSocket.new(site.host, site.port, @socket_local.host, @socket_local.port)
         end
         if @debug_dev
           @debug_dev << "! CONNECTION ESTABLISHED\n"

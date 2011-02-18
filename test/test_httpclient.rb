@@ -1237,6 +1237,16 @@ EOS
     }.each(&:join)
   end
 
+  def test_socket_local
+    @client.socket_local.host = 'localhost'
+    assert_equal('hello', @client.get_content(@url + 'hello'))
+    @client.reset_all
+    @client.socket_local.port = Port
+    assert_raises(Errno::EADDRINUSE) do
+      assert_equal('hello', @client.get_content(@url + 'hello'))
+    end
+  end
+
 private
 
   def check_query_get(query)
