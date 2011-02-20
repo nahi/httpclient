@@ -528,7 +528,7 @@ class HTTPClient
     # Set authentication credential.
     # NOT SUPPORTED: username and necessary data is retrieved by win32/sspi.
     # See win32/sspi for more details.
-    def set(uri, user, passwd)
+    def set(*args)
       @set = true
       # not supported
     end
@@ -692,7 +692,7 @@ class HTTPClient
 
     # Set authentication credential.
     # You cannot set OAuth config via WWWAuth#set_auth. Use OAuth#config=
-    def set(uri, user, passwd)
+    def set(*args)
       @set = true
       # not supported
     end
