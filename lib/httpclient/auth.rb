@@ -103,6 +103,7 @@ class HTTPClient
     # 'Authorization' header if needed.
     def filter_request(req)
       @authenticator.each do |auth|
+        next unless auth.set? # hasn't be set, don't use it
         if cred = auth.get(req)
           req.header.set('Authorization', auth.scheme + " " + cred)
           return
@@ -119,6 +120,7 @@ class HTTPClient
           uri = req.header.request_uri
           challenge.each do |scheme, param_str|
             @authenticator.each do |auth|
+              next unless auth.set? # hasn't be set, don't use it
               if scheme.downcase == auth.scheme.downcase
                 challengeable = auth.challenge(uri, param_str)
                 command = :retry if challengeable
@@ -179,6 +181,7 @@ class HTTPClient
     # 'Proxy-Authorization' header if needed.
     def filter_request(req)
       @authenticator.each do |auth|
+        next unless auth.set? # hasn't be set, don't use it
         if cred = auth.get(req)
           req.header.set('Proxy-Authorization', auth.scheme + " " + cred)
           return
@@ -195,6 +198,7 @@ class HTTPClient
           uri = req.header.request_uri
           challenge.each do |scheme, param_str|
             @authenticator.each do |auth|
+              next unless auth.set? # hasn't be set, don't use it
               if scheme.downcase == auth.scheme.downcase
                 challengeable = auth.challenge(uri, param_str)
                 command = :retry if challengeable
@@ -219,6 +223,7 @@ class HTTPClient
     # Creates new BasicAuth filter.
     def initialize
       @cred = nil
+      @set = false
       @auth = {}
       @challengeable = {}
       @scheme = "Basic"
@@ -233,6 +238,7 @@ class HTTPClient
     # Set authentication credential.
     # uri == nil for generic purpose (allow to use user/password for any URL).
     def set(uri, user, passwd)
+      @set = true
       if uri.nil?
         @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
       else
@@ -240,6 +246,12 @@ class HTTPClient
         @auth[uri] = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
       end
     end
+
+    # have we marked this as set - ie that it's valid to use in this context?
+    def set?
+      @set == true
+    end
+
 
     # Response handler: returns credential.
     # It sends cred only when a given uri is;
@@ -274,6 +286,7 @@ class HTTPClient
     def initialize
       @auth = {}
       @challenge = {}
+      @set = false
       @nonce_count = 0
       @scheme = "Digest"
     end
@@ -287,10 +300,16 @@ class HTTPClient
     # Set authentication credential.
     # uri == nil is ignored.
     def set(uri, user, passwd)
+      @set = true
       if uri
         uri = Util.uri_dirname(uri)
         @auth[uri] = [user, passwd]
       end
+    end
+
+    # have we marked this as set - ie that it's valid to use in this context?
+    def set?
+      @set == true
     end
 
     # Response handler: returns credential.
@@ -395,6 +414,7 @@ class HTTPClient
       @auth_default = nil
       @challenge = {}
       @scheme = scheme
+      @set = false
       @ntlm_opt = {
         :ntlmv2 => true
       }
@@ -409,12 +429,18 @@ class HTTPClient
     # Set authentication credential.
     # uri == nil for generic purpose (allow to use user/password for any URL).
     def set(uri, user, passwd)
+      @set = true
       if uri
         uri = Util.uri_dirname(uri)
         @auth[uri] = [user, passwd]
       else
         @auth_default = [user, passwd]
       end
+    end
+
+    # have we marked this as set - ie that it's valid to use in this context?
+    def set?
+      @set == true
     end
 
     # Response handler: returns credential.
@@ -476,6 +502,7 @@ class HTTPClient
     # Creates new SSPINegotiateAuth filter.
     def initialize
       @challenge = {}
+      @set = false
       @scheme = "Negotiate"
     end
 
@@ -489,7 +516,13 @@ class HTTPClient
     # NOT SUPPORTED: username and necessary data is retrieved by win32/sspi.
     # See win32/sspi for more details.
     def set(uri, user, passwd)
+      @set = true
       # not supported
+    end
+
+    # have we marked this as set - ie that it's valid to use in this context?
+    def set?
+      @set == true
     end
 
     # Response handler: returns credential.
@@ -625,6 +658,7 @@ class HTTPClient
         'HMAC-SHA1' => method(:sign_hmac_sha1)
       }
       @scheme = "OAuth"
+      @set = false
     end
 
     # Resets challenge state.  Do not send '*Authorization' header until the
@@ -636,7 +670,13 @@ class HTTPClient
     # Set authentication credential.
     # You cannot set OAuth config via WWWAuth#set_auth. Use OAuth#config=
     def set(uri, user, passwd)
+      @set = true
       # not supported
+    end
+
+    # have we marked this as set - ie that it's valid to use in this context?
+    def set?
+      @set == true
     end
 
     # Set authentication credential.
