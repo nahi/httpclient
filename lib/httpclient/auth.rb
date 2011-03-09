@@ -37,6 +37,8 @@ class HTTPClient
   #             between Proxy server.  Parses 'Proxy-Authentication' header in
   #             response and generates 'Proxy-Authorization' header in request.
   class AuthFilterBase
+    attr_accessor :debug_dev
+
   private
 
     def parse_authentication_header(res, tag)
@@ -82,6 +84,11 @@ class HTTPClient
       @oauth = OAuth.new
       # sort authenticators by priority
       @authenticator = [@oauth, @negotiate_auth, @ntlm_auth, @sspi_negotiate_auth, @digest_auth, @basic_auth]
+    end
+
+    def debug_dev=(dev)
+      super
+      @authenticator.each{|auth| auth.debug_dev=dev if auth.respond_to?(:debug_dev=)}
     end
 
     # Resets challenge state.  See sub filters for more details.
@@ -158,6 +165,10 @@ class HTTPClient
       @sspi_negotiate_auth = SSPINegotiateAuth.new
       # sort authenticators by priority
       @authenticator = [@negotiate_auth, @ntlm_auth, @sspi_negotiate_auth, @basic_auth]
+    end
+
+    def debug_dev=(dev)
+      @authenticator.each{|auth| auth.debug_dev=dev if auth.respond_to?(:debug_dev=)}
     end
 
     # Resets challenge state.  See sub filters for more details.
@@ -384,6 +395,7 @@ class HTTPClient
   #
   # NegotiateAuth depends on 'ruby/ntlm' module.
   class NegotiateAuth
+    attr_accessor :debug_dev
     # Authentication scheme.
     attr_reader :scheme
     # NTLM opt for ruby/ntlm.  {:ntlmv2 => true} by default.
@@ -441,7 +453,10 @@ class HTTPClient
         return t1.encode64
       when :response
         t2 = Net::NTLM::Message.decode64(authphrase)
-        t3 = t2.response({:user => user, :password => passwd}, @ntlm_opt.dup)
+        
+        domain,dummy,userid = user.rpartition('\\')
+        @debug_dev << "\n\nNTLM Auth\ndomain: #{domain}\nuser: #{userid}\npassword: #{passwd}\n\n" if @debug_dev
+        t3 = t2.response({:domain=>domain, :user => userid, :password => passwd}, @ntlm_opt.dup)
         @challenge.delete(domain_uri)
         return t3.encode64
       end

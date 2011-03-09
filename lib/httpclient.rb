@@ -384,7 +384,8 @@ class HTTPClient
   def debug_dev=(dev)
     @debug_dev = dev
     reset_all
-    @session_manager.debug_dev = dev
+    [@session_manager, @www_auth, @proxy_auth].each{|o| o.debug_dev=dev}
+    dev
   end
 
   # Returns URI object of HTTP proxy if exists.
