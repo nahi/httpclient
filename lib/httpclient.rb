@@ -165,6 +165,11 @@ require 'httpclient/cookie'
 #     clnt.set_auth(domain, user, password)
 #     p clnt.get_content('http://dev.ctor.org/http-access2/login').status
 #
+#    when using NTLM, specify the user in one of the following formats :
+#     username        e.g. "foo"
+#     DOMAIN\user     e.g. "BAR\\foo"
+#     dns-domain\user e.g. "bar.com\\foo"
+#
 # 2. Authentication with Proxy server.  Supports BasicAuth and NTLM
 #    (requires win32/sspi)
 #
