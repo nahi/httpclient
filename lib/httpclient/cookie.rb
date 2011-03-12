@@ -60,7 +60,7 @@ class WebAgent
     attr_accessor :domain, :path
     attr_accessor :expires      ## for Netscape Cookie
     attr_accessor :url
-    attr_writer :use, :secure, :discard, :domain_orig, :path_orig, :override
+    attr_writer :use, :secure, :http_only, :discard, :domain_orig, :path_orig, :override
 
     USE = 1
     SECURE = 2
@@ -69,12 +69,13 @@ class WebAgent
     DISCARD = 16
     OVERRIDE = 32
     OVERRIDE_OK = 32
+    HTTP_ONLY = 64
 
     def initialize()
       @name = @value = @domain = @path = nil
       @expires = nil
       @url = nil
-      @use = @secure = @discard = @domain_orig = @path_orig = @override = nil
+      @use = @secure = @http_only = @discard = @domain_orig = @path_orig = @override = nil
     end
 
     def discard?
@@ -87,6 +88,10 @@ class WebAgent
 
     def secure?
       @secure
+    end
+
+    def http_only?
+      @http_only
     end
 
     def domain_orig?
@@ -105,6 +110,7 @@ class WebAgent
       flg = 0
       flg += USE  if @use
       flg += SECURE  if @secure
+      flg += HTTP_ONLY  if @http_only
       flg += DOMAIN  if @domain_orig
       flg += PATH  if @path_orig
       flg += DISCARD if @discard
@@ -116,6 +122,7 @@ class WebAgent
       flag = flag.to_i
       @use = true      if flag & USE > 0
       @secure = true   if flag & SECURE > 0
+      @http_only = true   if flag & HTTP_ONLY > 0
       @domain_orig = true if flag & DOMAIN > 0
       @path_orig = true if flag & PATH > 0
       @discard  = true if flag & DISCARD > 0
@@ -188,6 +195,8 @@ class WebAgent
 	  @path = value
 	when 'secure'
 	  @secure = true  ## value may nil, but must 'true'.
+	when 'httponly'
+	  @http_only = true  ## value may nil, but must 'true'.
 	else
 	  ## ignore
 	end
@@ -330,8 +339,8 @@ class WebAgent
       name, value = cookie.name, cookie.value
       expires, domain, path = 
 	cookie.expires, cookie.domain, cookie.path
-      secure, domain_orig, path_orig = 
-	cookie.secure?, cookie.domain_orig?, cookie.path_orig?
+      secure, http_only, domain_orig, path_orig = 
+	cookie.secure?, cookie.http_only?, cookie.domain_orig?, cookie.path_orig?
       discard, override = 
 	cookie.discard?, cookie.override?
 
@@ -392,6 +401,7 @@ class WebAgent
 
       ## for flag
       cookie.secure = secure
+      cookie.http_only = http_only
       cookie.domain_orig = domain_orig
       cookie.path_orig = path_orig
       if discard || cookie.expires == nil
@@ -547,6 +557,8 @@ Load, save, parse and send cookies.
  -- Cookie#use=(use)
  -- Cookie#secure?
  -- Cookie#secure=(secure)
+ -- Cookie#http_only?
+ -- Cookie#http_only=(http_only)
  -- Cookie#domain_orig?
  -- Cookie#domain_orig=(domain_orig)
  -- Cookie#path_orig?
