@@ -575,7 +575,7 @@ class HTTPClient
           # flush the IO stream as IO::sync mode is false
           @socket.flush unless @socket_sync
         end
-      rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE
+      rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE, IOError
         # JRuby can raise IOError instead of ECONNRESET for now
         close
         raise KeepAliveDisconnected.new(self)
