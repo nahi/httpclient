@@ -330,7 +330,7 @@ class HTTPClient
   attr_proxy(:test_loopback_http_response)
   # Decompress a compressed (with gzip or deflate) content body transparently. false by default.
   attr_proxy(:transparent_gzip_decompression, true)
-  # Local socket address
+  # Local socket address. Set HTTPClient#socket_local.host and HTTPClient#socket_local.port to specify local binding hostname and port of TCP socket.
   attr_proxy(:socket_local, true)
 
   # Default extheader for PROPFIND request.
