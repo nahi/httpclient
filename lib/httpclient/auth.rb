@@ -259,7 +259,6 @@ class HTTPClient
       @set == true
     end
 
-
     # Response handler: returns credential.
     # It sends cred only when a given uri is;
     # * child page of challengeable(got *Authenticate before) uri and,
@@ -509,7 +508,6 @@ class HTTPClient
     # Creates new SSPINegotiateAuth filter.
     def initialize
       @challenge = {}
-      @set = false
       @scheme = "Negotiate"
     end
 
@@ -523,13 +521,12 @@ class HTTPClient
     # NOT SUPPORTED: username and necessary data is retrieved by win32/sspi.
     # See win32/sspi for more details.
     def set(*args)
-      @set = true
       # not supported
     end
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      @set == true
+      SSPIEnabled || GSSAPIEnabled
     end
 
     # Response handler: returns credential.
@@ -546,7 +543,7 @@ class HTTPClient
       authphrase = param[:authphrase]
       case state
       when :init
-        if(SSPIEnabled)
+        if SSPIEnabled
           authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
           return authenticator.get_initial_token(@scheme)
         else # use GSSAPI
@@ -556,7 +553,7 @@ class HTTPClient
         end
       when :response
         @challenge.delete(domain_uri)
-        if(SSPIEnabled)
+        if SSPIEnabled
           return authenticator.complete_authentication(authphrase)
         else # use GSSAPI
           return authenticator.init_context(authphrase.unpack('m').pop)
@@ -675,7 +672,6 @@ class HTTPClient
         'HMAC-SHA1' => method(:sign_hmac_sha1)
       }
       @scheme = "OAuth"
-      @set = false
     end
 
     # Resets challenge state.  Do not send '*Authorization' header until the
@@ -687,13 +683,12 @@ class HTTPClient
     # Set authentication credential.
     # You cannot set OAuth config via WWWAuth#set_auth. Use OAuth#config=
     def set(*args)
-      @set = true
       # not supported
     end
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      @set == true
+      true
     end
 
     # Set authentication credential.
