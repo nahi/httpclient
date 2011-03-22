@@ -1,5 +1,5 @@
 httpclient - HTTP accessing library.
-Copyright (C) 2000-2010  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+Copyright (C) 2000-2011  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
 'httpclient' gives something like the functionality of libwww-perl (LWP) in
 Ruby.  'httpclient' formerly known as 'http-access2'.
@@ -51,15 +51,22 @@ http-access/0.0.4. Many thanks to Maehashi-san.
 
 == Install
 
+=== Gem
+
+You can install httpclient with rubygems.
+
+  % gem install httpclient
+
+=== Package
+
+You can install httpclient with the bundled installer script.
+
   $ ruby install.rb
 
 It will install lib/* to your site_ruby directory such as
 /usr/local/lib/ruby/site_ruby/1.8/.
 
-
-== Uninstall
-
-Delete installed files from your site_ruby directory.
+For uninstall, delete installed files from your site_ruby directory.
 
 
 == Usage
@@ -70,8 +77,8 @@ You can also check sample/howto.rb how to use APIs.
 
 == Download
 
-* Stable: http://dev.ctor.org/download/httpclient-2.1.6.tar.gz (tar + gzip)
-* Stable: http://dev.ctor.org/download/httpclient-2.1.6.zip (ZIP) 
+* Stable: http://dev.ctor.org/download/httpclient-2.1.7.tar.gz (tar + gzip)
+* Stable: http://dev.ctor.org/download/httpclient-2.1.7.zip (ZIP) 
 
 * Older versions: http://dev.ctor.org/download/archive/ 
 
@@ -79,13 +86,6 @@ You can also check sample/howto.rb how to use APIs.
   * (at default remove source at rubyforge.org) 
 
 * git: git://github.com/nahi/httpclient.git
-
-=== Gem
-
-You can install httpclient with rubygems.
-
-  % gem install httpclient
-
 
 == Bug report or Feature request
 
@@ -100,6 +100,18 @@ Thanks in advance.
 
 == Changes
 
+
+= Changes in 2.1.7 =
+
+  Mar 22, 2011 - version 2.1.7
+
+    * Features
+      * Add MD5-sess auth support. Thanks to wimm-dking. (#47)
+      * Add SNI support. (Server Name Indication of HTTPS connection) (#49)
+      * Add GSSAPI auth support using gssapi gem. Thanks to zenchild. (#50)
+      * NTLM logon to exchange Web Services. [experimental] Thanks to curzonj and mccraigmccraig (#52)
+      * Add HTTPOnly cookie support. Thanks to nbrosnahan. (#55)
+      * Add HTTPClient#socket_local for specifying local binding hostname and port of TCP socket. Thanks to icblenke.
 
 = Changes in 2.1.6 =
 
