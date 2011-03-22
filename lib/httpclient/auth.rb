@@ -465,11 +465,8 @@ class HTTPClient
         user, passwd = @auth_default
       end
       return nil unless user
-
       domain = nil
-      list = user.split("\\")
-      domain, user = list if list.size == 2
-
+      domain, user = user.split("\\") if user.index("\\")
       state = param[:state]
       authphrase = param[:authphrase]
       case state
@@ -479,7 +476,9 @@ class HTTPClient
         return t1.encode64
       when :response
         t2 = Net::NTLM::Message.decode64(authphrase)
-        t3 = t2.response({:user => user, :password => passwd}, @ntlm_opt.dup)
+        param = {:user => user, :password => passwd}
+        param[:domain] = domain if domain
+        t3 = t2.response(param, @ntlm_opt.dup)
         @challenge.delete(domain_uri)
         return t3.encode64
       end
