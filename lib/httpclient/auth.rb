@@ -26,6 +26,13 @@ class HTTPClient
     SSPIEnabled = false
   end
 
+  begin
+    require 'gssapi'
+    GSSAPIEnabled = true
+  rescue LoadError
+    GSSAPIEnabled = false
+  end
+
 
   # Common abstract class for authentication filter.
   #
@@ -528,7 +535,7 @@ class HTTPClient
     # Response handler: returns credential.
     # See win32/sspi for negotiation state transition.
     def get(req)
-      return nil unless SSPIEnabled
+      return nil unless SSPIEnabled || GSSAPIEnabled
       target_uri = req.header.request_uri
       domain_uri, param = @challenge.find { |uri, v|
         Util.uri_part_of(target_uri, uri)
@@ -539,18 +546,28 @@ class HTTPClient
       authphrase = param[:authphrase]
       case state
       when :init
-        authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
-        return authenticator.get_initial_token(@scheme)
+        if(SSPIEnabled)
+          authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
+          return authenticator.get_initial_token(@scheme)
+        else # use GSSAPI
+          authenticator = param[:authenticator] = GSSAPI::Simple.new(domain_uri.host, 'HTTP')
+          # Base64 encode the context token
+          return [authenticator.init_context].pack('m').gsub(/\n/,'')
+        end
       when :response
         @challenge.delete(domain_uri)
-        return authenticator.complete_authentication(authphrase)
+        if(SSPIEnabled)
+          return authenticator.complete_authentication(authphrase)
+        else # use GSSAPI
+          return authenticator.init_context(authphrase.unpack('m').pop)
+        end
       end
       nil
     end
 
     # Challenge handler: remember URL and challenge token for response.
     def challenge(uri, param_str)
-      return false unless SSPIEnabled
+      return false unless SSPIEnabled || GSSAPIEnabled
       if param_str.nil? or @challenge[uri].nil?
         c = @challenge[uri] = {}
         c[:state] = :init
