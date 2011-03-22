@@ -472,7 +472,7 @@ class HTTPClient
       case state
       when :init
         t1 = Net::NTLM::Message::Type1.new
-        t1.domain = domain
+        t1.domain = domain if domain
         return t1.encode64
       when :response
         t2 = Net::NTLM::Message.decode64(authphrase)
