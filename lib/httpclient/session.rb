@@ -25,8 +25,6 @@ class HTTPClient
 
   # Represents a Site: protocol scheme, host String and port Number.
   class Site
-    EMPTY = Site.new.freeze
-
     # Protocol scheme.
     attr_accessor :scheme
     # Host String.
@@ -78,6 +76,8 @@ class HTTPClient
     def inspect # :nodoc:
       sprintf("#<%s:0x%x %s>", self.class.name, __id__, addr)
     end
+
+    EMPTY = Site.new.freeze
   end
 
 
@@ -744,6 +744,8 @@ class HTTPClient
         @debug_dev << "! CONNECT TO #{site.host}:#{site.port}\n" if @debug_dev
         if str = @test_loopback_http_response.shift
           socket = LoopBackSocket.new(site.host, site.port, str)
+        elsif @socket_local == Site::EMPTY
+          socket = TCPSocket.new(site.host, site.port)
         else
           socket = TCPSocket.new(site.host, site.port, @socket_local.host, @socket_local.port)
         end
