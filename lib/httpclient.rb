@@ -497,6 +497,13 @@ class HTTPClient
     @cookie_manager.save_cookies
   end
 
+  # Returns stored cookies.
+  def cookies
+    if @cookie_manager
+      @cookie_manager.cookies
+    end
+  end
+
   # Sets callback proc when HTTP redirect status is returned for get_content
   # and post_content.  default_redirect_uri_callback is used by default.
   #
@@ -981,7 +988,7 @@ private
       filter.filter_request(req)
     end
     if str = @test_loopback_response.shift
-      dump_dummy_request_response(req.body.dump, str) if @debug_dev
+      dump_dummy_request_response(req.http_body.dump, str) if @debug_dev
       conn.push(HTTP::Message.new_response(str))
       return
     end
@@ -1017,7 +1024,7 @@ private
       filter.filter_request(req)
     end
     if str = @test_loopback_response.shift
-      dump_dummy_request_response(req.body.dump, str) if @debug_dev
+      dump_dummy_request_response(req.http_body.dump, str) if @debug_dev
       conn.push(HTTP::Message.new_response(StringIO.new(str)))
       return
     end

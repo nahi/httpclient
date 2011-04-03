@@ -640,8 +640,8 @@ module HTTP
       # uri:: an URI that need to connect.  Only uri.host and uri.port are used.
       def new_connect_request(uri)
         m = new
-        m.header.init_connect_request(uri)
-        m.header.body_size = nil
+        m.http_header.init_connect_request(uri)
+        m.http_header.body_size = nil
         m
       end
 
@@ -660,14 +660,14 @@ module HTTP
       #            a multipart/form-data using this boundary String.
       def new_request(method, uri, query = nil, body = nil, boundary = nil)
         m = new
-        m.header.init_request(method, uri, query)
-        m.body = Body.new
-        m.body.init_request(body || '', boundary)
+        m.http_header.init_request(method, uri, query)
+        m.http_body = Body.new
+        m.http_body.init_request(body || '', boundary)
         if body
-          m.header.body_size = m.body.size
-          m.header.chunked = true if m.body.size.nil?
+          m.http_header.body_size = m.http_body.size
+          m.http_header.chunked = true if m.http_body.size.nil?
         else
-          m.header.body_size = nil
+          m.http_header.body_size = nil
         end
         m
       end
@@ -676,10 +676,10 @@ module HTTP
       # body:: a String or an IO of response message body.
       def new_response(body)
         m = new
-        m.header.init_response(Status::OK)
-        m.body = Body.new
-        m.body.init_response(body)
-        m.header.body_size = m.body.size || 0
+        m.http_header.init_response(Status::OK)
+        m.http_body = Body.new
+        m.http_body.init_response(body)
+        m.http_header.body_size = m.http_body.size || 0
         m
       end
 
@@ -820,10 +820,10 @@ module HTTP
 
 
     # HTTP::Message::Headers:: message header.
-    attr_accessor :header
+    attr_accessor :http_header
 
     # HTTP::Message::Body:: message body.
-    attr_reader :body
+    attr_reader :http_body
 
     # OpenSSL::X509::Certificate:: response only.  server certificate which is
     #                              used for retrieving the response.
@@ -833,18 +833,18 @@ module HTTP
     # Use Message.new_connect_request, Message.new_request or
     # Message.new_response instead.
     def initialize # :nodoc:
-      @header = Headers.new
-      @body = @peer_cert = nil
+      @http_header = Headers.new
+      @http_body = @peer_cert = nil
     end
 
     # Dumps message (header and body) to given dev.
     # dev needs to respond to <<.
     def dump(dev = '')
-      str = header.dump + CRLF
-      if header.chunked
-        dev = body.dump_chunked(str, dev)
-      elsif body
-        dev = body.dump(str, dev)
+      str = @http_header.dump + CRLF
+      if @http_header.chunked
+        dev = @http_body.dump_chunked(str, dev)
+      elsif @http_body
+        dev = @http_body.dump(str, dev)
       else
         dev << str
       end
@@ -852,35 +852,35 @@ module HTTP
     end
 
     # Sets a new body.  header.body_size is updated with new body.size.
-    def body=(body)
-      @body = body
-      @header.body_size = @body.size if @header
+    def http_body=(body)
+      @http_body = body
+      @http_header.body_size = @http_body.size if @http_header
     end
 
     # Returns HTTP version in a HTTP header.  String.
     def http_version
-      @header.http_version
+      @http_header.http_version
     end
 
     # Sets HTTP version in a HTTP header.  String.
     def http_version=(http_version)
-      @header.http_version = http_version
+      @http_header.http_version = http_version
     end
 
     VERSION_WARNING = 'Message#version (Float) is deprecated. Use Message#http_version (String) instead.'
     def version
       warn(VERSION_WARNING)
-      @header.http_version.to_f
+      @http_header.http_version.to_f
     end
 
     def version=(version)
       warn(VERSION_WARNING)
-      @header.http_version = version
+      @http_header.http_version = version
     end
 
     # Returns HTTP status code in response.  Integer.
     def status
-      @header.status_code
+      @http_header.status_code
     end
 
     alias code status
@@ -889,33 +889,36 @@ module HTTP
     # Sets HTTP status code of response.  Integer.
     # Reason phrase is updated, too.
     def status=(status)
-      @header.status_code = status
+      @http_header.status_code = status
     end
 
     # Returns  HTTP status reason phrase in response.  String.
     def reason
-      @header.reason_phrase
+      @http_header.reason_phrase
     end
 
     # Sets  HTTP status reason phrase of response.  String.
     def reason=(reason)
-      @header.reason_phrase = reason
+      @http_header.reason_phrase = reason
     end
 
     # Sets 'Content-Type' header value.  Overrides if already exists.
     def contenttype
-      @header.contenttype
+      @http_header.contenttype
     end
 
     # Returns 'Content-Type' header value.
     def contenttype=(contenttype)
-      @header.contenttype = contenttype
+      @http_header.contenttype = contenttype
     end
 
     # Returns a content of message body.  A String or an IO.
     def content
-      @body.content
+      @http_body.content
     end
+
+    alias header http_header
+    alias body content
   end
 
 

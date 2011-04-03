@@ -152,7 +152,7 @@ class HTTPClient
     end
 
     def query(req, via_proxy)
-      req.body.chunk_size = @chunk_size
+      req.http_body.chunk_size = @chunk_size
       sess = open(req.header.request_uri, via_proxy)
       begin
         sess.query(req)
