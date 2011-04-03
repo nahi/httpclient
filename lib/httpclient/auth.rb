@@ -800,8 +800,8 @@ class HTTPClient
         params += encode_param(query)
       end
       # captures HTTP Message body only for 'application/x-www-form-urlencoded'
-      if req.header.contenttype == 'application/x-www-form-urlencoded' and req.body.size
-        params += encode_param(HTTP::Message.parse(req.body.content))
+      if req.header.contenttype == 'application/x-www-form-urlencoded' and req.http_body.size
+        params += encode_param(HTTP::Message.parse(req.http_body.content))
       end
       uri = req.header.request_uri
       if uri.query
