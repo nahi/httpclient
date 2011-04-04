@@ -1165,7 +1165,7 @@ EOS
     assert_equal(@client.debug_dev, mgr.debug_dev)
   end
 
-  def create_keepalive_thread(idx, sock)
+  def create_keepalive_disconnected_thread(idx, sock)
     Thread.new {
       # return "12345" for the first connection
       sock.gets
@@ -1191,7 +1191,7 @@ EOS
       # emulate 10 keep-alive connections
       10.times do |idx|
         sock = server.accept
-        create_keepalive_thread(idx, sock)
+        create_keepalive_disconnected_thread(idx, sock)
       end
       # return "23456" for the request which gets KeepAliveDisconnected
       5.times do
@@ -1235,6 +1235,59 @@ EOS
         assert_equal("34567", client.get(endpoint).content)
       }
     }.each(&:join)
+  end
+
+  def create_keepalive_thread(count, sock)
+    Thread.new {
+      Thread.abort_on_exception = true
+      count.times do
+        req = sock.gets
+        while line = sock.gets
+          break if line.chomp.empty?
+        end
+        case req
+        when /chunked/
+          sock.write("HTTP/1.1 200 OK\r\n")
+          sock.write("Transfer-Encoding: chunked\r\n")
+          sock.write("\r\n")
+          sock.write("1a\r\n")
+          sock.write("abcdefghijklmnopqrstuvwxyz\r\n")
+          sock.write("10\r\n")
+          sock.write("1234567890abcdef\r\n")
+          sock.write("0\r\n")
+          sock.write("\r\n")
+        else
+          sock.write("HTTP/1.1 200 OK\r\n")
+          sock.write("Content-Length: 5\r\n")
+          sock.write("\r\n")
+          sock.write("12345")
+        end
+      end
+      sock.close
+    }
+  end
+
+  def test_keepalive
+    server = TCPServer.open('localhost', 0)
+    server_thread = Thread.new {
+      Thread.abort_on_exception = true
+      sock = server.accept
+      create_keepalive_thread(10, sock)
+    }
+    url = "http://localhost:#{server.addr[1]}/"
+    begin
+      # content-length
+      5.times do
+        assert_equal('12345', @client.get(url).body)
+      end
+      # chunked
+      5.times do
+        assert_equal('abcdefghijklmnopqrstuvwxyz1234567890abcdef', @client.get(url + 'chunked').body)
+      end
+    ensure
+      server.close
+      server_thread.join
+    end
   end
 
   def test_socket_local

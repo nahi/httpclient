@@ -812,7 +812,7 @@ class HTTPClient
           close
         end
       end
-      @next_connection = false unless @content_length
+      @next_connection = false if !@content_length and !@chunked
     end
 
     StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d\d\d)\s*([^\r\n]+)?\r?\n\z)
