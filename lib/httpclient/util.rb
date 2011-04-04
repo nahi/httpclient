@@ -43,10 +43,12 @@ class HTTPClient
     #
     def keyword_argument(args, *field)
       if args.size == 1 and args[0].is_a?(Hash)
-        args[0].values_at(*field)
-      else
-        args
+        r = args[0].values_at(*field)
+        unless r.compact.empty?
+          return r
+        end
       end
+      args
     end
 
     # Gets an URI instance.

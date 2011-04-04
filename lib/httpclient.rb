@@ -537,8 +537,9 @@ class HTTPClient
   # If you need to get full HTTP response including HTTP status and headers,
   # use get method.  get returns HTTP::Message as a response and you need to
   # follow HTTP redirect by yourself if you need.
-  def get_content(uri, query = nil, extheader = {}, &block)
-    follow_redirect(:get, uri, query, nil, extheader, &block).content
+  def get_content(uri, *args, &block)
+    query, header = keyword_argument(args, :query, :header)
+    follow_redirect(:get, uri, query, nil, header || {}, &block).content
   end
 
   # Posts a content.
@@ -571,8 +572,9 @@ class HTTPClient
   #
   # If you need to get full HTTP response including HTTP status and headers,
   # use post method.
-  def post_content(uri, body = nil, extheader = {}, &block)
-    follow_redirect(:post, uri, nil, body, extheader, &block).content
+  def post_content(uri, *args, &block)
+    body, header = keyword_argument(args, :body, :header)
+    follow_redirect(:post, uri, nil, body, header || {}, &block).content
   end
 
   # A method for redirect uri callback.  How to use:
@@ -612,48 +614,57 @@ class HTTPClient
   end
 
   # Sends HEAD request to the specified URL.  See request for arguments.
-  def head(uri, query = nil, extheader = {})
-    request(:head, uri, query, nil, extheader)
+  def head(uri, *args)
+    query, header = keyword_argument(args, :query, :header)
+    request(:head, uri, query, nil, header || {})
   end
 
   # Sends GET request to the specified URL.  See request for arguments.
-  def get(uri, query = nil, extheader = {}, &block)
-    request(:get, uri, query, nil, extheader, &block)
+  def get(uri, *args, &block)
+    query, header = keyword_argument(args, :query, :header)
+    request(:get, uri, query, nil, header || {}, &block)
   end
 
   # Sends POST request to the specified URL.  See request for arguments.
-  def post(uri, body = '', extheader = {}, &block)
-    request(:post, uri, nil, body, extheader, &block)
+  def post(uri, *args, &block)
+    body, header = keyword_argument(args, :body, :header)
+    request(:post, uri, nil, body || '', header || {}, &block)
   end
 
   # Sends PUT request to the specified URL.  See request for arguments.
-  def put(uri, body = '', extheader = {}, &block)
-    request(:put, uri, nil, body, extheader, &block)
+  def put(uri, *args, &block)
+    body, header = keyword_argument(args, :body, :header)
+    request(:put, uri, nil, body || '', header || {}, &block)
   end
 
   # Sends DELETE request to the specified URL.  See request for arguments.
-  def delete(uri, extheader = {}, &block)
-    request(:delete, uri, nil, nil, extheader, &block)
+  def delete(uri, *args, &block)
+    header = keyword_argument(args, :header)
+    request(:delete, uri, nil, nil, header || {}, &block)
   end
 
   # Sends OPTIONS request to the specified URL.  See request for arguments.
-  def options(uri, extheader = {}, &block)
-    request(:options, uri, nil, nil, extheader, &block)
+  def options(uri, *args, &block)
+    header = keyword_argument(args, :header)
+    request(:options, uri, nil, nil, header, &block)
   end
 
   # Sends PROPFIND request to the specified URL.  See request for arguments.
-  def propfind(uri, extheader = PROPFIND_DEFAULT_EXTHEADER, &block)
-    request(:propfind, uri, nil, nil, extheader, &block)
+  def propfind(uri, *args, &block)
+    header = keyword_argument(args, :header)
+    request(:propfind, uri, nil, nil, header || PROPFIND_DEFAULT_EXTHEADER, &block)
   end
   
   # Sends PROPPATCH request to the specified URL.  See request for arguments.
-  def proppatch(uri, body = nil, extheader = {}, &block)
-    request(:proppatch, uri, nil, body, extheader, &block)
+  def proppatch(uri, *args, &block)
+    body, header = keyword_argument(args, :body, :header)
+    request(:proppatch, uri, nil, body, header || {}, &block)
   end
   
   # Sends TRACE request to the specified URL.  See request for arguments.
-  def trace(uri, query = nil, body = nil, extheader = {}, &block)
-    request('TRACE', uri, query, body, extheader, &block)
+  def trace(uri, *args, &block)
+    query, body, header = keyword_argument(args, :query, :body, :header)
+    request('TRACE', uri, query, body, header, &block)
   end
 
   # Sends a request to the specified URL.
@@ -694,14 +705,15 @@ class HTTPClient
   # chunked encoding (Transfer-Encoding: chunked in HTTP header).  Bear in mind
   # that some server application does not support chunked request.  At least
   # cgi.rb does not support it.
-  def request(method, uri, query = nil, body = nil, extheader = {}, &block)
+  def request(method, uri, *args, &block)
+    query, body, header = keyword_argument(args, :query, :body, :header)
     uri = urify(uri)
     if block
       filtered_block = proc { |res, str|
         block.call(str)
       }
     end
-    do_request(method, uri, query, body, extheader, &filtered_block)
+    do_request(method, uri, query, body, header || {}, &filtered_block)
   end
 
   # Sends HEAD request in async style.  See request_async for arguments.
