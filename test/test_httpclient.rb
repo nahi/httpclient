@@ -1186,7 +1186,7 @@ EOS
     server = TCPServer.open('127.0.0.1', 0)
     server.listen(30) # set enough backlogs
     endpoint = "http://127.0.0.1:#{server.addr[1]}/"
-    server_thread = Thread.new {
+    Thread.new {
       Thread.abort_on_exception = true
       # emulate 10 keep-alive connections
       10.times do |idx|
