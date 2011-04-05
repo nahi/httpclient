@@ -176,13 +176,13 @@ require 'httpclient/cookie'
 #
 # === Invoking HTTP methods with custom header
 #
-# Pass a Hash or an Array for extheader argument.
+# Pass a Hash or an Array for header argument.
 #
-#     extheader = { 'Accept' => '*/*' }
-#     clnt.get_content(uri, query, extheader)
+#     header = { 'Accept' => '*/*' }
+#     clnt.get_content(uri, query, header)
 #
-#     extheader = [['Accept', 'image/jpeg'], ['Accept', 'image/png']]
-#     clnt.get_content(uri, query, extheader)
+#     header = [['Accept', 'image/jpeg'], ['Accept', 'image/png']]
+#     clnt.get_content(uri, query, header)
 #
 # === Invoking HTTP methods asynchronously
 #
@@ -333,7 +333,7 @@ class HTTPClient
   # Local socket address. Set HTTPClient#socket_local.host and HTTPClient#socket_local.port to specify local binding hostname and port of TCP socket.
   attr_proxy(:socket_local, true)
 
-  # Default extheader for PROPFIND request.
+  # Default header for PROPFIND request.
   PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }
 
   # Creates a HTTPClient instance which manages sessions, cookies, etc.
@@ -523,9 +523,9 @@ class HTTPClient
   #         e.g. { "a" => "b" } => 'http://host/part?a=b'.
   #         Give an array to pass multiple value like
   #         [["a", "b"], ["a", "c"]] => 'http://host/part?a=b&a=c'.
-  # extheader:: a Hash or an Array of extra headers.  e.g.
-  #             { 'Accept' => '*/*' } or
-  #             [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
+  # header:: a Hash or an Array of extra headers.  e.g.
+  #          { 'Accept' => '*/*' } or
+  #          [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
   # &block:: Give a block to get chunked message-body of response like
   #          get_content(uri) { |chunked_body| ... }.
   #          Size of each chunk may not be the same.
@@ -558,10 +558,10 @@ class HTTPClient
   #          [{ 'Content-Type' => 'text/plain', :content => "some text" },
   #           { 'Content-Type' => 'video/mp4', :content => File.new('video.mp4') }]
   #          => <Two parts with custom Content-Type header>
-  # extheader:: a Hash or an Array of extra headers. e.g.
-  #               { 'Accept' => '*/*' }
-  #             or
-  #               [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
+  # header:: a Hash or an Array of extra headers. e.g.
+  #            { 'Accept' => '*/*' }
+  #          or
+  #            [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
   # &block:: Give a block to get chunked message-body of response like
   #            post_content(uri) { |chunked_body| ... }.
   #          Size of each chunk may not be the same.
@@ -691,9 +691,9 @@ class HTTPClient
   #           { 'Content-Type' => 'video/mp4', :content => File.new('video.mp4') }]
   #          => <Two parts with custom Content-Type header>
   #        See HTTP::Message.file? for actual condition of 'a file'.
-  # extheader:: a Hash or an Array of extra headers.  e.g.
-  #             { 'Accept' => '*/*' } or
-  #             [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
+  # header:: a Hash or an Array of extra headers.  e.g.
+  #          { 'Accept' => '*/*' } or
+  #          [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
   # &block:: Give a block to get chunked message-body of response like
   #          get(uri) { |chunked_body| ... }.
   #          Size of each chunk may not be the same.
@@ -718,65 +718,65 @@ class HTTPClient
 
   # Sends HEAD request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def head_async(uri, query = nil, extheader = {})
-    request_async(:head, uri, query, nil, extheader)
+  def head_async(uri, query = nil, header = {})
+    request_async(:head, uri, query, nil, header)
   end
 
   # Sends GET request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def get_async(uri, query = nil, extheader = {})
-    request_async(:get, uri, query, nil, extheader)
+  def get_async(uri, query = nil, header = {})
+    request_async(:get, uri, query, nil, header)
   end
 
   # Sends POST request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def post_async(uri, body = nil, extheader = {})
-    request_async(:post, uri, nil, body, extheader)
+  def post_async(uri, body = nil, header = {})
+    request_async(:post, uri, nil, body, header)
   end
 
   # Sends PUT request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def put_async(uri, body = nil, extheader = {})
-    request_async(:put, uri, nil, body, extheader)
+  def put_async(uri, body = nil, header = {})
+    request_async(:put, uri, nil, body, header)
   end
 
   # Sends DELETE request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def delete_async(uri, extheader = {})
-    request_async(:delete, uri, nil, nil, extheader)
+  def delete_async(uri, header = {})
+    request_async(:delete, uri, nil, nil, header)
   end
 
   # Sends OPTIONS request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def options_async(uri, extheader = {})
-    request_async(:options, uri, nil, nil, extheader)
+  def options_async(uri, header = {})
+    request_async(:options, uri, nil, nil, header)
   end
 
   # Sends PROPFIND request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def propfind_async(uri, extheader = PROPFIND_DEFAULT_EXTHEADER)
-    request_async(:propfind, uri, nil, nil, extheader)
+  def propfind_async(uri, header = PROPFIND_DEFAULT_EXTHEADER)
+    request_async(:propfind, uri, nil, nil, header)
   end
   
   # Sends PROPPATCH request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def proppatch_async(uri, body = nil, extheader = {})
-    request_async(:proppatch, uri, nil, body, extheader)
+  def proppatch_async(uri, body = nil, header = {})
+    request_async(:proppatch, uri, nil, body, header)
   end
   
   # Sends TRACE request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def trace_async(uri, query = nil, body = nil, extheader = {})
-    request_async(:trace, uri, query, body, extheader)
+  def trace_async(uri, query = nil, body = nil, header = {})
+    request_async(:trace, uri, query, body, header)
   end
 
   # Sends a request in async style.  request method creates new Thread for
   # HTTP connection and returns a HTTPClient::Connection instance immediately.
   #
   # Arguments definition is the same as request.
-  def request_async(method, uri, query = nil, body = nil, extheader = {})
+  def request_async(method, uri, query = nil, body = nil, header = {})
     uri = urify(uri)
-    do_request_async(method, uri, query, body, extheader)
+    do_request_async(method, uri, query, body, header)
   end
 
   # Resets internal session for the given URL.  Keep-alive connection for the
@@ -803,7 +803,7 @@ private
     end
   end
 
-  def do_request(method, uri, query, body, extheader, &block)
+  def do_request(method, uri, query, body, header, &block)
     conn = Connection.new
     res = nil
     if HTTP::Message.file?(body)
@@ -813,7 +813,7 @@ private
     proxy = no_proxy?(uri) ? nil : @proxy
     while retry_count > 0
       body.pos = pos if pos
-      req = create_request(method, uri, query, body, extheader)
+      req = create_request(method, uri, query, body, header)
       begin
         protect_keep_alive_disconnected do
           do_get_block(req, proxy, conn, &block)
@@ -828,7 +828,7 @@ private
     res
   end
 
-  def do_request_async(method, uri, query, body, extheader)
+  def do_request_async(method, uri, query, body, header)
     conn = Connection.new
     t = Thread.new(conn) { |tconn|
       begin
@@ -839,7 +839,7 @@ private
         proxy = no_proxy?(uri) ? nil : @proxy
         while retry_count > 0
           body.pos = pos if pos
-          req = create_request(method, uri, query, body, extheader)
+          req = create_request(method, uri, query, body, header)
           begin
             protect_keep_alive_disconnected do
               do_get_stream(req, proxy, tconn)
@@ -875,7 +875,7 @@ private
     ENV[name.downcase] || ENV[name.upcase]
   end
 
-  def follow_redirect(method, uri, query, body, extheader, &block)
+  def follow_redirect(method, uri, query, body, header, &block)
     uri = urify(uri)
     if block
       filtered_block = proc { |r, str|
@@ -888,7 +888,7 @@ private
     retry_number = 0
     while retry_number < @follow_redirect_count
       body.pos = pos if pos
-      res = do_request(method, uri, query, body, extheader, &filtered_block)
+      res = do_request(method, uri, query, body, header, &filtered_block)
       if HTTP::Status.successful?(res.status)
         return res
       elsif HTTP::Status.redirect?(res.status)
@@ -912,16 +912,16 @@ private
     end
   end
 
-  def create_request(method, uri, query, body, extheader)
+  def create_request(method, uri, query, body, header)
     method = method.to_s.upcase
-    if extheader.is_a?(Hash)
-      extheader = extheader.to_a
+    if header.is_a?(Hash)
+      header = header.to_a
     else
-      extheader = extheader.dup
+      header = header.dup
     end
     boundary = nil
     if body
-      _, content_type = extheader.find { |key, value|
+      _, content_type = header.find { |key, value|
         key.downcase == 'content-type'
       }
       if content_type
@@ -931,7 +931,7 @@ private
           else
             boundary = create_boundary
             content_type = "#{content_type}; boundary=#{boundary}"
-            extheader = override_header(extheader, 'Content-Type', content_type)
+            header = override_header(header, 'Content-Type', content_type)
           end
         end
       elsif method == 'POST'
@@ -941,11 +941,11 @@ private
         else
           content_type = 'application/x-www-form-urlencoded'
         end
-        extheader << ['Content-Type', content_type]
+        header << ['Content-Type', content_type]
       end
     end
     req = HTTP::Message.new_request(method, uri, query, body, boundary)
-    extheader.each do |key, value|
+    header.each do |key, value|
       req.header.add(key, value)
     end
     if @cookie_manager && cookie = @cookie_manager.find(uri)
@@ -963,9 +963,9 @@ private
       body.any? { |k, v| HTTP::Message.file?(v) }
   end
 
-  def override_header(extheader, key, value)
+  def override_header(header, key, value)
     result = []
-    extheader.each do |k, v|
+    header.each do |k, v|
       if k.downcase == key.downcase
         result << [key, value]
       else
