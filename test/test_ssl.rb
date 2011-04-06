@@ -43,8 +43,8 @@ class TestSSL < Test::Unit::TestCase
   def test_sync
     cfg = @client.ssl_config
     cfg.set_client_cert_file(path('client.cert'), path('client.key'))
-    cfg.set_trust_ca(path('ca.cert'))
-    cfg.set_trust_ca(path('subca.cert'))
+    cfg.add_trust_ca(path('ca.cert'))
+    cfg.add_trust_ca(path('subca.cert'))
     assert_equal("hello", @client.get_content(@url))
 
     @client.socket_sync = false
@@ -57,8 +57,8 @@ class TestSSL < Test::Unit::TestCase
     cfg = @client.ssl_config
     cfg.client_cert = cert("client.cert")
     cfg.client_key = key("client.key")
-    cfg.set_trust_ca(path('ca.cert'))
-    cfg.set_trust_ca(path('subca.cert'))
+    cfg.add_trust_ca(path('ca.cert'))
+    cfg.add_trust_ca(path('subca.cert'))
     assert_equal("hello", @client.get_content(@url))
     assert(str.scan(/^hello$/)[0])
   end
@@ -86,7 +86,7 @@ class TestSSL < Test::Unit::TestCase
       assert(@verify_callback_called)
     end
     #
-    cfg.set_trust_ca(path('ca.cert'))
+    cfg.add_trust_ca(path('ca.cert'))
     @verify_callback_called = false
     begin
       @client.get(@url)
@@ -96,7 +96,7 @@ class TestSSL < Test::Unit::TestCase
       assert(@verify_callback_called)
     end
     #
-    cfg.set_trust_ca(path('subca.cert'))
+    cfg.add_trust_ca(path('subca.cert'))
     @verify_callback_called = false
     assert_equal("hello", @client.get_content(@url))
     assert(@verify_callback_called)
@@ -128,8 +128,8 @@ class TestSSL < Test::Unit::TestCase
   def test_ciphers
     cfg = @client.ssl_config
     cfg.set_client_cert_file(path('client.cert'), path('client.key'))
-    cfg.set_trust_ca(path('ca.cert'))
-    cfg.set_trust_ca(path('subca.cert'))
+    cfg.add_trust_ca(path('ca.cert'))
+    cfg.add_trust_ca(path('subca.cert'))
     cfg.timeout = 123
     assert_equal("hello", @client.get_content(@url))
     #

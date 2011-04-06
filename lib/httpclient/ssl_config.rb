@@ -21,7 +21,7 @@ class HTTPClient
   # == Trust Anchor Control
   #
   # SSLConfig loads 'httpclient/cacert.p7s' as a trust anchor
-  # (trusted certificate(s)) with set_trust_ca in initialization time.
+  # (trusted certificate(s)) with add_trust_ca in initialization time.
   # This means that HTTPClient instance trusts some CA certificates by default,
   # like Web browsers.  'httpclient/cacert.p7s' is created by the author and
   # included in released package.
@@ -29,7 +29,7 @@ class HTTPClient
   # 'cacert.p7s' is automatically generated from JDK 1.6.
   #
   # You may want to change trust anchor by yourself.  Call clear_cert_store
-  # then set_trust_ca for that purpose.
+  # then add_trust_ca for that purpose.
   class SSLConfig
     include OpenSSL if SSLEnabled
 
@@ -82,7 +82,7 @@ class HTTPClient
       @timeout = nil
       @options = defined?(SSL::OP_ALL) ? SSL::OP_ALL | SSL::OP_NO_SSLv2 : nil
       @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
-      load_cacerts
+      @cacerts_loaded = false
     end
 
     # Sets certificate (OpenSSL::X509::Certificate) for SSL client
@@ -122,6 +122,7 @@ class HTTPClient
     #
     # Calling this method resets all existing sessions.
     def clear_cert_store
+      @cacerts_loaded = true # avoid lazy override
       @cert_store = X509::Store.new
       change_notify
     end
@@ -131,6 +132,7 @@ class HTTPClient
     #
     # Calling this method resets all existing sessions.
     def cert_store=(cert_store)
+      @cacerts_loaded = true # avoid lazy override
       @cert_store = cert_store
       change_notify
     end
@@ -142,12 +144,21 @@ class HTTPClient
     #                               trusted certificate files.
     #
     # Calling this method resets all existing sessions.
-    def set_trust_ca(trust_ca_file_or_hashed_dir)
+    def add_trust_ca(trust_ca_file_or_hashed_dir)
+      @cacerts_loaded = true # avoid lazy override
       if FileTest.directory?(trust_ca_file_or_hashed_dir)
         @cert_store.add_path(trust_ca_file_or_hashed_dir)
       else
         @cert_store.add_file(trust_ca_file_or_hashed_dir)
       end
+      change_notify
+    end
+    alias set_trust_ca add_trust_ca
+
+    # Loads default trust anchors.
+    # Calling this method resets all existing sessions.
+    def load_trust_ca
+      load_cacerts
       change_notify
     end
 
@@ -156,7 +167,7 @@ class HTTPClient
     #       OpenSSL::X509::CRL.
     #
     # Calling this method resets all existing sessions.
-    def set_crl(crl)
+    def add_crl(crl)
       unless crl.is_a?(X509::CRL)
         crl = X509::CRL.new(File.open(crl) { |f| f.read })
       end
@@ -164,6 +175,7 @@ class HTTPClient
       @cert_store.flags = X509::V_FLAG_CRL_CHECK | X509::V_FLAG_CRL_CHECK_ALL
       change_notify
     end
+    alias set_crl add_crl
 
     # Sets verify mode of OpenSSL.  New value must be a combination of
     # constants OpenSSL::SSL::VERIFY_*
@@ -223,6 +235,8 @@ class HTTPClient
 
     # interfaces for SSLSocketWrap.
     def set_context(ctx) # :nodoc:
+      load_trust_ca unless @cacerts_loaded
+      @cacerts_loaded = true
       # Verification: Use Store#verify_callback instead of SSLContext#verify*?
       ctx.cert_store = @cert_store
       ctx.verify_mode = @verify_mode
@@ -350,7 +364,7 @@ class HTTPClient
           store = X509::Store.new
           store.add_cert(selfcert)
           if (p7.verify(nil, store, p7.data, 0))
-            set_trust_ca(file)
+            add_trust_ca(file)
             return
           end
         end
