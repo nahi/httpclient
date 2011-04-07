@@ -646,7 +646,7 @@ class HTTPClient
   # Sends OPTIONS request to the specified URL.  See request for arguments.
   def options(uri, *args, &block)
     header = keyword_argument(args, :header)
-    request(:options, uri, nil, nil, header, &block)
+    request(:options, uri, nil, nil, header || {}, &block)
   end
 
   # Sends PROPFIND request to the specified URL.  See request for arguments.
@@ -664,7 +664,7 @@ class HTTPClient
   # Sends TRACE request to the specified URL.  See request for arguments.
   def trace(uri, *args, &block)
     query, body, header = keyword_argument(args, :query, :body, :header)
-    request('TRACE', uri, query, body, header, &block)
+    request('TRACE', uri, query, body, header || {}, &block)
   end
 
   # Sends a request to the specified URL.
@@ -718,56 +718,65 @@ class HTTPClient
 
   # Sends HEAD request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def head_async(uri, query = nil, header = {})
-    request_async(:head, uri, query, nil, header)
+  def head_async(uri, *args)
+    query, header = keyword_argument(args, :query, :header)
+    request_async(:head, uri, query, nil, header || {})
   end
 
   # Sends GET request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def get_async(uri, query = nil, header = {})
-    request_async(:get, uri, query, nil, header)
+  def get_async(uri, *args)
+    query, header = keyword_argument(args, :query, :header)
+    request_async(:get, uri, query, nil, header || {})
   end
 
   # Sends POST request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def post_async(uri, body = nil, header = {})
-    request_async(:post, uri, nil, body, header)
+  def post_async(uri, *args)
+    body, header = keyword_argument(args, :body, :header)
+    request_async(:post, uri, nil, body || '', header || {})
   end
 
   # Sends PUT request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def put_async(uri, body = nil, header = {})
-    request_async(:put, uri, nil, body, header)
+  def put_async(uri, *args)
+    body, header = keyword_argument(args, :body, :header)
+    request_async(:put, uri, nil, body || '', header || {})
   end
 
   # Sends DELETE request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def delete_async(uri, header = {})
-    request_async(:delete, uri, nil, nil, header)
+  def delete_async(uri, *args)
+    header = keyword_argument(args, :header)
+    request_async(:delete, uri, nil, nil, header || {})
   end
 
   # Sends OPTIONS request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def options_async(uri, header = {})
-    request_async(:options, uri, nil, nil, header)
+  def options_async(uri, *args)
+    header = keyword_argument(args, :header)
+    request_async(:options, uri, nil, nil, header || {})
   end
 
   # Sends PROPFIND request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def propfind_async(uri, header = PROPFIND_DEFAULT_EXTHEADER)
-    request_async(:propfind, uri, nil, nil, header)
+  def propfind_async(uri, *args)
+    header = keyword_argument(args, :header)
+    request_async(:propfind, uri, nil, nil, header || PROPFIND_DEFAULT_EXTHEADER)
   end
   
   # Sends PROPPATCH request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def proppatch_async(uri, body = nil, header = {})
-    request_async(:proppatch, uri, nil, body, header)
+  def proppatch_async(uri, *args)
+    body, header = keyword_argument(args, :body, :header)
+    request_async(:proppatch, uri, nil, body, header || {})
   end
   
   # Sends TRACE request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
-  def trace_async(uri, query = nil, body = nil, header = {})
-    request_async(:trace, uri, query, body, header)
+  def trace_async(uri, *args)
+    query, body, header = keyword_argument(args, :query, :body, :header)
+    request_async(:trace, uri, query, body, header || {})
   end
 
   # Sends a request in async style.  request method creates new Thread for
