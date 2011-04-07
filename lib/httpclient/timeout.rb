@@ -23,6 +23,7 @@ class HTTPClient
   #   timeout scheduler.
   # * Do not wakeup the scheduler thread so often.  Let scheduler thread sleep
   #   until the nearest period.
+if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'
   class TimeoutScheduler
 
     # Represents timeout period.
@@ -117,6 +118,7 @@ class HTTPClient
     end
   end
   timeout_scheduler # initialize at first time.
+end
 
   module Timeout
     if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'

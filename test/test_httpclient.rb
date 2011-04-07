@@ -1147,11 +1147,13 @@ EOS
     end
   end
 
-  def test_timeout_scheduler
-    assert_equal('hello', @client.get_content(@url + 'hello'))
-    status =  HTTPClient.timeout_scheduler.instance_eval { @thread.kill; @thread.join; @thread.status }
-    assert(!status) # dead
-    assert_equal('hello', @client.get_content(@url + 'hello'))
+  if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'
+    def test_timeout_scheduler
+      assert_equal('hello', @client.get_content(@url + 'hello'))
+      status =  HTTPClient.timeout_scheduler.instance_eval { @thread.kill; @thread.join; @thread.status }
+      assert(!status) # dead
+      assert_equal('hello', @client.get_content(@url + 'hello'))
+    end
   end
 
   def test_session_manager
