@@ -924,6 +924,21 @@ module HTTP
 
     alias header http_header
     alias body content
+
+    # Extracts cookies from 'Set-Cookie' header.
+    # Supports 'Set-Cookie' in response header only.
+    # Do we need 'Cookie' support in request header?
+    def cookies
+      set_cookies = http_header['set-cookie']
+      unless set_cookies.empty?
+        uri = http_header.request_uri
+        set_cookies.map { |str|
+          cookie = WebAgent::Cookie.new
+          cookie.parse(str, uri)
+          cookie
+        }
+      end
+    end
   end
 
 

@@ -1159,6 +1159,34 @@ EOS
     end
   end
 
+  def test_response_cookies
+    res = HTTP::Message.new_response('response')
+    res.contenttype = 'text/plain'
+    res.header.body_date = Time.mktime(2000, 1, 1)
+    assert_nil(res.cookies)
+    #
+    res.header['Set-Cookie'] = [
+      'CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT',
+      'PART_NUMBER=ROCKET_LAUNCHER_0001; path=/'
+    ]
+    assert_equal(
+      [
+        "",
+        "Content-Length: 8",
+        "Content-Type: text/plain",
+        "Last-Modified: Fri, 31 Dec 1999 15:00:00 GMT",
+        "Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/; expires=Wednesday, 09-Nov-99 23:12:40 GMT",
+        "Set-Cookie: PART_NUMBER=ROCKET_LAUNCHER_0001; path=/",
+        "Status: 200 OK",
+        "response"
+      ],
+      res.dump.split(/\r\n/).sort
+    )
+    assert_equal(2, res.cookies.size)
+    assert_equal('CUSTOMER', res.cookies[0].name)
+    assert_equal('PART_NUMBER', res.cookies[1].name)
+  end
+
   if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'
     def test_timeout_scheduler
       assert_equal('hello', @client.get_content(@url + 'hello'))
