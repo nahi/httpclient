@@ -620,12 +620,12 @@ class HTTPClient
 
   # Sends GET request to the specified URL.  See request for arguments.
   def get(uri, *args, &block)
-    request(:get, uri, argument_to_hash(args, :query, :header), &block)
+    request(:get, uri, argument_to_hash(args, :query, :header, :follow_redirect), &block)
   end
 
   # Sends POST request to the specified URL.  See request for arguments.
   def post(uri, *args, &block)
-    request(:post, uri, argument_to_hash(args, :body, :header), &block)
+    request(:post, uri, argument_to_hash(args, :body, :header, :follow_redirect), &block)
   end
 
   # Sends PUT request to the specified URL.  See request for arguments.
@@ -697,7 +697,7 @@ class HTTPClient
   # that some server application does not support chunked request.  At least
   # cgi.rb does not support it.
   def request(method, uri, *args, &block)
-    query, body, header = keyword_argument(args, :query, :body, :header)
+    query, body, header, follow_redirect = keyword_argument(args, :query, :body, :header, :follow_redirect)
     if [:post, :put].include?(method)
       body ||= ''
     end
@@ -712,7 +712,11 @@ class HTTPClient
         block.call(str)
       }
     end
-    do_request(method, uri, query, body, header || {}, &filtered_block)
+    if follow_redirect
+      follow_redirect(method, uri, query, body, header, &block)
+    else
+      do_request(method, uri, query, body, header, &filtered_block)
+    end
   end
 
   # Sends HEAD request in async style.  See request_async for arguments.

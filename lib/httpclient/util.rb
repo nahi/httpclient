@@ -63,7 +63,7 @@ class HTTPClient
       if args.size == 1 and args[0].is_a?(Hash)
         r = args[0].values_at(*field)
         unless r.compact.empty?
-          return args
+          return args[0]
         end
       end
       h = {}
