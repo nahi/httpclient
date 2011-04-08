@@ -77,13 +77,8 @@ You can also check sample/howto.rb how to use APIs.
 
 == Download
 
-* Stable: http://dev.ctor.org/download/httpclient-2.1.7.tar.gz (tar + gzip)
-* Stable: http://dev.ctor.org/download/httpclient-2.1.7.zip (ZIP) 
-
-* Older versions: http://dev.ctor.org/download/archive/ 
-
-* Gem repository for stable version
-  * (at default remove source at rubyforge.org) 
+* Gem repository
+  * https://rubygems.org/gems/httpclient
 
 * git: git://github.com/nahi/httpclient.git
 
@@ -100,6 +95,46 @@ Thanks in advance.
 
 == Changes
 
+
+= Changes in 2.2.0 =
+
+  Apr 8, 2011 - version 2.2.0
+
+    * Features
+      * Add HTTPClient#cookies as an alias of #cookie_manager.cookies.
+
+      * Add res.cookies method. It returns parsed cookie in response header.
+        It's different from client.cookie_manager.cookies. Manager keeps
+        persistent cookies in it.
+
+      * Add res.headers method which returns a Hash of headers.
+        Hash key and value are both String. Each key has a single value so you
+        can't extract exact value when a message has multiple headers like
+        'Set-Cookie'. Use header['Set-Cookie'] for that purpose.
+        (It returns an Array always)
+
+      * Allow keyword style argument for HTTPClient#get, post, etc.
+        Introduced keywords are: :body, :query, and :header.
+        You can write
+          HTTPClient.get(uri, :header => {'X-custom' => '1'})
+        instead of;
+          HTTPClient.get(uri, nil, {'X-custom' => '1'})
+
+      * Add new keyword argument :follow_redirect to get/post. Now you can
+        follow redirection response with passing :follow_redirect => true.
+
+      * [INCOMPAT] Rename HTTPClient::HTTP::Message#body to #http_body, then
+        add #body as an alias of #content. It's incompatible change though
+        users rarely depends on this method. (I've never seen such a case)
+        Users who are using req.body and/or res.body should follow this
+        change. (req.http_body and res.http_body)
+
+    * Bug fixes
+
+      * Reenable keep-alive for chunked response.
+        This feature was disabled by c206b687952e1ad3e20c20e69bdbd1a9cb38609e at
+        2008-12-09. I should have written a test for keep-alive. Now I added it.
+        Thanks Takahiro Nishimura(@dr_taka_n) for finding this bug.
 
 = Changes in 2.1.7 =
 
