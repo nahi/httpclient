@@ -571,6 +571,12 @@ EOS
     assert_nil(res.contenttype)
   end
 
+  def test_get_follow_redirect
+    assert_equal('hello', @client.get(@url + 'hello', :follow_redirect => true).body)
+    assert_equal('hello', @client.get(@url + 'redirect1', :follow_redirect => true).body)
+    assert_equal('hello', @client.get(@url + 'redirect2', :follow_redirect => true).body)
+  end
+
   def test_get_async
     conn = @client.get_async(@url + 'servlet', {1=>2, 3=>4})
     Thread.pass while !conn.finished?
@@ -599,6 +605,12 @@ EOS
     assert_equal("post", @client.post(@url + 'servlet').content[0, 4])
     res = @client.post(@url + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
+  end
+
+  def test_post_follow_redirect
+    assert_equal('hello', @client.post(@url + 'hello', :follow_redirect => true).body)
+    assert_equal('hello', @client.post(@url + 'redirect1', :follow_redirect => true).body)
+    assert_equal('hello', @client.post(@url + 'redirect2', :follow_redirect => true).body)
   end
 
   def test_post_with_content_type
