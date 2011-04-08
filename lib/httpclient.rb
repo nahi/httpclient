@@ -615,56 +615,47 @@ class HTTPClient
 
   # Sends HEAD request to the specified URL.  See request for arguments.
   def head(uri, *args)
-    query, header = keyword_argument(args, :query, :header)
-    request(:head, uri, query, nil, header || {})
+    request(:head, uri, argument_to_hash(args, :query, :header))
   end
 
   # Sends GET request to the specified URL.  See request for arguments.
   def get(uri, *args, &block)
-    query, header = keyword_argument(args, :query, :header)
-    request(:get, uri, query, nil, header || {}, &block)
+    request(:get, uri, argument_to_hash(args, :query, :header), &block)
   end
 
   # Sends POST request to the specified URL.  See request for arguments.
   def post(uri, *args, &block)
-    body, header = keyword_argument(args, :body, :header)
-    request(:post, uri, nil, body || '', header || {}, &block)
+    request(:post, uri, argument_to_hash(args, :body, :header), &block)
   end
 
   # Sends PUT request to the specified URL.  See request for arguments.
   def put(uri, *args, &block)
-    body, header = keyword_argument(args, :body, :header)
-    request(:put, uri, nil, body || '', header || {}, &block)
+    request(:put, uri, argument_to_hash(args, :body, :header), &block)
   end
 
   # Sends DELETE request to the specified URL.  See request for arguments.
   def delete(uri, *args, &block)
-    header = keyword_argument(args, :header)
-    request(:delete, uri, nil, nil, header || {}, &block)
+    request(:delete, uri, argument_to_hash(args, :header), &block)
   end
 
   # Sends OPTIONS request to the specified URL.  See request for arguments.
   def options(uri, *args, &block)
-    header = keyword_argument(args, :header)
-    request(:options, uri, nil, nil, header || {}, &block)
+    request(:options, uri, argument_to_hash(args, :header), &block)
   end
 
   # Sends PROPFIND request to the specified URL.  See request for arguments.
   def propfind(uri, *args, &block)
-    header = keyword_argument(args, :header)
-    request(:propfind, uri, nil, nil, header || PROPFIND_DEFAULT_EXTHEADER, &block)
+    request(:propfind, uri, argument_to_hash(args, :header), &block)
   end
   
   # Sends PROPPATCH request to the specified URL.  See request for arguments.
   def proppatch(uri, *args, &block)
-    body, header = keyword_argument(args, :body, :header)
-    request(:proppatch, uri, nil, body, header || {}, &block)
+    request(:proppatch, uri, argument_to_hash(args, :body, :header), &block)
   end
   
   # Sends TRACE request to the specified URL.  See request for arguments.
   def trace(uri, *args, &block)
-    query, body, header = keyword_argument(args, :query, :body, :header)
-    request('TRACE', uri, query, body, header || {}, &block)
+    request('TRACE', uri, argument_to_hash(args, :query, :body, :header), &block)
   end
 
   # Sends a request to the specified URL.
@@ -707,6 +698,14 @@ class HTTPClient
   # cgi.rb does not support it.
   def request(method, uri, *args, &block)
     query, body, header = keyword_argument(args, :query, :body, :header)
+    if [:post, :put].include?(method)
+      body ||= ''
+    end
+    if method == :propfind
+      header ||= PROPFIND_DEFAULT_EXTHEADER
+    else
+      header ||= {}
+    end
     uri = urify(uri)
     if block
       filtered_block = proc { |res, str|
