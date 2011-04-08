@@ -51,6 +51,28 @@ class HTTPClient
       args
     end
 
+    # Keyword argument to hash helper.
+    # args:: given arguments.
+    # *field:: a list of arguments to be extracted.
+    #
+    # Returns hash which has defined keys. When a Hash given, returns it
+    # including undefined keys. When an Array given, returns a Hash which only
+    # includes defined keys.
+    def argument_to_hash(args, *field)
+      return nil if args.empty?
+      if args.size == 1 and args[0].is_a?(Hash)
+        r = args[0].values_at(*field)
+        unless r.compact.empty?
+          return args
+        end
+      end
+      h = {}
+      field.each_with_index do |e, idx|
+        h[e] = args[idx]
+      end
+      h
+    end
+
     # Gets an URI instance.
     def urify(uri)
       if uri.nil?
