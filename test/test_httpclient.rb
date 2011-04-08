@@ -1109,6 +1109,8 @@ EOS
       ],
       res.dump.split(/\r\n/).sort
     )
+    assert_equal(['8'], res.header['Content-Length'])
+    assert_equal('8', res.headers['Content-Length'])
     res.header.set('foo', 'bar')
     assert_equal(
       [

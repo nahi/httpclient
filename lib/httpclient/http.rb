@@ -925,6 +925,14 @@ module HTTP
     alias header http_header
     alias body content
 
+    # Returns Hash of header. key and value are both String. Each key has a
+    # single value so you can't extract exact value when a message has multiple
+    # headers like 'Set-Cookie'. Use header['Set-Cookie'] for that purpose.
+    # (It returns an Array always)
+    def headers
+      Hash[http_header.all]
+    end
+
     # Extracts cookies from 'Set-Cookie' header.
     # Supports 'Set-Cookie' in response header only.
     # Do we need 'Cookie' support in request header?
