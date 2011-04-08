@@ -50,13 +50,23 @@ require 'httpclient/cookie'
 #
 # === How to retrieve web resources
 #
-# See get_content.
+# See get and get_content.
 #
-# 1. Get content of specified URL.  It returns a String of whole result.
+# 1. Get content of specified URL.  It returns HTTP::Message object and
+#    calling 'body' method of it returns a content String.
+#
+#     puts clnt.get('http://dev.ctor.org/').body
+#
+# 2. For getting content directly, use get_content.  It follows redirect
+#    response and returns a String of whole result.
 #
 #     puts clnt.get_content('http://dev.ctor.org/')
 #
-# 2. Get content as chunks of String.  It yields chunks of String.
+# 3. You can pass :follow_redirect option to follow redirect response in get.
+#
+#     puts clnt.get('http://dev.ctor.org/', :foolow_redirect => true)
+#
+# 4. Get content as chunks of String.  It yields chunks of String.
 #
 #     clnt.get_content('http://dev.ctor.org/') do |chunk|
 #       puts chunk
@@ -79,7 +89,11 @@ require 'httpclient/cookie'
 #     p res.status
 #     p res.contenttype
 #     p res.header['X-Custom']
-#     puts res.content
+#     puts res.body
+#
+#    You can also use keyword argument style.
+#
+#     res = clnt.get(uri, :query => { :keyword => 'ruby', :lang => 'en' })
 #
 # === How to POST
 #
@@ -89,6 +103,10 @@ require 'httpclient/cookie'
 #
 #     body = { 'keyword' => 'ruby', 'lang' => 'en' }
 #     res = clnt.post(uri, body)
+#
+#    Keyword argument style.
+#
+#     res = clnt.post(uri, :body => ...)
 #
 # 2. Do multipart file upload with POST.  No need to set extra header by
 #    yourself from httpclient/2.1.4.
@@ -117,7 +135,7 @@ require 'httpclient/cookie'
 #    Just pass an URL which starts with 'https://'.
 #
 #     https_url = 'https://www.rsa.com'
-#     clnt.get_content(https_url)
+#     clnt.get(https_url)
 #
 # 2. Getting peer certificate from response.
 #
@@ -129,22 +147,23 @@ require 'httpclient/cookie'
 #     user_cert_file = 'cert.pem'
 #     user_key_file = 'privkey.pem'
 #     clnt.ssl_config.set_client_cert_file(user_cert_file, user_key_file)
-#     clnt.get_content(https_url)
+#     clnt.get(https_url)
 #
 # === Handling Cookies
 #
 # 1. Using volatile Cookies.  Nothing to do.  HTTPClient handles Cookies.
 #
 #     clnt = HTTPClient.new
-#     clnt.get_content(url1) # receives Cookies.
-#     clnt.get_content(url2) # sends Cookies if needed.
+#     res = clnt.get(url1) # receives Cookies.
+#     res = clnt.get(url2) # sends Cookies if needed.
+#     p res.cookies
 #
 # 2. Saving non volatile Cookies to a specified file.  Need to set a file at
 #    first and invoke save method at last.
 #
 #     clnt = HTTPClient.new
 #     clnt.set_cookie_store('/home/nahi/cookie.dat')
-#     clnt.get_content(url)
+#     clnt.get(url)
 #     ...
 #     clnt.save_cookie_store
 #
@@ -163,7 +182,7 @@ require 'httpclient/cookie'
 #     user = 'user'
 #     password = 'user'
 #     clnt.set_auth(domain, user, password)
-#     p clnt.get_content('http://dev.ctor.org/http-access2/login').status
+#     p clnt.get('http://dev.ctor.org/http-access2/login').status
 #
 # 2. Authentication with Proxy server.  Supports BasicAuth and NTLM
 #    (requires win32/sspi)
@@ -172,14 +191,14 @@ require 'httpclient/cookie'
 #     user = 'proxy'
 #     password = 'proxy'
 #     clnt.set_proxy_auth(user, password)
-#     p clnt.get_content(url)
+#     p clnt.get(url)
 #
 # === Invoking HTTP methods with custom header
 #
 # Pass a Hash or an Array for header argument.
 #
 #     header = { 'Accept' => '*/*' }
-#     clnt.get_content(uri, query, header)
+#     clnt.get(uri, query, header)
 #
 #     header = [['Accept', 'image/jpeg'], ['Accept', 'image/png']]
 #     clnt.get_content(uri, query, header)
@@ -200,7 +219,7 @@ require 'httpclient/cookie'
 #     puts '.'
 #     res = connection.pop
 #     p res.status
-#     p res.content.read # res.content is an IO for the res of async method.
+#     p res.body.read # res.body is an IO for the res of async method.
 #
 # === Shortcut methods
 #
