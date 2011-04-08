@@ -1,5 +1,5 @@
 --- lib/webagent/cookie.rb	2002-09-30 01:00:39.000000000 +0900
-+++ ../lib/httpclient/cookie.rb	2008-12-19 15:55:42.000000000 +0900
++++ ../lib/httpclient/cookie.rb	2011-03-22 14:40:02.158455015 +0900
 @@ -1,2 +1,8 @@
 +# cookie.rb is redistributed file which is originally included in Webagent
 +# version 0.6.2 by TAKAHASHI `Maki' Masayoshi.  And it contains some bug fixes.
@@ -36,7 +36,7 @@
 +	return (hostname == domainname)
        end
      end
-@@ -46,7 +57,4 @@ class WebAgent
+@@ -46,12 +57,9 @@ class WebAgent
      include CookieUtils
  
 -    require 'parsedate'
@@ -44,39 +44,114 @@
 -
      attr_accessor :name, :value
      attr_accessor :domain, :path
-@@ -64,4 +72,6 @@ class WebAgent
+     attr_accessor :expires      ## for Netscape Cookie
+     attr_accessor :url
+-    attr_writer :use, :secure, :discard, :domain_orig, :path_orig, :override
++    attr_writer :use, :secure, :http_only, :discard, :domain_orig, :path_orig, :override
+ 
+     USE = 1
+@@ -62,6 +70,11 @@ class WebAgent
+     OVERRIDE = 32
+     OVERRIDE_OK = 32
++    HTTP_ONLY = 64
  
      def initialize()
-+      @discard = @use = @secure = @domain_orig = @path_orig = @override = nil
-+      @path = nil
++      @name = @value = @domain = @path = nil
++      @expires = nil
++      @url = nil
++      @use = @secure = @http_only = @discard = @domain_orig = @path_orig = @override = nil
      end
  
-@@ -168,8 +178,7 @@ class WebAgent
- 	key, value = pair.split(/=/)  ## value may nil
+@@ -78,4 +91,8 @@ class WebAgent
+     end
+ 
++    def http_only?
++      @http_only
++    end
++
+     def domain_orig?
+       @domain_orig
+@@ -94,4 +111,5 @@ class WebAgent
+       flg += USE  if @use
+       flg += SECURE  if @secure
++      flg += HTTP_ONLY  if @http_only
+       flg += DOMAIN  if @domain_orig
+       flg += PATH  if @path_orig
+@@ -105,4 +123,5 @@ class WebAgent
+       @use = true      if flag & USE > 0
+       @secure = true   if flag & SECURE > 0
++      @http_only = true   if flag & HTTP_ONLY > 0
+       @domain_orig = true if flag & DOMAIN > 0
+       @path_orig = true if flag & PATH > 0
+@@ -149,6 +168,8 @@ class WebAgent
+     def parse(str, url)
+       @url = url
++      # TODO: should not depend on join_quotedstr. scan with escape like CSV.
+       cookie_elem = str.split(/;/)
+       cookie_elem = join_quotedstr(cookie_elem, ';')
++      cookie_elem -= [""] # del empty elements, a cookie might included ";;"
+       first_elem = cookie_elem.shift
+       if first_elem !~ /([^=]*)(\=(.*))?/
+@@ -157,27 +178,17 @@ class WebAgent
+       end
+       @name = $1.strip
+-      @value = $3
+-      if @value
+-	if @value =~ /^\s*"(.*)"\s*$/
+-	  @value = $1
+-	else
+-	  @value.dup.strip!
+-	end
+-      end
++      @value = normalize_cookie_value($3)
+       cookie_elem.each{|pair|
+-	key, value = pair.split(/=/)  ## value may nil
++	key, value = pair.split(/=/, 2)  ## value may nil
  	key.strip!
 -	value.strip!
 -	if value && value =~ /^"(.*)"$/
 -	  value = $1
 -	end
-+        if value
-+          value = value.strip.sub(/\A"(.*)"\z/) { $1 }
-+        end
++        value = normalize_cookie_value(value)
  	case key.downcase
  	when 'domain'
-@@ -177,5 +186,5 @@ class WebAgent
+ 	  @domain = value
  	when 'expires'
++          @expires = nil
  	  begin
 -	    @expires = Time.gm(*parsedate(value)[0,6])
-+	    @expires = Time.parse(value)
++	    @expires = Time.parse(value).gmtime() if value
  	  rescue ArgumentError
- 	    @expires = nil
-@@ -200,46 +209,63 @@ class WebAgent
+-	    @expires = nil
+ 	  end
+ 	when 'path'
+@@ -185,4 +196,6 @@ class WebAgent
+ 	when 'secure'
+ 	  @secure = true  ## value may nil, but must 'true'.
++	when 'httponly'
++	  @http_only = true  ## value may nil, but must 'true'.
+ 	else
+ 	  ## ignore
+@@ -191,4 +204,12 @@ class WebAgent
+     end
+ 
++    def normalize_cookie_value(value)
++      if value
++        value = value.strip.sub(/\A"(.*)"\z/) { $1 }
++        value = nil if value.empty?
++      end
++      value
++    end
++    private :normalize_cookie_value
+   end
+ 
+@@ -200,46 +221,63 @@ class WebAgent
      class ErrorOverrideOK < Error; end
      class SpecialError < Error; end
 -    class NoDotError < ErrorOverrideOK; end
- 
--    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
 -
+-    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
+ 
 -    attr_accessor :cookies
 +    attr_reader :cookies
      attr_accessor :cookies_file
@@ -159,7 +234,7 @@
 +        is_expired
        }
      end
-@@ -268,15 +294,14 @@ class WebAgent
+@@ -268,15 +306,14 @@ class WebAgent
  
      def find(url)
 -
@@ -182,7 +257,7 @@
 +        end
        }
        return make_cookie_str(cookie_list)
-@@ -290,6 +315,7 @@ class WebAgent
+@@ -290,6 +327,7 @@ class WebAgent
      private :find_cookie_info
  
 +    # not tested well; used only netscape_rule = true.
@@ -191,16 +266,26 @@
 +      if !err.kind_of?(ErrorOverrideOK) || !override
  	raise err
        end
-@@ -311,8 +337,4 @@ class WebAgent
-       use_security = override
- 
+@@ -302,6 +340,6 @@ class WebAgent
+       expires, domain, path = 
+ 	cookie.expires, cookie.domain, cookie.path
+-      secure, domain_orig, path_orig = 
+-	cookie.secure?, cookie.domain_orig?, cookie.path_orig?
++      secure, http_only, domain_orig, path_orig = 
++	cookie.secure?, cookie.http_only?, cookie.domain_orig?, cookie.path_orig?
+       discard, override = 
+ 	cookie.discard?, cookie.override?
+@@ -309,9 +347,4 @@ class WebAgent
+       domainname = url.host
+       domain_orig, path_orig = domain, path
+-      use_security = override
+-
 -      if !domainname
 -	cookie_error(NodotError.new(), override)
 -      end
--
-       if domain
  
-@@ -326,27 +348,36 @@ class WebAgent
+       if domain
+@@ -326,27 +359,36 @@ class WebAgent
  	end
  
 -	## [NETSCAPE] rule
@@ -239,7 +324,7 @@
        end
  
 -      path ||= url.path.sub!(%r|/[^/]*|, '')
-+      path ||= url.path.sub(%r|/[^/]*|, '')
++      path ||= url.path.sub(%r|/[^/]*\z|, '')
        domain ||= domainname
 -      cookie = find_cookie_info(domain, path, name)
 -
@@ -257,7 +342,13 @@
 +        check_expired_cookies()
        end
  
-@@ -368,25 +399,24 @@ class WebAgent
+@@ -360,4 +402,5 @@ class WebAgent
+       ## for flag
+       cookie.secure = secure
++      cookie.http_only = http_only
+       cookie.domain_orig = domain_orig
+       cookie.path_orig = path_orig
+@@ -368,25 +411,29 @@ class WebAgent
  	@is_saved = false
        end
 -
@@ -282,6 +373,7 @@
 -	end
 -      }
 +      @cookies.synchronize do
++        @cookies.clear
 +        File.open(@cookies_file,'r'){|f|
 +          while line = f.gets
 +            cookie = WebAgent::Cookie.new()
@@ -290,7 +382,11 @@
 +            cookie.url = URI.parse(col[0])
 +            cookie.name = col[1]
 +            cookie.value = col[2]
-+            cookie.expires = Time.at(col[3].to_i)
++            if col[3].empty? or col[3] == '0'
++              cookie.expires = nil
++            else
++              cookie.expires = Time.at(col[3].to_i).gmtime
++            end
 +            cookie.domain = col[4]
 +            cookie.path = col[5]
 +            cookie.set_flag(col[6])
@@ -299,3 +395,10 @@
 +      end
      end
  
+@@ -511,4 +558,6 @@ Load, save, parse and send cookies.
+  -- Cookie#secure?
+  -- Cookie#secure=(secure)
++ -- Cookie#http_only?
++ -- Cookie#http_only=(http_only)
+  -- Cookie#domain_orig?
+  -- Cookie#domain_orig=(domain_orig)
