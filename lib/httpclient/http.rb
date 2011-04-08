@@ -378,12 +378,17 @@ module HTTP
           set('Last-Modified', @body_date.httpdate)
         end
         if self['Content-Type'].empty?
-          set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ charset_label(@body_charset || $KCODE) }")
+          set('Content-Type', "#{ @body_type || 'text/html' }; charset=#{ charset_label }")
         end
       end
 
-      def charset_label(charset)
-        CHARSET_MAP[charset] || 'us-ascii'
+      def charset_label
+        # TODO: should handle response encoding for 1.9 correctly.
+        if RUBY_VERSION > "1.9"
+          CHARSET_MAP[@body_charset] || 'us-ascii'
+        else
+          CHARSET_MAP[@body_charset || $KCODE] || 'us-ascii'
+        end
       end
     end
 
