@@ -861,6 +861,7 @@ module HTTP
       @http_body = body
       @http_header.body_size = @http_body.size if @http_header
     end
+    alias body= http_body=
 
     # Returns HTTP version in a HTTP header.  String.
     def http_version
