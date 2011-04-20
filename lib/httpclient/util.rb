@@ -42,10 +42,10 @@ class HTTPClient
     #   end
     #
     def keyword_argument(args, *field)
-      if args.size == 1 and args[0].is_a?(Hash)
-        r = args[0].values_at(*field)
-        unless r.compact.empty?
-          return r
+      if args.size == 1 and Hash === args[0]
+        h = args[0]
+        if field.any? { |f| h.key?(f) }
+          return h.values_at(*field)
         end
       end
       args
@@ -60,10 +60,10 @@ class HTTPClient
     # includes defined keys.
     def argument_to_hash(args, *field)
       return nil if args.empty?
-      if args.size == 1 and args[0].is_a?(Hash)
-        r = args[0].values_at(*field)
-        unless r.compact.empty?
-          return args[0]
+      if args.size == 1 and Hash === args[0]
+        h = args[0]
+        if field.any? { |f| h.key?(f) }
+          return h
         end
       end
       h = {}
