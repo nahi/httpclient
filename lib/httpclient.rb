@@ -389,6 +389,22 @@ class HTTPClient
     @follow_redirect_count = 10
     load_environment
     self.proxy = proxy if proxy
+    keep_webmock_compat
+  end
+
+  # webmock 1.6.2 depends on HTTP::Message#body.content to work.
+  # let's keep it work iif webmock is loaded for a while.
+  def keep_webmock_compat
+    if respond_to?(:do_get_block_with_webmock)
+      ::HTTP::Message.module_eval do
+        def body
+          def (o = self.content).content
+            self
+          end
+          o
+        end
+      end
+    end
   end
 
   # Returns debug device if exists.  See debug_dev=.
