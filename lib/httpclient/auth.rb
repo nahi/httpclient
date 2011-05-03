@@ -165,8 +165,9 @@ class HTTPClient
       @negotiate_auth = NegotiateAuth.new
       @ntlm_auth = NegotiateAuth.new('NTLM')
       @sspi_negotiate_auth = SSPINegotiateAuth.new
+      @digest_auth = ProxyDigestAuth.new
       # sort authenticators by priority
-      @authenticator = [@negotiate_auth, @ntlm_auth, @sspi_negotiate_auth, @basic_auth]
+      @authenticator = [@negotiate_auth, @ntlm_auth, @sspi_negotiate_auth, @digest_auth, @basic_auth]
     end
 
     # Resets challenge state.  See sub filters for more details.
@@ -402,7 +403,31 @@ class HTTPClient
       param
     end
   end
+  
 
+  # Authentication filter for handling DigestAuth negotiation.
+  # Ignores uri argument. Used in ProxyAuth.
+  class ProxyDigestAuth < DigestAuth
+
+    # overrides DigestAuth#set. sets default user name and password. uri is not used.
+    def set(uri, user, passwd)
+      @set = true
+      @auth = [user, passwd]
+    end
+
+    # overrides DigestAuth#get. Uses default user name and password regardless of target uri
+    def get(req)
+      target_uri = req.header.request_uri
+      param = Util.hash_find_value(@challenge) { |uri, v|
+        Util.uri_part_of(target_uri, uri)
+      }
+      return nil unless param
+      user, passwd = @auth
+      return nil unless user
+      calc_cred(req, user, passwd, param)
+    end
+
+  end
 
   # Authentication filter for handling Negotiate/NTLM negotiation.
   # Used in WWWAuth and ProxyAuth.
