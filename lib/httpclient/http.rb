@@ -440,20 +440,26 @@ module HTTP
       # If no dev (the second argument) given, this method returns a dumped
       # String.
       def dump(header = '', dev = '')
+        file_block = Proc.new { |body|
+          buf = ''
+          reset_pos(body)
+          while !body.read(@chunk_size, buf).nil?
+            dev << buf
+          end
+          body.rewind
+        }
         if @body.is_a?(Parts)
           dev << header
-          buf = ''
           @body.parts.each do |part|
             if Message.file?(part)
-              reset_pos(part)
-              while !part.read(@chunk_size, buf).nil?
-                dev << buf
-              end
-              part.rewind
+              file_block.call(part)
             else
               dev << part
             end
           end
+        elsif Message.file?(@body)
+          dev << header
+          file_block.call(@body)
         elsif @body
           dev << header + @body
         else
@@ -498,11 +504,11 @@ module HTTP
 
       def set_content(body, boundary = nil)
         if body.respond_to?(:read)
-          # uses Transfer-Encoding: chunked.  bear in mind that server may not
-          # support it.  at least ruby's CGI doesn't.
+          # uses Transfer-Encoding: chunked if body does not respond to :size.
+          # bear in mind that server may not support it. at least ruby's CGI doesn't.
           @body = body
           remember_pos(@body)
-          @size = nil
+          @size = body.respond_to?(:size) ? body.size - body.pos : nil
         elsif boundary and Message.multiparam_query?(body)
           @body = build_query_multipart_str(body, boundary)
           @size = @body.size
