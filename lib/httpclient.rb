@@ -728,9 +728,9 @@ class HTTPClient
   # a HTTP request message body.
   #
   # When you pass an IO as a body, HTTPClient sends it as a HTTP request with
-  # chunked encoding (Transfer-Encoding: chunked in HTTP header).  Bear in mind
-  # that some server application does not support chunked request.  At least
-  # cgi.rb does not support it.
+  # chunked encoding (Transfer-Encoding: chunked in HTTP header) if IO does not
+  # respond to :read. Bear in mind that some server application does not support
+  # chunked request.  At least cgi.rb does not support it.
   def request(method, uri, *args, &block)
     query, body, header, follow_redirect = keyword_argument(args, :query, :body, :header, :follow_redirect)
     if [:post, :put].include?(method)
