@@ -146,19 +146,23 @@ class HTTPClient
     # Calling this method resets all existing sessions.
     def add_trust_ca(trust_ca_file_or_hashed_dir)
       @cacerts_loaded = true # avoid lazy override
-      if FileTest.directory?(trust_ca_file_or_hashed_dir)
-        @cert_store.add_path(trust_ca_file_or_hashed_dir)
-      else
-        @cert_store.add_file(trust_ca_file_or_hashed_dir)
-      end
+      add_trust_ca_to_store(@cert_store, trust_ca_file_or_hashed_dir)
       change_notify
     end
     alias set_trust_ca add_trust_ca
 
+    def add_trust_ca_to_store(cert_store, trust_ca_file_or_hashed_dir)
+      if FileTest.directory?(trust_ca_file_or_hashed_dir)
+        cert_store.add_path(trust_ca_file_or_hashed_dir)
+      else
+        cert_store.add_file(trust_ca_file_or_hashed_dir)
+      end
+    end
+
     # Loads default trust anchors.
     # Calling this method resets all existing sessions.
     def load_trust_ca
-      load_cacerts
+      load_cacerts(@cert_store)
       change_notify
     end
 
@@ -283,13 +287,13 @@ class HTTPClient
     # Default callback for verification: only dumps error.
     def default_verify_callback(is_ok, ctx)
       if $DEBUG
-        puts "#{ is_ok ? 'ok' : 'ng' }: #{ctx.current_cert.subject}"
+        warn("#{ is_ok ? 'ok' : 'ng' }: #{ctx.current_cert.subject}")
       end
       if !is_ok
         depth = ctx.error_depth
         code = ctx.error
         msg = ctx.error_string
-        STDERR.puts "at depth #{depth} - #{code}: #{msg}"
+        warn("at depth #{depth} - #{code}: #{msg}")
       end
       is_ok
     end
@@ -300,7 +304,7 @@ class HTTPClient
         depth = ctx.error_depth
         code = ctx.error
         msg = ctx.error_string
-        STDERR.puts "at depth #{depth} - #{code}: #{msg}" if $DEBUG
+        warn("at depth #{depth} - #{code}: #{msg}") if $DEBUG
         return false
       end
 
@@ -333,13 +337,13 @@ class HTTPClient
       end
 
       if self_signed
-        STDERR.puts 'self signing CA' if $DEBUG
+        warn('self signing CA') if $DEBUG
         return true
       elsif ca
-        STDERR.puts 'middle level CA' if $DEBUG
+        warn('middle level CA') if $DEBUG
         return true
       elsif server_auth
-        STDERR.puts 'for server authentication' if $DEBUG
+        warn('for server authentication') if $DEBUG
         return true
       end
 
@@ -352,7 +356,7 @@ class HTTPClient
       @client.reset_all
     end
 
-    def load_cacerts
+    def load_cacerts(cert_store)
       [
         [DIST_CERT, 'cacert.p7s'],
         [DIST_CERT_SHA1, 'cacert_sha1.p7s']
@@ -364,12 +368,12 @@ class HTTPClient
           store = X509::Store.new
           store.add_cert(selfcert)
           if (p7.verify(nil, store, p7.data, 0))
-            add_trust_ca(file)
+            add_trust_ca_to_store(cert_store, file)
             return
           end
         end
       end
-      STDERR.puts("cacerts loading failed")
+      warn("cacerts loading failed")
     end
 
     DIST_CERT =<<__DIST_CERT__
