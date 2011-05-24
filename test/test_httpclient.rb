@@ -1,36 +1,18 @@
 # -*- encoding: utf-8 -*-
-require 'test/unit'
-require 'httpclient'
-require 'webrick'
-require 'webrick/httpproxy.rb'
-require 'logger'
-require 'stringio'
-require 'cgi'
-require 'webrick/httputils'
+require File.expand_path('helper', File.dirname(__FILE__))
 
 
 class TestHTTPClient < Test::Unit::TestCase
-  Port = 17171
-  ProxyPort = 17172
+  include Helper
 
   def setup
-    @logger = Logger.new(STDERR)
-    @logger.level = Logger::Severity::FATAL
-    @proxyio = StringIO.new
-    @proxylogger = Logger.new(@proxyio)
-    @proxylogger.level = Logger::Severity::DEBUG
-    @url = "http://localhost:#{Port}/"
-    @proxyurl = "http://localhost:#{ProxyPort}/"
-    @server = @proxyserver = @client = nil
-    @server_thread = @proxyserver_thread = nil
+    super
     setup_server
     setup_client
   end
 
   def teardown
-    teardown_client
-    teardown_proxyserver if @proxyserver
-    teardown_server
+    super
   end
 
   def test_initialize
@@ -123,7 +105,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
-    assert_equal("Host: localhost:#{Port}", lines[5])
+    assert_equal("Host: localhost:#{port}", lines[5])
     #
     @client.reset_all
     str = ""
@@ -145,7 +127,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
-    assert_equal("Host: localhost:#{Port}", lines[5])
+    assert_equal("Host: localhost:#{port}", lines[5])
     @client.protocol_version = 'HTTP/1.1'
     assert_equal('HTTP/1.1', @client.protocol_version)
     str = ""
@@ -1347,7 +1329,7 @@ EOS
     @client.socket_local.host = 'localhost'
     assert_equal('hello', @client.get_content(@url + 'hello'))
     @client.reset_all
-    @client.socket_local.port = Port
+    @client.socket_local.port = port
     assert_raises(Errno::EADDRINUSE) do
       assert_equal('hello', @client.get_content(@url + 'hello'))
     end
@@ -1371,7 +1353,7 @@ private
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => @logger,
-      :Port => Port,
+      :Port => port,
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
@@ -1383,47 +1365,6 @@ private
     end
     @server.mount('/servlet', TestServlet.new(@server))
     @server_thread = start_server_thread(@server)
-  end
-
-  def setup_proxyserver
-    @proxyserver = WEBrick::HTTPProxyServer.new(
-      :BindAddress => "localhost",
-      :Logger => @proxylogger,
-      :Port => ProxyPort,
-      :AccessLog => []
-    )
-    @proxyserver_thread = start_server_thread(@proxyserver)
-  end
-
-  def setup_client
-    @client = HTTPClient.new
-  end
-
-  def teardown_server
-    @server.shutdown
-  end
-
-  def teardown_proxyserver
-    @proxyserver.shutdown
-  end
-
-  def teardown_client
-    @client.reset_all
-  end
-
-  def start_server_thread(server)
-    t = Thread.new {
-      Thread.current.abort_on_exception = true
-      server.start
-    }
-    while server.status != :Running
-      sleep 0.1
-      unless t.alive?
-	t.join
-	raise
-      end
-    end
-    t
   end
 
   def escape_env
