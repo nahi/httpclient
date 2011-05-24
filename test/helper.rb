@@ -13,12 +13,20 @@ module Helper
   Port = 17171
   ProxyPort = 17172
 
-  def port
-    Port
+  def serverport
+    @serverport
   end
 
   def proxyport
-    ProxyPort
+    @proxyport
+  end
+
+  def serverurl
+    "http://localhost:#{serverport}/"
+  end
+
+  def proxyurl
+    "http://localhost:#{proxyport}/"
   end
 
   def setup
@@ -27,10 +35,10 @@ module Helper
     @proxyio = StringIO.new
     @proxylogger = Logger.new(@proxyio)
     @proxylogger.level = Logger::Severity::DEBUG
-    @url = "http://localhost:#{port}/"
-    @proxyurl = "http://localhost:#{proxyport}/"
     @server = @proxyserver = @client = nil
     @server_thread = @proxyserver_thread = nil
+    @serverport = Port
+    @proxyport = ProxyPort
   end
 
   def teardown

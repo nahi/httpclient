@@ -17,10 +17,11 @@ class TestAuth < Test::Unit::TestCase
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => @logger,
-      :Port => port,
+      :Port => 0,
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
+    @serverport = @server.config[:Port]
     @server.mount(
       '/basic_auth',
       WEBrick::HTTPServlet::ProcHandler.new(method(:do_basic_auth).to_proc)
@@ -76,14 +77,14 @@ class TestAuth < Test::Unit::TestCase
 
   def test_basic_auth
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{port}/", 'admin', 'admin')
-    assert_equal('basic_auth OK', c.get_content("http://localhost:#{port}/basic_auth"))
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
   end
 
   def test_basic_auth_compat
     c = HTTPClient.new
-    c.set_basic_auth("http://localhost:#{port}/", 'admin', 'admin')
-    assert_equal('basic_auth OK', c.get_content("http://localhost:#{port}/basic_auth"))
+    c.set_basic_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
   end
 
   def test_BASIC_auth
@@ -93,8 +94,8 @@ class TestAuth < Test::Unit::TestCase
     begin
       @basic_auth.instance_eval { @auth_scheme = "BASIC" }
       c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
-      c.set_auth("http://localhost:#{port}/", 'admin', 'admin')
-      assert_equal('basic_auth OK', c.get_content("http://localhost:#{port}/basic_auth"))
+      c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+      assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
     ensure
       @basic_auth.instance_eval { @auth_scheme = webrick_backup }
       #c.www_auth.basic_auth.instance_eval { @scheme = httpaccess2_backup }
@@ -103,22 +104,22 @@ class TestAuth < Test::Unit::TestCase
 
   def test_digest_auth
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{port}/", 'admin', 'admin')
-    assert_equal('digest_auth OK', c.get_content("http://localhost:#{port}/digest_auth"))
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('digest_auth OK', c.get_content("http://localhost:#{serverport}/digest_auth"))
   end
 
   def test_digest_auth_with_block
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{port}/", 'admin', 'admin')
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
     called = false
-    c.get_content("http://localhost:#{port}/digest_auth") do |str|
+    c.get_content("http://localhost:#{serverport}/digest_auth") do |str|
       assert_equal('digest_auth OK', str)
       called = true
     end
     assert(called)
     #
     called = false
-    c.get("http://localhost:#{port}/digest_auth") do |str|
+    c.get("http://localhost:#{serverport}/digest_auth") do |str|
       assert_equal('digest_auth OK', str)
       called = true
     end
@@ -127,26 +128,26 @@ class TestAuth < Test::Unit::TestCase
 
   def test_digest_auth_with_post_io
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{port}/", 'admin', 'admin')
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
     post_body = StringIO.new("1234567890")
-    assert_equal('1234567890', c.post("http://localhost:#{port}/digest_auth", post_body).header['x-query'][0])
+    assert_equal('1234567890', c.post("http://localhost:#{serverport}/digest_auth", post_body).header['x-query'][0])
     #
     post_body = StringIO.new("1234567890")
     post_body.read(5)
-    assert_equal('67890', c.post("http://localhost:#{port}/digest_auth", post_body).header['x-query'][0])
+    assert_equal('67890', c.post("http://localhost:#{serverport}/digest_auth", post_body).header['x-query'][0])
   end
 
   def test_digest_auth_with_querystring
     c = HTTPClient.new
     c.debug_dev = STDERR if $DEBUG
-    c.set_auth("http://localhost:#{port}/", 'admin', 'admin')
-    assert_equal('digest_auth OKbar=baz', c.get_content("http://localhost:#{port}/digest_auth/foo?bar=baz"))
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('digest_auth OKbar=baz', c.get_content("http://localhost:#{serverport}/digest_auth/foo?bar=baz"))
   end
 
   def test_digest_sess_auth
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{port}/", 'admin', 'admin')
-    assert_equal('digest_sess_auth OK', c.get_content("http://localhost:#{port}/digest_sess_auth"))
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('digest_sess_auth OK', c.get_content("http://localhost:#{serverport}/digest_sess_auth"))
   end
 
   def test_proxy_auth
