@@ -1,15 +1,14 @@
-require 'test/unit'
-require 'httpclient'
-require 'logger'
+require File.expand_path('helper', File.dirname(__FILE__))
 require 'webrick/https'
 
 
 class TestSSL < Test::Unit::TestCase
-  PORT = 17171
+  include Helper
   DIR = File.dirname(File.expand_path(__FILE__))
 
   def setup
-    @url = "https://localhost:#{PORT}/hello"
+    super
+    @url = "https://localhost:#{port}/hello"
     @serverpid = @client = nil
     @verify_callback_called = false
     @verbose, $VERBOSE = $VERBOSE, nil
@@ -18,9 +17,8 @@ class TestSSL < Test::Unit::TestCase
   end
 
   def teardown
+    super
     $VERBOSE = @verbose
-    teardown_client
-    teardown_server
   end
 
   def path(filename)
@@ -168,7 +166,7 @@ private
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => logger,
-      :Port => PORT,
+      :Port => port,
       :AccessLog => [],
       :DocumentRoot => DIR,
       :SSLEnable => true,
@@ -206,19 +204,6 @@ private
       end
     end
     t
-  end
-
-  def setup_client
-    @client = HTTPClient.new
-    @client.debug_dev = STDOUT if $DEBUG
-  end
-
-  def teardown_server
-    @server.shutdown if @server
-  end
-
-  def teardown_client
-    @client.reset_all if @client
   end
 
   def verify_callback(ok, cert)
