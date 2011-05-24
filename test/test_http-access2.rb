@@ -22,9 +22,9 @@ class TestClient < Test::Unit::TestCase
     setup_proxyserver
     escape_noproxy do
       @proxyio.string = ""
-      @client = HTTPAccess2::Client.new(@proxyurl)
-      assert_equal(URI.parse(@proxyurl), @client.proxy)
-      assert_equal(200, @client.head(@url).status)
+      @client = HTTPAccess2::Client.new(proxyurl)
+      assert_equal(URI.parse(proxyurl), @client.proxy)
+      assert_equal(200, @client.head(serverurl).status)
       assert(!@proxyio.string.empty?)
     end
   end
@@ -33,7 +33,7 @@ class TestClient < Test::Unit::TestCase
     @client = HTTPAccess2::Client.new(nil, "agent_name_foo")
     str = ""
     @client.debug_dev = str
-    @client.get(@url)
+    @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_match(/^User-Agent: agent_name_foo/, lines[4])
@@ -43,7 +43,7 @@ class TestClient < Test::Unit::TestCase
     @client = HTTPAccess2::Client.new(nil, nil, "from_bar")
     str = ""
     @client.debug_dev = str
-    @client.get(@url)
+    @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_match(/^From: from_bar/, lines[4])
@@ -53,7 +53,7 @@ class TestClient < Test::Unit::TestCase
     str = ""
     @client.debug_dev = str
     assert(str.empty?)
-    @client.get(@url)
+    @client.get(serverurl)
     assert(!str.empty?)
   end
 
@@ -61,7 +61,7 @@ class TestClient < Test::Unit::TestCase
     @client.protocol_version = 'HTTP/0.9'
     str = ""
     @client.debug_dev = str
-    @client.get(@url + 'hello')
+    @client.get(serverurl + 'hello')
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
@@ -75,7 +75,7 @@ class TestClient < Test::Unit::TestCase
     @client.protocol_version = 'HTTP/1.0'
     str = ""
     @client.debug_dev = str
-    @client.get(@url + 'hello')
+    @client.get(serverurl + 'hello')
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
@@ -87,16 +87,16 @@ class TestClient < Test::Unit::TestCase
   def test_protocol_version_http11
     str = ""
     @client.debug_dev = str
-    @client.get(@url)
+    @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
-    assert_equal("Host: localhost:#{port}", lines[5])
+    assert_equal("Host: localhost:#{serverport}", lines[5])
     @client.protocol_version = 'HTTP/1.1'
     str = ""
     @client.debug_dev = str
-    @client.get(@url)
+    @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
@@ -104,7 +104,7 @@ class TestClient < Test::Unit::TestCase
     @client.protocol_version = 'HTTP/1.0'
     str = ""
     @client.debug_dev = str
-    @client.get(@url)
+    @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
@@ -128,20 +128,20 @@ class TestClient < Test::Unit::TestCase
       #
       @proxyio.string = ""
       @client.proxy = nil
-      assert_equal(200, @client.head(@url).status)
+      assert_equal(200, @client.head(serverurl).status)
       assert(@proxyio.string.empty?)
       #
       @proxyio.string = ""
-      @client.proxy = @proxyurl
-      assert_equal(200, @client.head(@url).status)
+      @client.proxy = proxyurl
+      assert_equal(200, @client.head(serverurl).status)
       assert(!@proxyio.string.empty?)
     end
   end
 
   def test_noproxy_for_localhost
     @proxyio.string = ""
-    @client.proxy = @proxyurl
-    assert_equal(200, @client.head(@url).status)
+    @client.proxy = proxyurl
+    assert_equal(200, @client.head(serverurl).status)
     assert(@proxyio.string.empty?)
   end
 
@@ -152,49 +152,49 @@ class TestClient < Test::Unit::TestCase
       @client.no_proxy = 'localhost'
       @proxyio.string = ""
       @client.proxy = nil
-      assert_equal(200, @client.head(@url).status)
+      assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
       @proxyio.string = ""
-      @client.proxy = @proxyurl
-      assert_equal(200, @client.head(@url).status)
+      @client.proxy = proxyurl
+      assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar'
       @proxyio.string = ""
-      @client.proxy = @proxyurl
-      assert_equal(200, @client.head(@url).status)
+      @client.proxy = proxyurl
+      assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ =~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:baz'
       @proxyio.string = ""
-      @client.proxy = @proxyurl
-      assert_equal(200, @client.head(@url).status)
+      @client.proxy = proxyurl
+      assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:443'
       @proxyio.string = ""
-      @client.proxy = @proxyurl
-      assert_equal(200, @client.head(@url).status)
+      @client.proxy = proxyurl
+      assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ =~ @proxyio.string)
       #
-      @client.no_proxy = 'foobar,localhost:443:localhost:17171,baz'
+      @client.no_proxy = "foobar,localhost:443:localhost:#{serverport},baz"
       @proxyio.string = ""
-      @client.proxy = @proxyurl
-      assert_equal(200, @client.head(@url).status)
+      @client.proxy = proxyurl
+      assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
     end
   end
 
   def test_get_content
-    assert_equal('hello', @client.get_content(@url + 'hello'))
-    assert_equal('hello', @client.get_content(@url + 'redirect1'))
-    assert_equal('hello', @client.get_content(@url + 'redirect2'))
+    assert_equal('hello', @client.get_content(serverurl + 'hello'))
+    assert_equal('hello', @client.get_content(serverurl + 'redirect1'))
+    assert_equal('hello', @client.get_content(serverurl + 'redirect2'))
     assert_raises(HTTPClient::Session::BadResponse) do
-      @client.get_content(@url + 'notfound')
+      @client.get_content(serverurl + 'notfound')
     end
     assert_raises(HTTPClient::Session::BadResponse) do
-      @client.get_content(@url + 'redirect_self')
+      @client.get_content(serverurl + 'redirect_self')
     end
     called = false
     @client.redirect_uri_callback = lambda { |uri, res|
@@ -202,19 +202,19 @@ class TestClient < Test::Unit::TestCase
       called = true
       newuri
     }
-    assert_equal('hello', @client.get_content(@url + 'relative_redirect'))
+    assert_equal('hello', @client.get_content(serverurl + 'relative_redirect'))
     assert(called)
   end
 
   def test_post_content
-    assert_equal('hello', @client.post_content(@url + 'hello'))
-    assert_equal('hello', @client.post_content(@url + 'redirect1'))
-    assert_equal('hello', @client.post_content(@url + 'redirect2'))
+    assert_equal('hello', @client.post_content(serverurl + 'hello'))
+    assert_equal('hello', @client.post_content(serverurl + 'redirect1'))
+    assert_equal('hello', @client.post_content(serverurl + 'redirect2'))
     assert_raises(HTTPClient::Session::BadResponse) do
-      @client.post_content(@url + 'notfound')
+      @client.post_content(serverurl + 'notfound')
     end
     assert_raises(HTTPClient::Session::BadResponse) do
-      @client.post_content(@url + 'redirect_self')
+      @client.post_content(serverurl + 'redirect_self')
     end
     called = false
     @client.redirect_uri_callback = lambda { |uri, res|
@@ -222,49 +222,49 @@ class TestClient < Test::Unit::TestCase
       called = true
       newuri
     }
-    assert_equal('hello', @client.post_content(@url + 'relative_redirect'))
+    assert_equal('hello', @client.post_content(serverurl + 'relative_redirect'))
     assert(called)
   end
 
   def test_head
-    assert_equal("head", @client.head(@url + 'servlet').header["x-head"][0])
-    res = @client.head(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal("head", @client.head(serverurl + 'servlet').header["x-head"][0])
+    res = @client.head(serverurl + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_get
-    assert_equal("get", @client.get(@url + 'servlet').content)
-    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal("get", @client.get(serverurl + 'servlet').content)
+    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_post
-    assert_equal("post", @client.post(@url + 'servlet').content)
-    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal("post", @client.post(serverurl + 'servlet').content)
+    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_put
-    assert_equal("put", @client.put(@url + 'servlet').content)
-    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal("put", @client.put(serverurl + 'servlet').content)
+    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_delete
-    assert_equal("delete", @client.delete(@url + 'servlet').content)
-    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal("delete", @client.delete(serverurl + 'servlet').content)
+    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_options
-    assert_equal("options", @client.options(@url + 'servlet').content)
-    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal("options", @client.options(serverurl + 'servlet').content)
+    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
   def test_trace
-    assert_equal("trace", @client.trace(@url + 'servlet').content)
-    res = @client.get(@url + 'servlet', {1=>2, 3=>4})
+    assert_equal("trace", @client.trace(serverurl + 'servlet').content)
+    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
     assert_equal('1=2&3=4', res.header["x-query"][0])
   end
 
@@ -305,14 +305,14 @@ class TestClient < Test::Unit::TestCase
   def test_extra_headers
     str = ""
     @client.debug_dev = str
-    @client.head(@url, nil, {"ABC" => "DEF"})
+    @client.head(serverurl, nil, {"ABC" => "DEF"})
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_match("ABC: DEF", lines[4])
     #
     str = ""
     @client.debug_dev = str
-    @client.get(@url, nil, [["ABC", "DEF"], ["ABC", "DEF"]])
+    @client.get(serverurl, nil, [["ABC", "DEF"], ["ABC", "DEF"]])
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_match("ABC: DEF", lines[4])
@@ -335,14 +335,14 @@ class TestClient < Test::Unit::TestCase
 
   def test_receive_timeout
     # this test takes 2 sec
-    assert_equal('hello', @client.get_content(@url + 'sleep?sec=2'))
+    assert_equal('hello', @client.get_content(serverurl + 'sleep?sec=2'))
     @client.receive_timeout = 1
-    assert_equal('hello', @client.get_content(@url + 'sleep?sec=0'))
+    assert_equal('hello', @client.get_content(serverurl + 'sleep?sec=0'))
     assert_raise(HTTPClient::ReceiveTimeoutError) do
-      @client.get_content(@url + 'sleep?sec=2')
+      @client.get_content(serverurl + 'sleep?sec=2')
     end
     @client.receive_timeout = 3
-    assert_equal('hello', @client.get_content(@url + 'sleep?sec=2'))
+    assert_equal('hello', @client.get_content(serverurl + 'sleep?sec=2'))
   end
 
   def test_cookies
@@ -363,13 +363,13 @@ private
 
   def check_query_get(query)
     WEBrick::HTTPUtils.parse_query(
-      @client.get(@url + 'servlet', query).header["x-query"][0]
+      @client.get(serverurl + 'servlet', query).header["x-query"][0]
     )
   end
 
   def check_query_post(query)
     WEBrick::HTTPUtils.parse_query(
-      @client.post(@url + 'servlet', query).header["x-query"][0]
+      @client.post(serverurl + 'servlet', query).header["x-query"][0]
     )
   end
 
@@ -377,10 +377,11 @@ private
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => @logger,
-      :Port => port,
+      :Port => 0,
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
+    @serverport = @server.config[:Port]
     [:hello, :sleep, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect].each do |sym|
       @server.mount(
 	"/#{sym}",
@@ -412,19 +413,19 @@ private
   end
 
   def do_redirect1(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, @url + "hello") 
+    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, serverurl + "hello") 
   end
 
   def do_redirect2(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, @url + "redirect3")
+    res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, serverurl + "redirect3")
   end
 
   def do_redirect3(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, @url + "hello") 
+    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "hello") 
   end
 
   def do_redirect_self(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, @url + "redirect_self") 
+    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "redirect_self") 
   end
 
   def do_relative_redirect(req, res)

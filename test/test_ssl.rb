@@ -8,12 +8,12 @@ class TestSSL < Test::Unit::TestCase
 
   def setup
     super
-    @url = "https://localhost:#{port}/hello"
     @serverpid = @client = nil
     @verify_callback_called = false
     @verbose, $VERBOSE = $VERBOSE, nil
     setup_server
     setup_client
+    @url = "https://localhost:#{serverport}/hello"
   end
 
   def teardown
@@ -166,7 +166,7 @@ private
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => logger,
-      :Port => port,
+      :Port => 0,
       :AccessLog => [],
       :DocumentRoot => DIR,
       :SSLEnable => true,
@@ -177,6 +177,7 @@ private
       :SSLClientCA => cert('ca.cert'),
       :SSLCertName => nil
     )
+    @serverport = @server.config[:Port]
     [:hello].each do |sym|
       @server.mount(
         "/#{sym}",
