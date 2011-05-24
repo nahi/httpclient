@@ -61,9 +61,10 @@ module Helper
     @proxyserver = WEBrick::HTTPProxyServer.new(
       :BindAddress => "localhost",
       :Logger => @proxylogger,
-      :Port => proxyport,
+      :Port => 0,
       :AccessLog => []
     )
+    @proxyport = @proxyserver.config[:Port]
     @proxyserver_thread = start_server_thread(@proxyserver)
   end
 
