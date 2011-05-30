@@ -117,9 +117,8 @@ class TestClient < Test::Unit::TestCase
       assert_raises(URI::InvalidURIError) do
        	@client.proxy = "http://"
       end
-      assert_raises(ArgumentError) do
-	@client.proxy = ""
-      end
+      @client.proxy = ""
+      assert_nil(@client.proxy)
       @client.proxy = "http://foo:1234"
       assert_equal(URI.parse("http://foo:1234"), @client.proxy)
       uri = URI.parse("http://bar:2345")
