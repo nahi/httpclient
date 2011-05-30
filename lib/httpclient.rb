@@ -438,7 +438,7 @@ class HTTPClient
   #
   # Calling this method resets all existing sessions.
   def proxy=(proxy)
-    if proxy.nil? || proxy.empty?
+    if proxy.nil? || proxy.to_s.empty?
       @proxy = nil
       @proxy_auth.reset_challenge
     else
