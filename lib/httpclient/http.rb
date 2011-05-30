@@ -446,7 +446,6 @@ module HTTP
             if Message.file?(part)
               reset_pos(part)
               dump_file(part, dev)
-              part.rewind
             else
               dev << part
             end
