@@ -216,6 +216,15 @@ class TestHTTPClient < Test::Unit::TestCase
     end
   end
 
+  def test_empty_proxy_env
+    setup_proxyserver
+    escape_env do
+      ENV['http_proxy'] = ""
+      client = HTTPClient.new
+      assert_equal(nil, client.proxy)
+    end
+  end
+
   def test_noproxy_for_localhost
     @proxyio.string = ""
     @client.proxy = proxyurl
