@@ -633,16 +633,37 @@ EOS
     end
   end
 
-  def test_post_with_io # chunked post
+  def test_post_with_io # streaming, but not chunked
+    myio = StringIO.new("X" * (HTTP::Message::Body::DEFAULT_CHUNK_SIZE + 1))
+    def myio.read(*args)
+      @called ||= 0
+      @called += 1
+      super
+    end
+    def myio.called
+      @called
+    end
+    @client.debug_dev = str = StringIO.new
+    res = @client.post(serverurl + 'servlet', {1=>2, 3=>myio})
+    assert_match(/\r\nContent-Disposition: form-data; name="1"\r\n/m, res.content)
+    assert_match(/\r\n2\r\n/m, res.content)
+    assert_match(/\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m, res.content)
+    assert_match(/\r\nContent-Length:/m, str.string)
+    assert_equal(3, myio.called)
+  end
+
+  def test_post_with_io_nosize # streaming + chunked post
     myio = StringIO.new("4")
     def myio.size
       nil
     end
+    @client.debug_dev = str = StringIO.new
     res = @client.post(serverurl + 'servlet', {1=>2, 3=>myio})
     assert_match(/\r\nContent-Disposition: form-data; name="1"\r\n/m, res.content)
     assert_match(/\r\n2\r\n/m, res.content)
     assert_match(/\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m, res.content)
     assert_match(/\r\n4\r\n/m, res.content)
+    assert_match(/\r\nTransfer-Encoding: chunked\r\n/m, str.string)
   end
 
   def test_post_async
