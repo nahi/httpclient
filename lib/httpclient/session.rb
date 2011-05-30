@@ -124,7 +124,7 @@ class HTTPClient
       @protocol_version = nil
       @debug_dev = client.debug_dev
       @socket_sync = true
-      @chunk_size = 4096
+      @chunk_size = ::HTTP::Message::Body::DEFAULT_CHUNK_SIZE
 
       @connect_timeout = 60
       @connect_retry = 1

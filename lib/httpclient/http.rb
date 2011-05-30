@@ -440,26 +440,21 @@ module HTTP
       # If no dev (the second argument) given, this method returns a dumped
       # String.
       def dump(header = '', dev = '')
-        file_block = Proc.new { |body|
-          buf = ''
-          reset_pos(body)
-          while !body.read(@chunk_size, buf).nil?
-            dev << buf
-          end
-          body.rewind
-        }
         if @body.is_a?(Parts)
           dev << header
           @body.parts.each do |part|
             if Message.file?(part)
-              file_block.call(part)
+              reset_pos(part)
+              dump_file(part, dev)
+              part.rewind
             else
               dev << part
             end
           end
         elsif Message.file?(@body)
           dev << header
-          file_block.call(@body)
+          reset_pos(@body)
+          dump_file(@body, dev)
         elsif @body
           dev << header + @body
         else
@@ -525,6 +520,13 @@ module HTTP
 
       def reset_pos(io)
         io.pos = @positions[io] if @positions.key?(io)
+      end
+
+      def dump_file(io, dev)
+        buf = ''
+        while !io.read(@chunk_size, buf).nil?
+          dev << buf
+        end
       end
 
       def dump_chunks(io, dev)
