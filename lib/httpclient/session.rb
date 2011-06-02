@@ -899,6 +899,7 @@ class HTTPClient
           begin
             @socket.readpartial(maxbytes, buf)
           rescue EOFError
+            close
             buf = nil
           end
         end
@@ -917,6 +918,10 @@ class HTTPClient
       buf = ''
       while true
         len = @socket.gets(RS)
+        if len.nil? # EOF
+          close
+          return
+        end
         @chunk_length = len.hex
         if @chunk_length == 0
           @content_length = 0
