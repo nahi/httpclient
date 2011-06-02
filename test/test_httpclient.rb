@@ -282,7 +282,7 @@ Date: Fri, 19 Dec 2008 11:57:29 GMT\r
 Content-Type: text/plain\r
 Content-Length: 0\r
 WWW-Authenticate: Basic realm="hello"\r
-Set-Cookie: foo=bar; path=/; domain=.example.org; expires=#{Time.mktime(2030, 12, 31).httpdate}\r
+Set-Cookie: foo=bar; path=/; domain=.example.org; expires=#{Time.at(1924873200).httpdate}\r
 \r
 EOS
       @client.test_loopback_http_response << <<EOS
@@ -946,7 +946,7 @@ EOS
     assert(cookie.domain_match(url.host, cookie.domain))
     #
     @client.reset_all
-    @client.test_loopback_http_response << "HTTP/1.0 200 OK\nSet-Cookie: foo=bar; expires=#{Time.mktime(2030, 12, 31).httpdate}\n\nOK"
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\nSet-Cookie: foo=bar; expires=#{Time.at(1924873200).gmtime.httpdate}\n\nOK"
     @client.get_content('http://rubyforge.org/account/login.php')
     @client.save_cookie_store
     str = File.read(cookiefile)
@@ -1108,7 +1108,7 @@ EOS
   def test_response
     res = HTTP::Message.new_response('response')
     res.contenttype = 'text/plain'
-    res.header.body_date = Time.mktime(2000, 1, 1)
+    res.header.body_date = Time.at(946652400)
     assert_equal(
       [
         "",
@@ -1153,8 +1153,8 @@ EOS
       #
       res = HTTP::Message.new_response('response')
       res.contenttype = 'text/plain'
-      res.header.body_date = Time.mktime(2000, 1, 1)
-      res.header['Date'] = Time.mktime(2000, 1, 1).httpdate
+      res.header.body_date = Time.at(946652400)
+      res.header['Date'] = Time.at(946652400).httpdate
       assert_equal(
         [
           "",
@@ -1175,7 +1175,7 @@ EOS
   def test_response_cookies
     res = HTTP::Message.new_response('response')
     res.contenttype = 'text/plain'
-    res.header.body_date = Time.mktime(2000, 1, 1)
+    res.header.body_date = Time.at(946652400)
     assert_nil(res.cookies)
     #
     res.header['Set-Cookie'] = [
