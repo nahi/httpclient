@@ -32,7 +32,7 @@ See HTTPClient for documentation.
 
 == Author
 
-Name:: NAKAMURA, Hiroshi
+Name:: Hiroshi Nakamura
 E-mail:: nahi@ruby-lang.org
 Project web site:: http://github.com/nahi/httpclient
 
@@ -95,6 +95,47 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.2.1 =
+
+  Jun 2, 2011 - version 2.2.1
+
+    * Bug fixes
+
+      * For Lighttpd + PUT/POST support, do not send a request using chunked
+        encoding when IO respond to :size, File for example.
+    
+        - There is no need to send query with Transfer-Encoding: chuncked when
+          IO respond to :size.
+        - Lighttpd does not support PUT, POST with Transfer-Encoding: chuncked.
+          You will see that the lighty respond with 200 OK, but there is a file
+          whose size is zero.
+    
+        LIMITATION:
+          timeout occurs certainly when you send very large file and
+          @send_timeout is default since HTTPClient::Session#query() assumes
+          that *all* write are finished in @send_timeout sec not each write.
+    
+        WORKAROUND:
+          increment @send_timeout and @receive_timeout or set @send_timeout and
+          @receive_timeout to 0 not to be timeout.
+
+        This fix is by TANABE Ken-ichi <nabeken@tknetworks.org>. Thanks!
+
+      * Allow empty http_proxy ENV variable. Just treat it the same as if it's
+        nil/unset. This fix is by Ash Berlin <ash_github@firemirror.com>.
+        Thanks!
+
+      * Check EOF while reading chunked response and close the session. It
+        raised NoMethodError.
+
+    * Changes
+
+      * Updated trusted CA certificates file (cacert.p7s and cacert_sha1.p7s).
+        CA certs are imported from
+        'Java(TM) SE Runtime Environment (build 1.6.0_25-b06)'. 
+
+      * Changed default chunk size from 4K to 16K. It's used for reading size
+        at a time.
 
 = Changes in 2.2.0 =
 
