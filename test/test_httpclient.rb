@@ -483,6 +483,9 @@ EOS
   GZIP_CONTENT.force_encoding('BINARY') if GZIP_CONTENT.respond_to?(:force_encoding)
   DEFLATE_CONTENT.force_encoding('BINARY') if DEFLATE_CONTENT.respond_to?(:force_encoding)
   def test_get_gzipped_content
+    # It raises Zlib::StreamError: invalid window bits
+    # JRuby does not support WBITS at this moment.
+    return if defined?(JRUBY_VERSION)
     @client.transparent_gzip_decompression = false
     content = @client.get_content(serverurl + 'compressed?enc=gzip')
     assert_not_equal('hello', content)
@@ -1351,7 +1354,12 @@ EOS
     assert_equal('hello', @client.get_content(serverurl + 'hello'))
     @client.reset_all
     @client.socket_local.port = serverport
-    assert_raises(Errno::EADDRINUSE) do
+    if defined?(JRUBY_VERSION)
+      err = SocketError
+    else
+      err = Errno::EADDRINUSE
+    end
+    assert_raises(err) do
       assert_equal('hello', @client.get_content(serverurl + 'hello'))
     end
   end
