@@ -11,6 +11,7 @@ require 'stringio'
 require 'digest/sha1'
 
 # Extra library
+require 'httpclient/version'
 require 'httpclient/util'
 require 'httpclient/ssl_config'
 require 'httpclient/connection'
@@ -229,7 +230,6 @@ require 'httpclient/cookie'
 #   ruby -rhttpclient -e 'p HTTPClient.head(ARGV.shift).header["last-modified"]' http://dev.ctor.org/
 #
 class HTTPClient
-  VERSION = '2.2.1'
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
   /: (\S+) (\S+)/ =~ %q$Id$
   LIB_NAME = "(#{$1}/#{$2}, #{RUBY_VERSION_STRING})"
