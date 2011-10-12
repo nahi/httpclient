@@ -1356,6 +1356,11 @@ EOS
     end
   end
 
+  def test_body_param_order
+    ary = ('b'..'d').map { |k| ['key2', k] } << ['key1', 'a'] << ['key3', 'z']
+    assert_equal("key2=b&key2=c&key2=d&key1=a&key3=z", HTTP::Message.escape_query(ary))
+  end
+
 private
 
   def check_query_get(query)

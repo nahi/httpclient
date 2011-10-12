@@ -787,7 +787,7 @@ module HTTP
       end
 
       def escape_query(query) # :nodoc:
-        query.sort_by { |attr, value| attr.to_s }.collect { |attr, value|
+        query.collect { |attr, value|
           if value.respond_to?(:read)
             value = value.read
           end
