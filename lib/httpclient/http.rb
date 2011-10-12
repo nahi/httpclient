@@ -796,12 +796,14 @@ module HTTP
       end
 
       # from CGI.escape
-      def escape(str) # :nodoc:
-        if defined?(Encoding::ASCII_8BIT)
+      if defined?(Encoding::ASCII_8BIT)
+        def escape(str) # :nodoc:
           str.dup.force_encoding(Encoding::ASCII_8BIT).gsub(/([^ a-zA-Z0-9_.-]+)/) {
             '%' + $1.unpack('H2' * $1.bytesize).join('%').upcase
           }.tr(' ', '+')
-        else
+        end
+      else
+        def escape(str) # :nodoc:
           str.gsub(/([^ a-zA-Z0-9_.-]+)/n) {
             '%' + $1.unpack('H2' * $1.bytesize).join('%').upcase
           }.tr(' ', '+')
