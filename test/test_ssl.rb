@@ -99,17 +99,20 @@ class TestSSL < Test::Unit::TestCase
     assert_equal("hello", @client.get_content(@url))
     assert(@verify_callback_called)
     #
-    cfg.verify_depth = 0
+    cfg.verify_depth = 1 # 2 required: root-sub
     @verify_callback_called = false
     begin
       @client.get(@url)
-      puts OpenSSL::OPENSSL_VERSION
-      puts @verify_callback_called
-      #assert(false, "verify_depth is not supported? #{OpenSSL::OPENSSL_VERSION}")
+      assert(false, "verify_depth is not supported? #{OpenSSL::OPENSSL_VERSION}")
     rescue OpenSSL::SSL::SSLError => ssle
       assert_match(/certificate verify failed/, ssle.message)
       assert(@verify_callback_called)
     end
+    #
+    cfg.verify_depth = 2 # 2 required: root-sub
+    @verify_callback_called = false
+    @client.get(@url)
+    assert(@verify_callback_called)
     #
     cfg.verify_depth = nil
     cfg.cert_store = OpenSSL::X509::Store.new
