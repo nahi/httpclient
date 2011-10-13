@@ -335,6 +335,8 @@ class HTTPClient
   attr_proxy(:send_timeout, true)
   # Response receiving timeout in sec.
   attr_proxy(:receive_timeout, true)
+  # Reuse the same connection within this timeout in sec. from last used.
+  attr_proxy(:keep_alive_timeout, true)
   # Negotiation retry count for authentication.  5 by default.
   attr_proxy(:protocol_retry_count, true)
   # if your ruby is older than 2005-09-06, do not set socket_sync = false to
