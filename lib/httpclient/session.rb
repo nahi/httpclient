@@ -102,6 +102,7 @@ class HTTPClient
     attr_accessor :connect_retry
     attr_accessor :send_timeout
     attr_accessor :receive_timeout
+    attr_accessor :keep_alive_timeout
     attr_accessor :read_block_size
     attr_accessor :protocol_retry_count
 
@@ -129,7 +130,8 @@ class HTTPClient
       @connect_timeout = 60
       @connect_retry = 1
       @send_timeout = 120
-      @receive_timeout = 60       # For each read_block_size bytes
+      @receive_timeout = 60        # For each read_block_size bytes
+      @keep_alive_timeout = 15     # '15' is from Apache 2 default
       @read_block_size = 1024 * 16 # follows net/http change in 1.8.7
       @protocol_retry_count = 5
 
@@ -172,6 +174,7 @@ class HTTPClient
       close_all
     end
 
+    # assert: sess.last_used must not be nil
     def keep(sess)
       add_cached_session(sess)
     end
@@ -233,10 +236,11 @@ class HTTPClient
 
     def get_cached_session(uri)
       cached = nil
+      now = Time.now
       @sess_pool_mutex.synchronize do
         new_pool = []
         @sess_pool.each do |s|
-          if s.invalidated?
+          if s.invalidated? or now > s.last_used + @keep_alive_timeout
             s.close # close & remove from the pool
           elsif !cached && s.dest.match(uri)
             cached = s
@@ -251,7 +255,7 @@ class HTTPClient
 
     def add_cached_session(sess)
       @sess_pool_mutex.synchronize do
-        @sess_pool << sess
+        @sess_pool.unshift(sess)
       end
     end
   end
@@ -523,6 +527,7 @@ class HTTPClient
     attr_accessor :test_loopback_http_response
 
     attr_accessor :transparent_gzip_decompression
+    attr_reader :last_used
 
     def initialize(client, dest, agent_name, from)
       @client = client
@@ -561,6 +566,7 @@ class HTTPClient
       @readbuf = nil
 
       @transparent_gzip_decompression = false
+      @last_used = nil
     end
 
     # Send a request to the server
@@ -594,6 +600,7 @@ class HTTPClient
       @state = :META if @state == :WAIT
       @next_connection = nil
       @requests.push(req)
+      @last_used = Time.now
     end
 
     def close
