@@ -141,8 +141,9 @@ class HTTPClient
       @transparent_gzip_decompression = false
       @socket_local = Site.new
 
-      @sess_pool = []
+      @sess_pool = {}
       @sess_pool_mutex = Mutex.new
+      @sess_pool_last_checked = Time.now
     end
 
     def proxy=(proxy)
@@ -181,8 +182,8 @@ class HTTPClient
 
     def invalidate(site)
       @sess_pool_mutex.synchronize do
-        @sess_pool.each do |sess|
-          if sess.dest == site
+        if pool = @sess_pool[site]
+          pool.each do |sess|
             sess.invalidate
           end
         end
@@ -192,11 +193,12 @@ class HTTPClient
   private
 
     def open(uri, via_proxy = false)
+      site = Site.new(uri)
       sess = nil
-      if cached = get_cached_session(uri)
+      if cached = get_cached_session(site)
         sess = cached
       else
-        sess = Session.new(@client, Site.new(uri), @agent_name, @from)
+        sess = Session.new(@client, site, @agent_name, @from)
         sess.proxy = via_proxy ? @proxy : nil
         sess.socket_sync = @socket_sync
         sess.requested_version = @protocol_version if @protocol_version
@@ -217,8 +219,10 @@ class HTTPClient
 
     def close_all
       @sess_pool_mutex.synchronize do
-        @sess_pool.each do |sess|
-          sess.close
+        @sess_pool.each do |site, pool|
+          pool.each do |sess|
+            sess.close
+          end
         end
       end
       @sess_pool.clear
@@ -226,7 +230,7 @@ class HTTPClient
 
     # This method might not work as you expected...
     def close(dest)
-      if cached = get_cached_session(dest)
+      if cached = get_cached_session(Site.new(dest))
         cached.close
         true
       else
@@ -234,28 +238,44 @@ class HTTPClient
       end
     end
 
-    def get_cached_session(uri)
-      cached = nil
-      now = Time.now
+    def get_cached_session(site)
       @sess_pool_mutex.synchronize do
-        new_pool = []
-        @sess_pool.each do |s|
-          if s.invalidated? or now > s.last_used + @keep_alive_timeout
-            s.close # close & remove from the pool
-          elsif !cached && s.dest.match(uri)
-            cached = s
-          else
-            new_pool << s
+        now = Time.now
+        if now > @sess_pool_last_checked + @keep_alive_timeout
+          scrub_cached_session(now)
+          @sess_pool_last_checked = now
+        end
+        if pool = @sess_pool[site]
+          pool.each_with_index do |sess, idx|
+            if valid_session?(sess, now)
+              return pool.slice!(idx)
+            end
           end
         end
-        @sess_pool = new_pool
       end
-      cached
+      nil
+    end
+
+    def scrub_cached_session(now)
+      @sess_pool.each do |site, pool|
+        pool.replace(pool.select { |sess|
+          if valid_session?(sess, now)
+            true
+          else
+            sess.close # close & remove from the pool
+            false
+          end
+        })
+      end
+    end
+
+    def valid_session?(sess, now)
+      !sess.invalidated? and (now <= sess.last_used + @keep_alive_timeout)
     end
 
     def add_cached_session(sess)
       @sess_pool_mutex.synchronize do
-        @sess_pool.unshift(sess)
+        (@sess_pool[sess.dest] ||= []).unshift(sess)
       end
     end
   end
