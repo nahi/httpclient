@@ -1062,7 +1062,7 @@ private
     do_get_header(req, res, sess)
     conn.push(res)
     sess.get_body do |part|
-      force_binary(part)
+      set_encoding(part, res.body_encoding)
       if block
         block.call(res, part)
       else
@@ -1098,7 +1098,7 @@ private
     do_get_header(req, res, sess)
     conn.push(res)
     sess.get_body do |part|
-      force_binary(part)
+      set_encoding(part, res.body_encoding)
       pipew.write(part)
     end
     pipew.close
@@ -1111,9 +1111,7 @@ private
 
   def do_get_header(req, res, sess)
     res.http_version, res.status, res.reason, headers = sess.get_header
-    headers.each do |key, value|
-      res.header.add(key, value)
-    end
+    res.header.set_headers(headers)
     if @cookie_manager
       res.header['set-cookie'].each do |cookie|
         @cookie_manager.parse(cookie, req.header.request_uri)
@@ -1126,5 +1124,9 @@ private
     @debug_dev << req
     @debug_dev << "\n\n= Dummy Response\n\n"
     @debug_dev << res
+  end
+
+  def set_encoding(str, encoding)
+    str.force_encoding(encoding) if encoding
   end
 end
