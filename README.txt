@@ -95,6 +95,38 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.2.2 =
+
+  Oct 17, 2011 - version 2.2.2
+
+    * Bug fixes
+
+      * Do not sort query params on request: Wrongly sorted query params for
+        easier debugging but the order of request parameter should be
+        preserved. #65
+
+    * Changes
+
+      * Set responce String encoding if possible.  Parse content-type response
+        header with some helps from OpenURI::Meta and set response String
+        encoding. #26
+
+      * Improve connection cache strategy.  Reuse cached session in MRU order,
+        not in LRU.  MRU is more server friendly than LRU because it reduces
+        number of cached sessions when a number of requests drops after an
+        usaage spike.
+    
+        With reusing sessions in LRU order, all sessions are equally checked if
+        it's closed or not, as far as there's a request to the same site.  With
+        reusing sessions in MRU order, old cold sessions are kept in cache long
+        time even if there's a request to the same site.  To avoid this leakage,
+        this version adds keep_alive_timeout property and let SessionManager
+        scrub all sessions with checking the timeout for each session.  When the
+        session expires against the last used time, it's closed and collected.
+    
+        keep_alive_timeout is 15[sec] by default. The value is from the default
+        value for KeepAliveTimeout of Apache httpd 2.  #68 #69
+
 = Changes in 2.2.1 =
 
   Jun 2, 2011 - version 2.2.1
