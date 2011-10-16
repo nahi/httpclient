@@ -116,17 +116,6 @@ class HTTPClient
     def https?(uri)
       uri.scheme.downcase == 'https'
     end
-
-    if defined?(Encoding::ASCII_8BIT)
-      def force_binary(str)
-        str.force_encoding(Encoding::ASCII_8BIT)
-        str
-      end
-    else
-      def force_binary(str)
-        str
-      end
-    end
   end
 
 

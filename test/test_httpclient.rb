@@ -1361,6 +1361,14 @@ EOS
     assert_equal("key2=b&key2=c&key2=d&key1=a&key3=z", HTTP::Message.escape_query(ary))
   end
 
+  if RUBY_VERSION > "1.9"
+    def test_charset
+      body = @client.get(serverurl + 'charset').body
+      assert_equal(Encoding::EUC_JP, body.encoding)
+      assert_equal('あいうえお'.encode(Encoding::EUC_JP), body)
+    end
+  end
+
 private
 
   def check_query_get(query)
@@ -1384,7 +1392,7 @@ private
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
     @serverport = @server.config[:Port]
-    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked, :largebody, :status, :compressed].each do |sym|
+    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked, :largebody, :status, :compressed, :charset].each do |sym|
       @server.mount(
 	"/#{sym}",
 	WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
@@ -1461,12 +1469,22 @@ private
   end
 
   def do_compressed(req, res)
+    res['content-type'] = 'application/octet-stream'
     if req.query['enc'] == 'gzip'
       res['content-encoding'] = 'gzip'
       res.body = GZIP_CONTENT
     elsif req.query['enc'] == 'deflate'
       res['content-encoding'] = 'deflate'
       res.body = DEFLATE_CONTENT
+    end
+  end
+
+  def do_charset(req, res)
+    if RUBY_VERSION > "1.9"
+      res.body = 'あいうえお'.encode("euc-jp")
+      res['Content-Type'] = 'text/plain; charset=euc-jp'
+    else
+      res.body = 'this endpoint is for 1.9 or later'
     end
   end
 
@@ -1490,6 +1508,7 @@ private
     end
 
     def do_POST(req, res)
+      res["content-type"] = "text/plain" # iso-8859-1, not US-ASCII
       res.body = 'post,' + req.body.to_s
       res["x-query"] = body_response(req)
     end
