@@ -69,6 +69,33 @@ class HTTPClient
     # For server side configuration.  Ignore this.
     attr_reader :client_ca # :nodoc:
 
+    # external ssl session cache
+    class SSLSessionCache
+      def initialize
+        @pool = {}
+      end
+
+      def get(site)
+        if sessions = @pool[site]
+          sess = sessions.first
+          p [:get, sess]
+          sess
+        end
+      end
+
+      def add(site, session)
+        p [:add, session]
+        puts session.to_text
+        (@pool[site] ||= []) << session
+      end
+
+      def remove(session)
+        @pool.each do |site, sessions|
+          p [:remove, sessions.delete(session)]
+        end
+      end
+    end
+
     # Creates a SSLConfig.
     def initialize(client)
       return unless SSLEnabled
@@ -83,6 +110,7 @@ class HTTPClient
       @options = defined?(SSL::OP_ALL) ? SSL::OP_ALL | SSL::OP_NO_SSLv2 : nil
       @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
       @cacerts_loaded = false
+      @ssl_session_cache = SSLSessionCache.new
     end
 
     # Sets certificate (OpenSSL::X509::Certificate) for SSL client
@@ -238,6 +266,18 @@ class HTTPClient
     end
 
     # interfaces for SSLSocketWrap.
+    def ssl_context
+      @ssl_context ||= create_context
+    end
+
+    def add_ssl_session(site, session)
+      @ssl_session_cache.add(site, session)
+    end
+
+    def get_ssl_session(site)
+      @ssl_session_cache.get(site)
+    end
+
     def set_context(ctx) # :nodoc:
       load_trust_ca unless @cacerts_loaded
       @cacerts_loaded = true
@@ -253,6 +293,12 @@ class HTTPClient
       ctx.timeout = @timeout
       ctx.options = @options
       ctx.ciphers = @ciphers
+      ctx.session_cache_mode = OpenSSL::SSL::SSLContext::SESSION_CACHE_CLIENT
+      ctx.session_cache_size = 2
+      ctx.session_id_context = "TODO"
+      ctx.session_remove_cb = proc do |ctx, sess|
+        @ssl_session_cache.remove(sess)
+      end
     end
 
     # post connection check proc for ruby < 1.8.5.
@@ -354,6 +400,13 @@ class HTTPClient
 
     def change_notify
       @client.reset_all
+      @ssl_context = nil
+    end
+
+    def create_context
+      ctx = OpenSSL::SSL::SSLContext.new
+      set_context(ctx)
+      ctx
     end
 
     def load_cacerts(cert_store)

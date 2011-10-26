@@ -300,6 +300,18 @@ class HTTPClient
       @ssl_socket.connect
     end
 
+    def session_reused?
+      @ssl_socket.session_reused? if @ssl_socket.respond_to?(:session_reused?)
+    end
+
+    def session=(session)
+      @ssl_socket.session = session if @ssl_socket.respond_to?(:session=)
+    end
+
+    def session
+      @ssl_socket.session if @ssl_socket.respond_to?(:session)
+    end
+
     def post_connection_check(host)
       verify_mode = @context.verify_mode || OpenSSL::SSL::VERIFY_NONE
       if verify_mode == OpenSSL::SSL::VERIFY_NONE
@@ -376,16 +388,13 @@ class HTTPClient
     end
 
     def create_openssl_socket(socket)
-      ssl_socket = nil
-      if OpenSSL::SSL.const_defined?("SSLContext")
-        ctx = OpenSSL::SSL::SSLContext.new
-        @context.set_context(ctx)
-        ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ctx)
+      if ctx = @context.ssl_context
+        OpenSSL::SSL::SSLSocket.new(socket, ctx)
       else
         ssl_socket = OpenSSL::SSL::SSLSocket.new(socket)
         @context.set_context(ssl_socket)
+        ssl_socket
       end
-      ssl_socket
     end
 
     def debug(str)
@@ -736,9 +745,15 @@ class HTTPClient
             else
               @socket = create_ssl_socket(@socket)
               connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
+              if cached_session = @ssl_config.get_ssl_session(@dest)
+                @socket.session = cached_session
+              end
               @socket.ssl_connect(@dest.host)
               @socket.post_connection_check(@dest)
               @ssl_peer_cert = @socket.peer_cert
+              if !cached_session or @socket.session != cached_session
+                @ssl_config.add_ssl_session(@dest, @socket.session)
+              end
             end
           end
           # Use Ruby internal buffering instead of passing data immediately
