@@ -975,7 +975,7 @@ module HTTP
     # headers like 'Set-Cookie'. Use header['Set-Cookie'] for that purpose.
     # (It returns an Array always)
     def headers
-      Hash[http_header.all]
+      Hash[*http_header.all.flatten]
     end
 
     # Extracts cookies from 'Set-Cookie' header.
