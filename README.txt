@@ -95,6 +95,14 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.2.3 =
+
+  Oct 28, 2011 - version 2.2.3
+
+    * Bug fixes
+
+      * Ruby 1.8.6 support.  It's broken from 2.2.0.
+  
 = Changes in 2.2.2 =
 
   Oct 17, 2011 - version 2.2.2
