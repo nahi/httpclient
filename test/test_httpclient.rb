@@ -1273,24 +1273,24 @@ EOS
       end
     }
     # allocate 10 keep-alive connections
-    10.times.to_enum.map {
+    (0...10).to_a.map {
       Thread.new {
         assert_equal("12345", client.get(endpoint).content)
       }
-    }.each(&:join)
+    }.each { |th| th.join }
     # send 5 requests, which should get KeepAliveDesconnected.
     # doing these requests, rest keep-alive connections are invalidated.
-    5.times.to_enum.map {
+    (0...5).to_a.map {
       Thread.new {
         assert_equal("23456", client.get(endpoint).content)
       }
-    }.each(&:join)
+    }.each { |th| th.join }
     # rest requests won't get KeepAliveDisconnected; how can I check this?
-    10.times.to_enum.map {
+    (0...10).to_a.map {
       Thread.new {
         assert_equal("34567", client.get(endpoint).content)
       }
-    }.each(&:join)
+    }.each { |th| th.join }
   end
 
   def create_keepalive_thread(count, sock)
