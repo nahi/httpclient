@@ -231,8 +231,7 @@ require 'httpclient/cookie'
 #
 class HTTPClient
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
-  /: (\S+) (\S+)/ =~ %q$Id$
-  LIB_NAME = "(#{$1}/#{$2}, #{RUBY_VERSION_STRING})"
+  LIB_NAME = "(#{VERSION}, #{RUBY_VERSION_STRING})"
 
   include Util
 

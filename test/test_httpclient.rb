@@ -33,7 +33,7 @@ class TestHTTPClient < Test::Unit::TestCase
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_match(/^User-Agent: agent_name_foo/, lines[4])
+    assert_match(/^User-Agent: agent_name_foo \(#{HTTPClient::VERSION}/, lines[4])
   end
 
   def test_from
