@@ -918,8 +918,8 @@ class HTTPClient
 
     def read_body_length(&block)
       return nil if @content_length == 0
-      buf = ''
       while true
+        buf = ''
         maxbytes = @read_block_size
         maxbytes = @content_length if maxbytes > @content_length
         timeout(@receive_timeout, ReceiveTimeoutError) do
@@ -969,8 +969,8 @@ class HTTPClient
         yield @readbuf
         @readbuf = nil
       end
-      buf = ''
       while true
+        buf = ''
         timeout(@receive_timeout, ReceiveTimeoutError) do
           begin
             @socket.readpartial(@read_block_size, buf)

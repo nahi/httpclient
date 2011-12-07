@@ -591,6 +591,16 @@ EOS
     assert_nil(res.content)
   end
 
+  def test_get_with_block_chunk_string_recycle
+    @client.read_block_size = 2
+    body = []
+    res = @client.get(serverurl + 'servlet') { |str|
+      body << str
+    }
+    assert_equal(2, body.size)
+    assert_equal("get", body.join) # Was "tt" by String object recycle...
+  end
+
   def test_post
     assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4])
     res = @client.post(serverurl + 'servlet', {1=>2, 3=>4})
