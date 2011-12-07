@@ -95,6 +95,20 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.2.4 =
+
+  Dec 08, 2011 - version 2.2.4
+
+    * Bug fixes
+
+      * Do not recycle buffer String object for yielding.  When the response is
+        not chunked and the size of the response > 16KB, API with block style
+        yields recycled String object for each yields.
+
+      * Set VERSION string in User-Agent header.  $Id$ didn't work long time...
+
+      Bugs are reported by Seamus Abshere. Thanks!
+  
 = Changes in 2.2.3 =
 
   Oct 28, 2011 - version 2.2.3
