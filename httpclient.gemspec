@@ -8,6 +8,6 @@ Gem::Specification.new { |s|
   s.homepage = "http://github.com/nahi/httpclient"
   s.platform = Gem::Platform::RUBY
   s.summary = "gives something like the functionality of libwww-perl (LWP) in Ruby"
-  s.files = Dir.glob("{lib,sample,test}/**/*")
+  s.files = Dir.glob('{lib,sample,test}/**/*') + ['README.txt']
   s.require_path = "lib"
 }
