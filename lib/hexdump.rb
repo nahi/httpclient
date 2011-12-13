@@ -3,6 +3,7 @@
 
 
 module HexDump
+  # str must be in BINARY encoding in 1.9
   def encode(str)
     offset = 0
     result = []
@@ -21,7 +22,7 @@ module HexDump
       result << sprintf("%08x  %-36s  %s", offset, data, text)
       offset += 16
       # omit duplicate line
-      if /^(#{ Regexp.quote(raw) })+/n =~ str[offset .. -1]
+      if /^(#{regex_quote_n(raw)})+/n =~ str[offset .. -1]
 	result << sprintf("%08x  ...", offset)
 	offset += $&.length
 	# should print at the end
@@ -33,4 +34,15 @@ module HexDump
     result
   end
   module_function :encode
+
+  if RUBY_VERSION >= "1.9"
+    # raw must be in BINARY encoding in 1.9
+    def self.regex_quote_n(raw)
+      Regexp.quote(raw)
+    end
+  else
+    def self.regex_quote_n(raw)
+      Regexp.quote(raw, 'n')
+    end
+  end
 end
