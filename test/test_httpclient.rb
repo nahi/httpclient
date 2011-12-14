@@ -538,26 +538,29 @@ EOS
 
   def test_head
     assert_equal("head", @client.head(serverurl + 'servlet').header["x-head"][0])
-    res = @client.head(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.head(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_head_async
-    conn = @client.head_async(serverurl + 'servlet', {1=>2, 3=>4})
+    param = {'1'=>'2', '3'=>'4'}
+    conn = @client.head_async(serverurl + 'servlet', param)
     Thread.pass while !conn.finished?
     res = conn.pop
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_get
     assert_equal("get", @client.get(serverurl + 'servlet').content)
-    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.get(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
     assert_nil(res.contenttype)
     #
     url = serverurl.to_s + 'servlet?5=6&7=8'
-    res = @client.get(url, {1=>2, 3=>4})
-    assert_equal('1=2&3=4&5=6&7=8', res.header["x-query"][0])
+    res = @client.get(url, param)
+    assert_equal(param.merge("5"=>"6", "7"=>"8"), params(res.header["x-query"][0]))
     assert_nil(res.contenttype)
   end
 
@@ -568,10 +571,11 @@ EOS
   end
 
   def test_get_async
-    conn = @client.get_async(serverurl + 'servlet', {1=>2, 3=>4})
+    param = {'1'=>'2', '3'=>'4'}
+    conn = @client.get_async(serverurl + 'servlet', param)
     Thread.pass while !conn.finished?
     res = conn.pop
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_get_async_for_largebody
@@ -603,8 +607,9 @@ EOS
 
   def test_post
     assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4])
-    res = @client.post(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.post(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_post_follow_redirect
@@ -614,20 +619,21 @@ EOS
   end
 
   def test_post_with_content_type
+    param = [['1', '2'], ['3', '4']]
     ext = {'content-type' => 'application/x-www-form-urlencoded', 'hello' => 'world'}
     assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
-    res = @client.post(serverurl + 'servlet', {1=>2, 3=>4}, ext)
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    res = @client.post(serverurl + 'servlet', param, ext)
+    assert_equal(Hash[param], params(res.header["x-query"][0]))
     #
     ext = [['content-type', 'multipart/form-data'], ['hello', 'world']]
     assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
-    res = @client.post(serverurl + 'servlet', {1=>2, 3=>4}, ext)
+    res = @client.post(serverurl + 'servlet', param, ext)
     assert_match(/Content-Disposition: form-data; name="1"/, res.content)
     assert_match(/Content-Disposition: form-data; name="3"/, res.content)
     #
     ext = {'content-type' => 'multipart/form-data; boundary=hello'}
     assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
-    res = @client.post(serverurl + 'servlet', {1=>2, 3=>4}, ext)
+    res = @client.post(serverurl + 'servlet', param, ext)
     assert_match(/Content-Disposition: form-data; name="1"/, res.content)
     assert_match(/Content-Disposition: form-data; name="3"/, res.content)
     assert_equal("post,--hello\r\nContent-Disposition: form-data; name=\"1\"\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\"\r\n\r\n4\r\n--hello--\r\n\r\n", res.content)
@@ -677,10 +683,11 @@ EOS
   end
 
   def test_post_async
-    conn = @client.post_async(serverurl + 'servlet', {1=>2, 3=>4})
+    param = {'1'=>'2', '3'=>'4'}
+    conn = @client.post_async(serverurl + 'servlet', param)
     Thread.pass while !conn.finished?
     res = conn.pop
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_post_with_block
@@ -693,7 +700,8 @@ EOS
     assert_nil(res.content)
     #
     called = false
-    res = @client.post(serverurl + 'servlet', {1=>2, 3=>4}) { |str|
+    param = [['1', '2'], ['3', '4']]
+    res = @client.post(serverurl + 'servlet', param) { |str|
       assert_equal('post,1=2&3=4', str)
       called = true
     }
@@ -735,8 +743,9 @@ EOS
 
   def test_put
     assert_equal("put", @client.put(serverurl + 'servlet').content)
-    res = @client.put(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.put(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_put_bytesize
@@ -746,10 +755,11 @@ EOS
   end
 
   def test_put_async
-    conn = @client.put_async(serverurl + 'servlet', {1=>2, 3=>4})
+    param = {'1'=>'2', '3'=>'4'}
+    conn = @client.put_async(serverurl + 'servlet', param)
     Thread.pass while !conn.finished?
     res = conn.pop
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_delete
@@ -787,30 +797,34 @@ EOS
 
   def test_proppatch
     assert_equal("proppatch", @client.proppatch(serverurl + 'servlet').content)
-    res = @client.proppatch(serverurl + 'servlet', {1=>2, 3=>4})
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.proppatch(serverurl + 'servlet', param)
     assert_equal('proppatch', res.content)
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_proppatch_async
-    conn = @client.proppatch_async(serverurl + 'servlet', {1=>2, 3=>4})
+    param = {'1'=>'2', '3'=>'4'}
+    conn = @client.proppatch_async(serverurl + 'servlet', param)
     Thread.pass while !conn.finished?
     res = conn.pop
     assert_equal('proppatch', res.content.read)
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_trace
     assert_equal("trace", @client.trace(serverurl + 'servlet').content)
-    res = @client.trace(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.trace(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_trace_async
-    conn = @client.trace_async(serverurl + 'servlet', {1=>2, 3=>4})
+    param = {'1'=>'2', '3'=>'4'}
+    conn = @client.trace_async(serverurl + 'servlet', param)
     Thread.pass while !conn.finished?
     res = conn.pop
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_chunked

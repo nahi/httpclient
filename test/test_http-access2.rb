@@ -227,44 +227,51 @@ class TestClient < Test::Unit::TestCase
 
   def test_head
     assert_equal("head", @client.head(serverurl + 'servlet').header["x-head"][0])
-    res = @client.head(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.head(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_get
     assert_equal("get", @client.get(serverurl + 'servlet').content)
-    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.get(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_post
     assert_equal("post", @client.post(serverurl + 'servlet').content)
-    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.get(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_put
     assert_equal("put", @client.put(serverurl + 'servlet').content)
-    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.get(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_delete
     assert_equal("delete", @client.delete(serverurl + 'servlet').content)
-    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.get(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_options
     assert_equal("options", @client.options(serverurl + 'servlet').content)
-    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.get(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_trace
     assert_equal("trace", @client.trace(serverurl + 'servlet').content)
-    res = @client.get(serverurl + 'servlet', {1=>2, 3=>4})
-    assert_equal('1=2&3=4', res.header["x-query"][0])
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.get(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_get_query
