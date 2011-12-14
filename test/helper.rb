@@ -96,4 +96,8 @@ module Helper
     end
     t
   end
+
+  def params(str)
+    HTTP::Message.parse(str).inject({}) { |r, (k, v)| r[k] = v.first; r }
+  end
 end
