@@ -1,33 +1,27 @@
-require 'test/unit'
-require 'webrick'
-require 'logger'
-require 'httpclient'
+require File.expand_path('helper', File.dirname(__FILE__))
 
 
 class TestAuth < Test::Unit::TestCase
-  Port = 17171
+  include Helper
 
   def setup
-    @logger = Logger.new(STDERR)
-    @logger.level = Logger::Severity::ERROR
-    @url = "http://localhost:#{Port}/"
-    @server = nil
-    @server_thread = nil
+    super
     setup_server
   end
 
   def teardown
-    teardown_server
+    super
   end
 
   def setup_server
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => @logger,
-      :Port => Port,
+      :Port => 0,
       :AccessLog => [],
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
+    @serverport = @server.config[:Port]
     @server.mount(
       '/basic_auth',
       WEBrick::HTTPServlet::ProcHandler.new(method(:do_basic_auth).to_proc)
@@ -61,25 +55,6 @@ class TestAuth < Test::Unit::TestCase
     @server_thread = start_server_thread(@server)
   end
 
-  def start_server_thread(server)
-    t = Thread.new {
-      Thread.current.abort_on_exception = true
-      server.start
-    }
-    while server.status != :Running
-      sleep 0.1
-      unless t.alive?
-	t.join
-	raise
-      end
-    end
-    t
-  end
-
-  def teardown_server
-    @server.shutdown
-  end
-
   def do_basic_auth(req, res)
     @basic_auth.authenticate(req, res)
     res['content-type'] = 'text/plain'
@@ -102,14 +77,14 @@ class TestAuth < Test::Unit::TestCase
 
   def test_basic_auth
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
-    assert_equal('basic_auth OK', c.get_content("http://localhost:#{Port}/basic_auth"))
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
   end
 
   def test_basic_auth_compat
     c = HTTPClient.new
-    c.set_basic_auth("http://localhost:#{Port}/", 'admin', 'admin')
-    assert_equal('basic_auth OK', c.get_content("http://localhost:#{Port}/basic_auth"))
+    c.set_basic_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
   end
 
   def test_BASIC_auth
@@ -119,8 +94,8 @@ class TestAuth < Test::Unit::TestCase
     begin
       @basic_auth.instance_eval { @auth_scheme = "BASIC" }
       c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
-      c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
-      assert_equal('basic_auth OK', c.get_content("http://localhost:#{Port}/basic_auth"))
+      c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+      assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
     ensure
       @basic_auth.instance_eval { @auth_scheme = webrick_backup }
       #c.www_auth.basic_auth.instance_eval { @scheme = httpaccess2_backup }
@@ -129,22 +104,22 @@ class TestAuth < Test::Unit::TestCase
 
   def test_digest_auth
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
-    assert_equal('digest_auth OK', c.get_content("http://localhost:#{Port}/digest_auth"))
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('digest_auth OK', c.get_content("http://localhost:#{serverport}/digest_auth"))
   end
 
   def test_digest_auth_with_block
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
     called = false
-    c.get_content("http://localhost:#{Port}/digest_auth") do |str|
+    c.get_content("http://localhost:#{serverport}/digest_auth") do |str|
       assert_equal('digest_auth OK', str)
       called = true
     end
     assert(called)
     #
     called = false
-    c.get("http://localhost:#{Port}/digest_auth") do |str|
+    c.get("http://localhost:#{serverport}/digest_auth") do |str|
       assert_equal('digest_auth OK', str)
       called = true
     end
@@ -153,26 +128,26 @@ class TestAuth < Test::Unit::TestCase
 
   def test_digest_auth_with_post_io
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
     post_body = StringIO.new("1234567890")
-    assert_equal('1234567890', c.post("http://localhost:#{Port}/digest_auth", post_body).header['x-query'][0])
+    assert_equal('1234567890', c.post("http://localhost:#{serverport}/digest_auth", post_body).header['x-query'][0])
     #
     post_body = StringIO.new("1234567890")
     post_body.read(5)
-    assert_equal('67890', c.post("http://localhost:#{Port}/digest_auth", post_body).header['x-query'][0])
+    assert_equal('67890', c.post("http://localhost:#{serverport}/digest_auth", post_body).header['x-query'][0])
   end
 
   def test_digest_auth_with_querystring
     c = HTTPClient.new
     c.debug_dev = STDERR if $DEBUG
-    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
-    assert_equal('digest_auth OKbar=baz', c.get_content("http://localhost:#{Port}/digest_auth/foo?bar=baz"))
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('digest_auth OKbar=baz', c.get_content("http://localhost:#{serverport}/digest_auth/foo?bar=baz"))
   end
 
   def test_digest_sess_auth
     c = HTTPClient.new
-    c.set_auth("http://localhost:#{Port}/", 'admin', 'admin')
-    assert_equal('digest_sess_auth OK', c.get_content("http://localhost:#{Port}/digest_sess_auth"))
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('digest_sess_auth OK', c.get_content("http://localhost:#{serverport}/digest_sess_auth"))
   end
 
   def test_proxy_auth
@@ -202,7 +177,7 @@ class TestAuth < Test::Unit::TestCase
     c.www_auth.oauth.challenge('http://photos.example.net/')
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
     c.debug_dev = str = ''
-    c.get_content('http://photos.example.net/photos', :file => 'vacation.jpg', :size => 'original')
+    c.get_content('http://photos.example.net/photos', [[:file, 'vacation.jpg'], [:size, 'original']])
     assert(str.index(%q(GET /photos?file=vacation.jpg&size=original)))
     assert(str.index(%q(Authorization: OAuth realm="http://photos.example.net/", oauth_consumer_key="dpf43f3p2l4k3l03", oauth_nonce="kllo9940pd9333jh", oauth_signature="tR3%2BTy81lMeYAr%2FFid0kMTYa%2FWM%3D", oauth_signature_method="HMAC-SHA1", oauth_timestamp="1191242096", oauth_token="nnch734d00sl2jdk", oauth_version="1.0")))
     #
@@ -214,7 +189,7 @@ class TestAuth < Test::Unit::TestCase
     #
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
     c.debug_dev = str = ''
-    c.post_content('http://photos.example.net/photos', :file => 'vacation.jpg', :size => 'original')
+    c.post_content('http://photos.example.net/photos', [[:file, 'vacation.jpg'], [:size, 'original']])
     assert(str.index(%q(POST /photos)))
     assert(str.index(%q(Authorization: OAuth realm="http://photos.example.net/", oauth_consumer_key="dpf43f3p2l4k3l03", oauth_nonce="kllo9940pd9333jh", oauth_signature="wPkvxykrw%2BBTdCcGqKr%2B3I%2BPsiM%3D", oauth_signature_method="HMAC-SHA1", oauth_timestamp="1191242096", oauth_token="nnch734d00sl2jdk", oauth_version="1.0")))
   end

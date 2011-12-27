@@ -1,1 +1,4 @@
-*.rbc
+*~
+tags
+pkg
+coverage

@@ -102,6 +102,7 @@ class HTTPClient
     attr_accessor :connect_retry
     attr_accessor :send_timeout
     attr_accessor :receive_timeout
+    attr_accessor :keep_alive_timeout
     attr_accessor :read_block_size
     attr_accessor :protocol_retry_count
 
@@ -124,12 +125,13 @@ class HTTPClient
       @protocol_version = nil
       @debug_dev = client.debug_dev
       @socket_sync = true
-      @chunk_size = 4096
+      @chunk_size = ::HTTP::Message::Body::DEFAULT_CHUNK_SIZE
 
       @connect_timeout = 60
       @connect_retry = 1
       @send_timeout = 120
-      @receive_timeout = 60       # For each read_block_size bytes
+      @receive_timeout = 60        # For each read_block_size bytes
+      @keep_alive_timeout = 15     # '15' is from Apache 2 default
       @read_block_size = 1024 * 16 # follows net/http change in 1.8.7
       @protocol_retry_count = 5
 
@@ -139,8 +141,9 @@ class HTTPClient
       @transparent_gzip_decompression = false
       @socket_local = Site.new
 
-      @sess_pool = []
+      @sess_pool = {}
       @sess_pool_mutex = Mutex.new
+      @sess_pool_last_checked = Time.now
     end
 
     def proxy=(proxy)
@@ -172,14 +175,15 @@ class HTTPClient
       close_all
     end
 
+    # assert: sess.last_used must not be nil
     def keep(sess)
       add_cached_session(sess)
     end
 
     def invalidate(site)
       @sess_pool_mutex.synchronize do
-        @sess_pool.each do |sess|
-          if sess.dest == site
+        if pool = @sess_pool[site]
+          pool.each do |sess|
             sess.invalidate
           end
         end
@@ -189,11 +193,12 @@ class HTTPClient
   private
 
     def open(uri, via_proxy = false)
+      site = Site.new(uri)
       sess = nil
-      if cached = get_cached_session(uri)
+      if cached = get_cached_session(site)
         sess = cached
       else
-        sess = Session.new(@client, Site.new(uri), @agent_name, @from)
+        sess = Session.new(@client, site, @agent_name, @from)
         sess.proxy = via_proxy ? @proxy : nil
         sess.socket_sync = @socket_sync
         sess.requested_version = @protocol_version if @protocol_version
@@ -214,8 +219,10 @@ class HTTPClient
 
     def close_all
       @sess_pool_mutex.synchronize do
-        @sess_pool.each do |sess|
-          sess.close
+        @sess_pool.each do |site, pool|
+          pool.each do |sess|
+            sess.close
+          end
         end
       end
       @sess_pool.clear
@@ -223,7 +230,7 @@ class HTTPClient
 
     # This method might not work as you expected...
     def close(dest)
-      if cached = get_cached_session(dest)
+      if cached = get_cached_session(Site.new(dest))
         cached.close
         true
       else
@@ -231,27 +238,44 @@ class HTTPClient
       end
     end
 
-    def get_cached_session(uri)
-      cached = nil
+    def get_cached_session(site)
       @sess_pool_mutex.synchronize do
-        new_pool = []
-        @sess_pool.each do |s|
-          if s.invalidated?
-            s.close # close & remove from the pool
-          elsif !cached && s.dest.match(uri)
-            cached = s
-          else
-            new_pool << s
+        now = Time.now
+        if now > @sess_pool_last_checked + @keep_alive_timeout
+          scrub_cached_session(now)
+          @sess_pool_last_checked = now
+        end
+        if pool = @sess_pool[site]
+          pool.each_with_index do |sess, idx|
+            if valid_session?(sess, now)
+              return pool.slice!(idx)
+            end
           end
         end
-        @sess_pool = new_pool
       end
-      cached
+      nil
+    end
+
+    def scrub_cached_session(now)
+      @sess_pool.each do |site, pool|
+        pool.replace(pool.select { |sess|
+          if valid_session?(sess, now)
+            true
+          else
+            sess.close # close & remove from the pool
+            false
+          end
+        })
+      end
+    end
+
+    def valid_session?(sess, now)
+      !sess.invalidated? and (now <= sess.last_used + @keep_alive_timeout)
     end
 
     def add_cached_session(sess)
       @sess_pool_mutex.synchronize do
-        @sess_pool << sess
+        (@sess_pool[sess.dest] ||= []).unshift(sess)
       end
     end
   end
@@ -523,6 +547,7 @@ class HTTPClient
     attr_accessor :test_loopback_http_response
 
     attr_accessor :transparent_gzip_decompression
+    attr_reader :last_used
 
     def initialize(client, dest, agent_name, from)
       @client = client
@@ -561,6 +586,7 @@ class HTTPClient
       @readbuf = nil
 
       @transparent_gzip_decompression = false
+      @last_used = nil
     end
 
     # Send a request to the server
@@ -594,6 +620,7 @@ class HTTPClient
       @state = :META if @state == :WAIT
       @next_connection = nil
       @requests.push(req)
+      @last_used = Time.now
     end
 
     def close
@@ -891,14 +918,15 @@ class HTTPClient
 
     def read_body_length(&block)
       return nil if @content_length == 0
-      buf = ''
       while true
+        buf = ''
         maxbytes = @read_block_size
         maxbytes = @content_length if maxbytes > @content_length
         timeout(@receive_timeout, ReceiveTimeoutError) do
           begin
             @socket.readpartial(maxbytes, buf)
           rescue EOFError
+            close
             buf = nil
           end
         end
@@ -917,6 +945,10 @@ class HTTPClient
       buf = ''
       while true
         len = @socket.gets(RS)
+        if len.nil? # EOF
+          close
+          return
+        end
         @chunk_length = len.hex
         if @chunk_length == 0
           @content_length = 0
@@ -937,8 +969,8 @@ class HTTPClient
         yield @readbuf
         @readbuf = nil
       end
-      buf = ''
       while true
+        buf = ''
         timeout(@receive_timeout, ReceiveTimeoutError) do
           begin
             @socket.readpartial(@read_block_size, buf)

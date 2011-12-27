@@ -1,18 +1,12 @@
 require 'rake'
 require 'rake/testtask'
-require 'rake/rdoctask'
+require 'rdoc/task'
+require 'rubygems/package_task'
 
-task :default => :gem
+task :default => :test
 
-begin
-  require 'rake/gempackagetask'
-  load 'httpclient.gemspec'
-  Rake::GemPackageTask.new(SPEC) do |pkg|
-    pkg.need_zip = true
-    pkg.need_tar = true
-  end
-rescue LoadError
-end
+require 'bundler'
+Bundler::GemHelper.install_tasks
 
 begin
   require 'rcov/rcovtask'
@@ -25,12 +19,12 @@ end
 
 Rake::TestTask.new("test") do |test|
   test.libs << 'lib'
-  test.warning = true
-  test.pattern = 'test/test_*.rb'
+  test.verbose = true
+  test.test_files = Dir.glob('test/test_*.rb')
 end
 
 Rake::RDocTask.new("doc") do |rdoc|
-  load 'lib/httpclient.rb'
+  load 'lib/httpclient/version.rb'
   rdoc.rdoc_dir = 'doc'
   rdoc.title = "HTTPClient Library Document: Version #{HTTPClient::VERSION}"
   rdoc.rdoc_files.include('README.txt')

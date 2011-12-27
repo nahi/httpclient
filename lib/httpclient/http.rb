@@ -7,6 +7,7 @@
 
 
 require 'time'
+require 'open-uri' # for encoding
 
 
 # A namespace module for HTTP Message definitions used by HTTPClient.
@@ -122,6 +123,8 @@ module HTTP
       attr_accessor :body_charset # :nodoc:
       # Used for dumping response.
       attr_accessor :body_date # :nodoc:
+      # Used for keeping content encoding.
+      attr_reader :body_encoding # :nodoc:
 
       # HTTP response status code to reason phrase mapping definition.
       STATUS_CODE_MAP = {
@@ -166,6 +169,7 @@ module HTTP
         @body_type = nil
         @body_charset = nil
         @body_date = nil
+        @body_encoding = nil
 
         @is_request = nil
         @header_item = []
@@ -205,14 +209,31 @@ module HTTP
       end
 
       # Returns 'Content-Type' header value.
-      def contenttype
+      def content_type
         self['Content-Type'][0]
       end
 
       # Sets 'Content-Type' header value.  Overrides if already exists.
-      def contenttype=(contenttype)
+      def content_type=(content_type)
         delete('Content-Type')
-        self['Content-Type'] = contenttype
+        self['Content-Type'] = content_type
+      end
+
+      alias contenttype content_type
+      alias contenttype= content_type=
+
+      if defined?(Encoding::ASCII_8BIT)
+        def set_body_encoding
+          if type = self.content_type
+            OpenURI::Meta.init(o = '')
+            o.meta_add_field('content-type', type)
+            @body_encoding = o.encoding
+          end
+        end
+      else
+        def set_body_encoding
+          @body_encoding = nil
+        end
       end
 
       # Sets byte size of message body.
@@ -283,6 +304,13 @@ module HTTP
       # Returns an Array of header values for the given key.
       def [](key)
         get(key).collect { |item| item[1] }
+      end
+
+      def set_headers(headers)
+        headers.each do |key, value|
+          add(key, value)
+        end
+        set_body_encoding
       end
 
       def create_query_uri()
@@ -442,18 +470,18 @@ module HTTP
       def dump(header = '', dev = '')
         if @body.is_a?(Parts)
           dev << header
-          buf = ''
           @body.parts.each do |part|
             if Message.file?(part)
               reset_pos(part)
-              while !part.read(@chunk_size, buf).nil?
-                dev << buf
-              end
-              part.rewind
+              dump_file(part, dev)
             else
               dev << part
             end
           end
+        elsif Message.file?(@body)
+          dev << header
+          reset_pos(@body)
+          dump_file(@body, dev)
         elsif @body
           dev << header + @body
         else
@@ -498,11 +526,11 @@ module HTTP
 
       def set_content(body, boundary = nil)
         if body.respond_to?(:read)
-          # uses Transfer-Encoding: chunked.  bear in mind that server may not
-          # support it.  at least ruby's CGI doesn't.
+          # uses Transfer-Encoding: chunked if body does not respond to :size.
+          # bear in mind that server may not support it. at least ruby's CGI doesn't.
           @body = body
           remember_pos(@body)
-          @size = nil
+          @size = body.respond_to?(:size) ? body.size - body.pos : nil
         elsif boundary and Message.multiparam_query?(body)
           @body = build_query_multipart_str(body, boundary)
           @size = @body.size
@@ -519,6 +547,13 @@ module HTTP
 
       def reset_pos(io)
         io.pos = @positions[io] if @positions.key?(io)
+      end
+
+      def dump_file(io, dev)
+        buf = ''
+        while !io.read(@chunk_size, buf).nil?
+          dev << buf
+        end
       end
 
       def dump_chunks(io, dev)
@@ -780,7 +815,7 @@ module HTTP
       end
 
       def escape_query(query) # :nodoc:
-        query.sort_by { |attr, value| attr.to_s }.collect { |attr, value|
+        query.collect { |attr, value|
           if value.respond_to?(:read)
             value = value.read
           end
@@ -789,12 +824,14 @@ module HTTP
       end
 
       # from CGI.escape
-      def escape(str) # :nodoc:
-        if defined?(Encoding::ASCII_8BIT)
+      if defined?(Encoding::ASCII_8BIT)
+        def escape(str) # :nodoc:
           str.dup.force_encoding(Encoding::ASCII_8BIT).gsub(/([^ a-zA-Z0-9_.-]+)/) {
             '%' + $1.unpack('H2' * $1.bytesize).join('%').upcase
           }.tr(' ', '+')
-        else
+        end
+      else
+        def escape(str) # :nodoc:
           str.gsub(/([^ a-zA-Z0-9_.-]+)/n) {
             '%' + $1.unpack('H2' * $1.bytesize).join('%').upcase
           }.tr(' ', '+')
@@ -908,14 +945,21 @@ module HTTP
       @http_header.reason_phrase = reason
     end
 
-    # Sets 'Content-Type' header value.  Overrides if already exists.
-    def contenttype
-      @http_header.contenttype
+    # Returns 'Content-Type' header value.
+    def content_type
+      @http_header.content_type
     end
 
-    # Returns 'Content-Type' header value.
-    def contenttype=(contenttype)
-      @http_header.contenttype = contenttype
+    # Sets 'Content-Type' header value.  Overrides if already exists.
+    def content_type=(content_type)
+      @http_header.content_type = content_type
+    end
+    alias contenttype content_type
+    alias contenttype= content_type=
+
+    # Returns content encoding
+    def body_encoding
+      @http_header.body_encoding
     end
 
     # Returns a content of message body.  A String or an IO.
@@ -931,7 +975,7 @@ module HTTP
     # headers like 'Set-Cookie'. Use header['Set-Cookie'] for that purpose.
     # (It returns an Array always)
     def headers
-      Hash[http_header.all]
+      Hash[*http_header.all.flatten]
     end
 
     # Extracts cookies from 'Set-Cookie' header.

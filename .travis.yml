@@ -1,0 +1,14 @@
+rvm:
+  - 1.8.7
+  - 1.9.2
+  - 1.9.3
+  - ruby-head
+  - ree
+  - jruby
+  - rbx-18mode
+
+script: "bundle exec rake --trace"
+
+notifications:
+  recipients:
+    - nahi@ruby-lang.org

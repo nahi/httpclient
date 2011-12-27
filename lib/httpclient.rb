@@ -11,6 +11,7 @@ require 'stringio'
 require 'digest/sha1'
 
 # Extra library
+require 'httpclient/version'
 require 'httpclient/util'
 require 'httpclient/ssl_config'
 require 'httpclient/connection'
@@ -229,10 +230,8 @@ require 'httpclient/cookie'
 #   ruby -rhttpclient -e 'p HTTPClient.head(ARGV.shift).header["last-modified"]' http://dev.ctor.org/
 #
 class HTTPClient
-  VERSION = '2.2.0.2'
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
-  /: (\S+) (\S+)/ =~ %q$Id$
-  LIB_NAME = "(#{$1}/#{$2}, #{RUBY_VERSION_STRING})"
+  LIB_NAME = "(#{VERSION}, #{RUBY_VERSION_STRING})"
 
   include Util
 
@@ -335,6 +334,10 @@ class HTTPClient
   attr_proxy(:send_timeout, true)
   # Response receiving timeout in sec.
   attr_proxy(:receive_timeout, true)
+  # Reuse the same connection within this timeout in sec. from last used.
+  attr_proxy(:keep_alive_timeout, true)
+  # Size of reading block for non-chunked response.
+  attr_proxy(:read_block_size, true)
   # Negotiation retry count for authentication.  5 by default.
   attr_proxy(:protocol_retry_count, true)
   # if your ruby is older than 2005-09-06, do not set socket_sync = false to
@@ -438,7 +441,7 @@ class HTTPClient
   #
   # Calling this method resets all existing sessions.
   def proxy=(proxy)
-    if proxy.nil?
+    if proxy.nil? || proxy.to_s.empty?
       @proxy = nil
       @proxy_auth.reset_challenge
     else
@@ -728,9 +731,9 @@ class HTTPClient
   # a HTTP request message body.
   #
   # When you pass an IO as a body, HTTPClient sends it as a HTTP request with
-  # chunked encoding (Transfer-Encoding: chunked in HTTP header).  Bear in mind
-  # that some server application does not support chunked request.  At least
-  # cgi.rb does not support it.
+  # chunked encoding (Transfer-Encoding: chunked in HTTP header) if IO does not
+  # respond to :read. Bear in mind that some server application does not support
+  # chunked request.  At least cgi.rb does not support it.
   def request(method, uri, *args, &block)
     query, body, header, follow_redirect = keyword_argument(args, :query, :body, :header, :follow_redirect)
     if [:post, :put].include?(method)
@@ -1060,7 +1063,7 @@ private
     do_get_header(req, res, sess)
     conn.push(res)
     sess.get_body do |part|
-      force_binary(part)
+      set_encoding(part, res.body_encoding)
       if block
         block.call(res, part)
       else
@@ -1096,7 +1099,7 @@ private
     do_get_header(req, res, sess)
     conn.push(res)
     sess.get_body do |part|
-      force_binary(part)
+      set_encoding(part, res.body_encoding)
       pipew.write(part)
     end
     pipew.close
@@ -1109,9 +1112,7 @@ private
 
   def do_get_header(req, res, sess)
     res.http_version, res.status, res.reason, headers = sess.get_header
-    headers.each do |key, value|
-      res.header.add(key, value)
-    end
+    res.header.set_headers(headers)
     if @cookie_manager
       res.header['set-cookie'].each do |cookie|
         @cookie_manager.parse(cookie, req.header.request_uri)
@@ -1124,5 +1125,9 @@ private
     @debug_dev << req
     @debug_dev << "\n\n= Dummy Response\n\n"
     @debug_dev << res
+  end
+
+  def set_encoding(str, encoding)
+    str.force_encoding(encoding) if encoding
   end
 end
