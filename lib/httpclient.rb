@@ -65,7 +65,7 @@ require 'httpclient/cookie'
 #
 # 3. You can pass :follow_redirect option to follow redirect response in get.
 #
-#     puts clnt.get('http://dev.ctor.org/', :foolow_redirect => true)
+#     puts clnt.get('http://dev.ctor.org/', :follow_redirect => true)
 #
 # 4. Get content as chunks of String.  It yields chunks of String.
 #
