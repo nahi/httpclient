@@ -1,5 +1,10 @@
 # -*- encoding: utf-8 -*-
 require 'test/unit'
+require 'simplecov'
+require 'simplecov-rcov'
+SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
+SimpleCov.start
+
 require 'httpclient'
 require 'webrick'
 require 'webrick/httpproxy.rb'

@@ -2,22 +2,17 @@ require 'rake'
 require 'rake/testtask'
 require 'rdoc/task'
 require 'rubygems/package_task'
+require 'ci/reporter/rake/test_unit'
 
 task :default => :test
 
 require 'bundler'
 Bundler::GemHelper.install_tasks
 
-begin
-  require 'rcov/rcovtask'
-  Rcov::RcovTask.new("coverage") do |rcov|
-    rcov.libs << 'lib'
-    rcov.pattern = 'test/test_*.rb'
-  end
-rescue LoadError
-end
+ENV['CI_REPORTS'] = File.expand_path('./reports', File.dirname(__FILE__))
+task :test => ['ci:setup:testunit', 'test-run']
 
-Rake::TestTask.new("test") do |test|
+Rake::TestTask.new('test-run') do |test|
   test.libs << 'lib'
   test.verbose = true
   test.test_files = Dir.glob('test/test_*.rb')
