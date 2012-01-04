@@ -4,7 +4,14 @@ platform :jruby do
   gem 'jruby-openssl'
 end
 
-gem 'rake'
-gem 'rdoc'
+group :development do
+  gem 'rake'
+  gem 'rdoc'
+  gem 'simplecov'
+  # For Jenkins
+  gem 'test-unit'
+  gem 'ci_reporter'
+  gem 'simplecov-rcov'
+end
 
 gemspec
