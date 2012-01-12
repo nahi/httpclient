@@ -1,0 +1,21 @@
+avl_tree - Naive implementation of AVL tree for Ruby
+Copyright (C) 2012 Hiroshi Nakamura <nahi@ruby-lang.org>
+
+
+== TODO
+
+It's still under development.
+
+
+== Author
+
+Name:: Hiroshi Nakamura
+E-mail:: nahi@ruby-lang.org
+Project web site:: http://github.com/nahi/radix_tree
+
+
+== License
+
+This program is copyrighted free software by Hiroshi Nakamura.  You can
+redistribute it and/or modify it under the same terms of Ruby's license;
+either the dual license version in 2003, or any later version.
