@@ -14,7 +14,7 @@ class AVLTree
       end
 
       def each(&block)
-        # intentionally brank
+        # intentionally blank
       end
 
       def store(key, value)
@@ -30,11 +30,11 @@ class AVLTree
       end
 
       def dump_tree(io, indent = '')
-        # intentionally brank
+        # intentionally blank
       end
 
       def dump_sexp
-        # intentionally brank
+        # intentionally blank
       end
     end
     EMPTY = Node::EmptyNode.new
