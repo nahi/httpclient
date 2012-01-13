@@ -246,6 +246,15 @@ class AVLTree
       deleted
     end
 
+    # Right single rotation
+    # (B a (D c E)) where D-a > 1 && E > c --> (D (B a c) E)
+    #
+    #   B              D
+    #  / \            / \
+    # a   D    ->    B   E
+    #    / \        / \
+    #   c   E      a   c
+    #
     def rotate_RR
       root = @right
       @right = root.left
@@ -254,6 +263,15 @@ class AVLTree
       root
     end
 
+    # Left single rotation
+    # (D (B A c) e) where B-e > 1 && A > c --> (B A (D c e))
+    #
+    #     D          B
+    #    / \        / \
+    #   B   e  ->  A   D
+    #  / \            / \
+    # A   c          c   e
+    #
     def rotate_LL
       root = @left
       @left = root.right
@@ -262,6 +280,17 @@ class AVLTree
       root
     end
 
+    # Right double rotation
+    # (B a (F (D c e) g)) where F-a > 1 && D > g --> (D (B a c) (F e g))
+    #
+    #   B               D
+    #  / \            /   \
+    # a   F    ->    B     F
+    #    / \        / \   / \
+    #   D   g      a   c e   g
+    #  / \
+    # c   e
+    #
     def rotate_RL
       other = @right
       root = other.left
@@ -274,6 +303,17 @@ class AVLTree
       root
     end
 
+    # Left double rotation
+    # (F (B a (D c e)) g) where B-g > 1 && D > a --> (d (B a c) (F e g))
+    #
+    #     F             D
+    #    / \          /   \
+    #   B   g  ->    B     F
+    #  / \          / \   / \
+    # a   D        a   c e   g
+    #    / \
+    #   c   e
+    #
     def rotate_LR
       other = @left
       root = other.right
