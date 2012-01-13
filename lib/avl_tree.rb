@@ -4,7 +4,14 @@ class AVLTree
   class Node
     UNDEFINED = Object.new
 
-    class EmptyNode
+    class EmptyNode < Node
+      def initialize
+      end
+
+      def empty?
+        true
+      end
+
       def height
         0
       end
@@ -40,6 +47,10 @@ class AVLTree
       def dump_sexp
         # intentionally blank
       end
+
+      def rotate
+        self
+      end
     end
     EMPTY = Node::EmptyNode.new
 
@@ -50,6 +61,10 @@ class AVLTree
       @key, @value = key, value
       @left = @right = EMPTY
       @height = nil
+    end
+
+    def empty?
+      false
     end
 
     def size
@@ -115,18 +130,20 @@ class AVLTree
       case key <=> @key
       when -1
         deleted, @left = @left.delete(key)
-        [deleted, rotate]
+        root = self
       when 0
-        delete_self
+        deleted = self
+        root = delete_self
       when 1
         deleted, @right = @right.delete(key)
-        [deleted, rotate]
+        root = self
       end
+      [deleted, root.rotate]
     end
 
     def delete_min
-      if @left == EMPTY
-        delete_self
+      if @left.empty?
+        [self, delete_self]
       else
         deleted, @left = @left.delete_min
         [deleted, rotate]
@@ -163,22 +180,6 @@ class AVLTree
       @right = right
     end
 
-  private
-
-    def delete_self
-      if leaf?
-        [self, EMPTY]
-      else
-        deleted, new_right = @right.delete_min
-        deleted.left, deleted.right = @left, new_right
-        [self, deleted]
-      end
-    end
-
-    def leaf?
-      @right == EMPTY and @left == EMPTY
-    end
-
     def rotate
       case @left.height - @right.height
       when +2
@@ -195,6 +196,18 @@ class AVLTree
         end
       else
         self
+      end
+    end
+
+  private
+
+    def delete_self
+      if @left.empty? and @right.empty?
+        EMPTY
+      else
+        deleted, new_right = @right.delete_min
+        deleted.left, deleted.right = @left, new_right
+        deleted
       end
     end
 
