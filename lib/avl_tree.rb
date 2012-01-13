@@ -25,14 +25,17 @@ class AVLTree
         # intentionally blank
       end
 
+      # returns new_root
       def store(key, value)
         Node.new(key, value)
       end
 
+      # returns value
       def retrieve(key)
         UNDEFINED
       end
 
+      # returns [deleted_node, new_root]
       def delete(key)
         [self, self]
       end
@@ -134,15 +137,13 @@ class AVLTree
       case key <=> @key
       when -1
         deleted, @left = @left.delete(key)
-        root = self
+        [deleted, self.rotate]
       when 0
-        deleted = self
-        root = delete_self
+        [self, delete_self.rotate]
       when 1
         deleted, @right = @right.delete(key)
-        root = self
+        [deleted, self.rotate]
       end
-      [deleted, root.rotate]
     end
 
     def delete_min
@@ -234,16 +235,15 @@ class AVLTree
 
     def delete_self
       if @left.empty? and @right.empty?
-        EMPTY
+        deleted = EMPTY
       elsif @right.height < @left.height
         deleted, new_left = @left.delete_max
         deleted.left, deleted.right = new_left, @right
-        deleted
       else
         deleted, new_right = @right.delete_min
         deleted.left, deleted.right = @left, new_right
-        deleted
       end
+      deleted
     end
 
     def rotate_RR
