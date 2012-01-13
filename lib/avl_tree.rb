@@ -164,7 +164,7 @@ class AVLTree
     end
 
     def height
-      @height ||= [@left.height, @right.height].max + 1
+      @height ||= (@left.height > @right.height ? @left.height : @right.height) + 1
     end
 
   protected
