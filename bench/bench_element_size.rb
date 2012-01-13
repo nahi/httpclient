@@ -4,7 +4,7 @@ require 'avl_tree'
 
 random = Random.new(0)
 
-TIMES = 100000
+times = 100000
 key_size = 10
 
 def aset(h, keys)
@@ -27,24 +27,26 @@ end
 
 def run(bm, h, keys)
   name = h.class.name
-  bm.report("#{name} aset") do
+  bm.report("#{name} aset (#{keys.size})") do
     aset(h, keys)
   end
-  bm.report("#{name} aref") do
+  bm.report("#{name} aref (#{keys.size})") do
     aref(h, keys)
   end
-  bm.report("#{name} delete") do
+  bm.report("#{name} delete (#{keys.size})") do
     delete(h, keys)
   end
 end
 
-keys = []
-TIMES.times do
-  keys << random.bytes(key_size)
-end
+[10000, 20000, 50000, 100000, 200000, 500000].each do |elements|
+  keys = []
+  elements.times do
+    keys << random.bytes(key_size)
+  end
 
-Benchmark.bmbm do |bm|
-  run(bm, Hash.new, keys)
-  run(bm, RadixTree.new, keys)
-  run(bm, AVLTree.new, keys)
+  Benchmark.bm(30) do |bm|
+    run(bm, Hash.new, keys)
+    run(bm, RadixTree.new, keys)
+    run(bm, AVLTree.new, keys)
+  end
 end
