@@ -425,6 +425,7 @@ class TestAVLTree < Test::Unit::TestCase
   end
 
   if RUBY_VERSION >= '1.9.0'
+    # In contrast to RadixTree, AVLTree just uses String#<=> as-is
     def test_encoding
       h = AVLTree.new
       s = { 'ああ' => 1, 'あい' => 2, 'いい' => 3, 'いう' => 4, 'あ' => 5, 'あいう' => 6 }
@@ -437,7 +438,8 @@ class TestAVLTree < Test::Unit::TestCase
       end
       str = 'ああ'
       str.force_encoding('US-ASCII')
-      assert_equal nil, h[str]
+      # it's nil for RadixTree because RadixTree uses char-to-char comparison
+      assert_equal 1, h[str]
     end
   end
 end
