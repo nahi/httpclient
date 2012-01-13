@@ -191,7 +191,7 @@ class TestAVLTree < Test::Unit::TestCase
     assert_equal '(c (b a) (e d f))', h.dump_sexp
   end
 
-  def test_delete_node
+  def test_delete_node_right
     h = AVLTree.new
     h['c'] = 1
     h['b'] = 2
@@ -206,6 +206,17 @@ class TestAVLTree < Test::Unit::TestCase
     assert_equal '(c (b a) (g (e d f) (i h j)))', h.dump_sexp
     h.delete('g')
     assert_equal '(c (b a) (h (e d f) (i - j)))', h.dump_sexp
+  end
+
+  def test_delete_node_left
+    h = AVLTree.new
+    h['c'] = 1
+    h['b'] = 2
+    h['d'] = 3
+    h['a'] = 4
+    assert_equal '(c (b a) d)', h.dump_sexp
+    h.delete('b')
+    assert_equal '(c a d)', h.dump_sexp
   end
 
   def test_delete_root

@@ -154,6 +154,15 @@ class AVLTree
       end
     end
 
+    def delete_max
+      if @right.empty?
+        [self, delete_self]
+      else
+        deleted, @right = @right.delete_max
+        [deleted, rotate]
+      end
+    end
+
     def dump_tree(io, indent = '')
       @right.dump_tree(io, indent + '  ')
       io << indent << sprintf("#<%s:0x%010x %d %s> => %s", self.class.name, __id__, height, @key.inspect, @value.inspect) << $/
@@ -173,6 +182,7 @@ class AVLTree
     # for debugging
     def check_height
       @left.check_height
+      @right.check_height
       lh = @left.height
       rh = @right.height
       if (lh - rh).abs > 1
@@ -183,7 +193,6 @@ class AVLTree
         puts dump_tree(STDERR)
         raise "height calc failure: #{lh} #{height} #{rh}"
       end
-      @right.check_height
     end
 
   protected
@@ -226,6 +235,10 @@ class AVLTree
     def delete_self
       if @left.empty? and @right.empty?
         EMPTY
+      elsif @right.height < @left.height
+        deleted, new_left = @left.delete_max
+        deleted.left, deleted.right = new_left, @right
+        deleted
       else
         deleted, new_right = @right.delete_min
         deleted.left, deleted.right = @left, new_right
