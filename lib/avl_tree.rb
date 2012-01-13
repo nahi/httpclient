@@ -48,16 +48,25 @@ class AVLTree
       def rotate
         self
       end
+
+      def update_height
+        # intentionally blank
+      end
+
+      # for debugging
+      def check_height
+        # intentionally blank
+      end
     end
     EMPTY = Node::EmptyNode.new
 
-    attr_reader :key, :value
+    attr_reader :key, :value, :height
     attr_reader :left, :right
 
     def initialize(key, value)
       @key, @value = key, value
       @left = @right = EMPTY
-      @height = nil
+      @height = 1
     end
 
     def empty?
@@ -97,7 +106,6 @@ class AVLTree
 
     # returns new_root
     def store(key, value)
-      @height = nil
       case key <=> @key
       when -1
         @left = @left.store(key, value)
@@ -123,7 +131,6 @@ class AVLTree
 
     # returns [deleted_node, new_root]
     def delete(key)
-      @height = nil
       case key <=> @key
       when -1
         deleted, @left = @left.delete(key)
@@ -163,8 +170,20 @@ class AVLTree
       end
     end
 
-    def height
-      @height ||= (@left.height > @right.height ? @left.height : @right.height) + 1
+    # for debugging
+    def check_height
+      @left.check_height
+      lh = @left.height
+      rh = @right.height
+      if (lh - rh).abs > 1
+        puts dump_tree(STDERR)
+        raise "height unbalanced: #{lh} #{height} #{rh}"
+      end
+      if (lh > rh ? lh : rh) + 1 != height
+        puts dump_tree(STDERR)
+        raise "height calc failure: #{lh} #{height} #{rh}"
+      end
+      @right.check_height
     end
 
   protected
@@ -177,23 +196,29 @@ class AVLTree
       @right = right
     end
 
+    def update_height
+      @height = (@left.height > @right.height ? @left.height : @right.height) + 1
+    end
+
     def rotate
       case @left.height - @right.height
       when +2
         if @left.left.height >= @left.right.height
-          rotate_LL
+          root = rotate_LL
         else
-          rotate_LR
+          root = rotate_LR
         end
       when -2
         if @right.left.height <= @right.right.height
-          rotate_RR
+          root = rotate_RR
         else
-          rotate_RL
+          root = rotate_RL
         end
       else
-        self
+        root = self
       end
+      root.update_height
+      root
     end
 
   private
@@ -212,6 +237,7 @@ class AVLTree
       root = @right
       @right = root.left
       root.left = self
+      root.left.update_height
       root
     end
 
@@ -219,6 +245,7 @@ class AVLTree
       root = @left
       @left = root.right
       root.right = self
+      root.right.update_height
       root
     end
 
@@ -229,6 +256,8 @@ class AVLTree
       other.left = root.right
       root.left = self
       root.right = other
+      root.left.update_height
+      root.right.update_height
       root
     end
 
@@ -239,6 +268,8 @@ class AVLTree
       other.right = root.left
       root.right = self
       root.left = other
+      root.left.update_height
+      root.right.update_height
       root
     end
 
