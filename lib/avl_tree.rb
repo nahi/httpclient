@@ -4,10 +4,7 @@ class AVLTree
   class Node
     UNDEFINED = Object.new
 
-    class EmptyNode < Node
-      def initialize
-      end
-
+    class EmptyNode
       def empty?
         true
       end
