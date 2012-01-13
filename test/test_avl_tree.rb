@@ -216,7 +216,7 @@ class TestAVLTree < Test::Unit::TestCase
     assert_equal 1, h['b']
     assert_equal '(b a c)', h.dump_sexp
     h.delete('b')
-    assert_equal '(a - c)', h.dump_sexp
+    assert_equal '(c a)', h.dump_sexp
     assert_equal nil, h['b']
   end
 

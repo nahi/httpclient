@@ -124,6 +124,15 @@ class AVLTree
       end
     end
 
+    def delete_min
+      if @left == EMPTY
+        delete_self
+      else
+        deleted, @left = @left.delete_min
+        [deleted, rotate]
+      end
+    end
+
     def dump_tree(io, indent = '')
       @right.dump_tree(io, indent + '  ')
       io << indent << sprintf("#<%s:0x%010x %d %s> => %s", self.class.name, __id__, height, @key.inspect, @value.inspect) << $/
@@ -160,17 +169,9 @@ class AVLTree
       if leaf?
         [self, EMPTY]
       else
-        # TODO: when we delete a node (not a leaf), pick heigher sub tree at
-        # first, then add all rest nodes to the sub tree. Find smarter way.
-        if @left.height >= @right.height
-          root, rest = @left, @right
-        else
-          root, rest = @right, @left
-        end
-        rest.each do |k, v|
-          root = root.store(k, v)
-        end
-        [self, root]
+        deleted, new_right = @right.delete_min
+        deleted.left, deleted.right = @left, new_right
+        [self, deleted]
       end
     end
 
