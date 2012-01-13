@@ -9,6 +9,10 @@ class AVLTree
         0
       end
 
+      def value
+        nil
+      end
+
       def size
         0
       end
@@ -26,7 +30,7 @@ class AVLTree
       end
 
       def delete(key)
-        [nil, self]
+        [self, self]
       end
 
       def dump_tree(io, indent = '')
@@ -105,7 +109,7 @@ class AVLTree
       end
     end
 
-    # returns [deleted_value, new_root]
+    # returns [deleted_node, new_root]
     def delete(key)
       @height = nil
       case key <=> @key
@@ -154,7 +158,7 @@ class AVLTree
 
     def delete_self
       if leaf?
-        [@value, EMPTY]
+        [self, EMPTY]
       else
         # TODO: when we delete a node (not a leaf), pick heigher sub tree at
         # first, then add all rest nodes to the sub tree. Find smarter way.
@@ -166,7 +170,7 @@ class AVLTree
         rest.each do |k, v|
           root = root.store(k, v)
         end
-        [@value, root]
+        [self, root]
       end
     end
 
@@ -324,7 +328,7 @@ class AVLTree
 
   def delete(key)
     deleted, @root = @root.delete(key.to_s)
-    deleted
+    deleted.value
   end
 
   def dump_tree(io = '')
