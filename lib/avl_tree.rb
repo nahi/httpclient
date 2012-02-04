@@ -26,7 +26,7 @@ class AVLTree
       end
 
       # returns new_root
-      def store(key, value)
+      def insert(key, value)
         Node.new(key, value)
       end
 
@@ -108,14 +108,14 @@ class AVLTree
     end
 
     # returns new_root
-    def store(key, value)
+    def insert(key, value)
       case key <=> @key
       when -1
-        @left = @left.store(key, value)
+        @left = @left.insert(key, value)
       when 0
         @value = value
       when 1
-        @right = @right.store(key, value)
+        @right = @right.insert(key, value)
       end
       rotate
     end
@@ -355,9 +355,9 @@ class AVLTree
   end
 
   def []=(key, value)
-    @root = @root.store(key.to_s, value)
+    @root = @root.insert(key.to_s, value)
   end
-  alias store []=
+  alias insert []=
 
   def key?(key)
     @root.retrieve(key.to_s) != Node::UNDEFINED
