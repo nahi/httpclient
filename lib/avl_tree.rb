@@ -86,13 +86,13 @@ class AVLTree
       yield [@key, @value]
       @right.each(&block)
     end
-    
+
     def each_key
       each do |k, v|
         yield k
       end
     end
-    
+
     def each_value
       each do |k, v|
         yield v
@@ -304,7 +304,7 @@ class AVLTree
     end
 
     # Left double rotation
-    # (F (B a (D c e)) g) where B-g > 1 && D > a --> (d (B a c) (F e g))
+    # (F (B a (D c e)) g) where B-g > 1 && D > a --> (D (B a c) (F e g))
     #
     #     F             D
     #    / \          /   \
@@ -339,7 +339,7 @@ class AVLTree
 
   attr_accessor :default
   attr_reader :default_proc
-  
+
   def initialize(default = DEFAULT, &block)
     if block && default != DEFAULT
       raise ArgumentError, 'wrong number of arguments'
