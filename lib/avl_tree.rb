@@ -213,37 +213,20 @@ class AVLTree
     def rotate
       case @left.height - @right.height
       when +2
-        if @left.left.height >= @left.right.height
-          root = rotate_LL
-        else
-          root = rotate_LR
+        if @left.left.height < @left.right.height
+          @left = @left.rotate_right
         end
+        root = rotate_left
       when -2
-        if @right.left.height <= @right.right.height
-          root = rotate_RR
-        else
-          root = rotate_RL
+        if @right.left.height > @right.right.height
+          @right = @right.rotate_left
         end
+        root = rotate_right
       else
         root = self
       end
       root.update_height
       root
-    end
-
-  private
-
-    def delete_self
-      if @left.empty? and @right.empty?
-        deleted = EMPTY
-      elsif @right.height < @left.height
-        deleted, new_left = @left.delete_max
-        deleted.left, deleted.right = new_left, @right
-      else
-        deleted, new_right = @right.delete_min
-        deleted.left, deleted.right = @left, new_right
-      end
-      deleted
     end
 
     # Right single rotation
@@ -255,7 +238,7 @@ class AVLTree
     #    / \        / \
     #   c   E      a   c
     #
-    def rotate_RR
+    def rotate_right
       root = @right
       @right = root.left
       root.left = self
@@ -272,7 +255,7 @@ class AVLTree
     #  / \            / \
     # A   c          c   e
     #
-    def rotate_LL
+    def rotate_left
       root = @left
       @left = root.right
       root.right = self
@@ -280,50 +263,19 @@ class AVLTree
       root
     end
 
-    # Right double rotation
-    # (B a (F (D c e) g)) where F-a > 1 && D > g --> (D (B a c) (F e g))
-    #
-    #   B               D
-    #  / \            /   \
-    # a   F    ->    B     F
-    #    / \        / \   / \
-    #   D   g      a   c e   g
-    #  / \
-    # c   e
-    #
-    def rotate_RL
-      other = @right
-      root = other.left
-      @right = root.left
-      other.left = root.right
-      root.left = self
-      root.right = other
-      root.left.update_height
-      root.right.update_height
-      root
-    end
+  private
 
-    # Left double rotation
-    # (F (B a (D c e)) g) where B-g > 1 && D > a --> (D (B a c) (F e g))
-    #
-    #     F             D
-    #    / \          /   \
-    #   B   g  ->    B     F
-    #  / \          / \   / \
-    # a   D        a   c e   g
-    #    / \
-    #   c   e
-    #
-    def rotate_LR
-      other = @left
-      root = other.right
-      @left = root.right
-      other.right = root.left
-      root.right = self
-      root.left = other
-      root.left.update_height
-      root.right.update_height
-      root
+    def delete_self
+      if @left.empty? and @right.empty?
+        deleted = EMPTY
+      elsif @right.height < @left.height
+        deleted, new_left = @left.delete_max
+        deleted.left, deleted.right = new_left, @right
+      else
+        deleted, new_right = @right.delete_min
+        deleted.left, deleted.right = @left, new_right
+      end
+      deleted
     end
 
     def collect
