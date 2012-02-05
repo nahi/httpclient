@@ -66,18 +66,16 @@ class RedBlackTree
       ret = self
       case key <=> @key
       when -1
-        check_red_pullup
         @left = @left.insert(key, value)
-        if black?
-          ret = check_rotate_right
+        if black? and @left.red? and !@left.children_both_black?
+          ret = rebalance_for_left_insert
         end
       when 0
         @value = value
       when 1
-        check_red_pullup
         @right = @right.insert(key, value)
-        if black?
-          ret = check_rotate_left
+        if black? and @right.red? and !@right.children_both_black?
+          ret = rebalance_for_right_insert
         end
       end
       ret
@@ -308,35 +306,34 @@ class RedBlackTree
 
   private
 
-    def check_red_pullup
-      if black? and @left.red? and @right.red?
+    # trying to rebalance when the left sub-tree is 1 level higher than the right
+    def rebalance_for_left_insert
+      ret = self
+      if @right.red?
         @color = :RED
         @left.color = @right.color = :BLACK
-      end
-    end
-
-    def check_rotate_right
-      if @left.red?
-        if @left.left.red?
-          return rotate_right
-        elsif @left.right.red?
+      else
+        if @left.right.red?
           @left = @left.rotate_left
-          return rotate_right
         end
+        ret = rotate_right
       end
-      self
+      ret
     end
 
-    def check_rotate_left
-      if @right.red?
-        if @right.right.red?
-          return rotate_left
-        elsif @right.left.red?
+    # trying to rebalance when the right sub-tree is 1 level higher than the left
+    def rebalance_for_right_insert
+      ret = self
+      if @left.red?
+        @color = :RED
+        @left.color = @right.color = :BLACK
+      else
+        if @right.left.red?
           @right = @right.rotate_right
-          return rotate_left
         end
+        ret = rotate_left
       end
-      self
+      ret
     end
 
     def delete_self
