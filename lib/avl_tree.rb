@@ -214,14 +214,14 @@ class AVLTree
       case @left.height - @right.height
       when +2
         if @left.left.height < @left.right.height
-          @left = @left.rotate_right
-        end
-        root = rotate_left
-      when -2
-        if @right.left.height > @right.right.height
-          @right = @right.rotate_left
+          @left = @left.rotate_left
         end
         root = rotate_right
+      when -2
+        if @right.left.height > @right.right.height
+          @right = @right.rotate_right
+        end
+        root = rotate_left
       else
         root = self
       end
@@ -238,7 +238,7 @@ class AVLTree
     #    / \        / \
     #   c   E      a   c
     #
-    def rotate_right
+    def rotate_left
       root = @right
       @right = root.left
       root.left = self
@@ -255,7 +255,7 @@ class AVLTree
     #  / \            / \
     # A   c          c   e
     #
-    def rotate_left
+    def rotate_right
       root = @left
       @left = root.right
       root.right = self
