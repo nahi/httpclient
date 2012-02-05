@@ -23,7 +23,7 @@ class RedBlackTree
     end
 
     def black?
-      !red?
+      @color == :BLACK
     end
 
     def empty?
