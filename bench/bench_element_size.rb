@@ -1,8 +1,7 @@
 require 'benchmark'
 require 'radix_tree' # gem install radix_tree
 require 'avl_tree'
-
-random = Random.new(0)
+require 'openssl'
 
 times = 100000
 key_size = 10
@@ -38,15 +37,17 @@ def run(bm, h, keys)
   end
 end
 
-[10000, 20000, 50000, 100000, 200000, 500000].each do |elements|
-  keys = []
-  elements.times do
-    keys << random.bytes(key_size)
-  end
+keys = []
+1000000.times do
+  keys << OpenSSL::Random.random_bytes(key_size)
+end
+
+1.upto(100) do |idx|
+  elements = idx * 10000
 
   Benchmark.bm(30) do |bm|
-    run(bm, Hash.new, keys)
-    run(bm, RadixTree.new, keys)
-    run(bm, AVLTree.new, keys)
+    #run(bm, Hash.new, keys[0, elements])
+    #run(bm, RadixTree.new, keys)
+    run(bm, AVLTree.new, keys[0, elements])
   end
 end
