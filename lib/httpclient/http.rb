@@ -7,7 +7,9 @@
 
 
 require 'time'
-require 'open-uri' # for encoding
+if defined?(Encoding::ASCII_8BIT)
+  require 'open-uri' # for encoding
+end
 
 
 # A namespace module for HTTP Message definitions used by HTTPClient.
