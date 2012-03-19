@@ -590,14 +590,14 @@ module HTTP
           if Message.file?(part)
             @as_stream = true
             @body << part
-            if part.respond_to?(:size)
+            if part.respond_to?(:lstat)
+              @size += part.lstat.size
+            elsif part.respond_to?(:size)
               if sz = part.size
                 @size += sz
               else
                 @size = nil
               end
-            elsif part.respond_to?(:lstat)
-              @size += part.lstat.size
             else
               # use chunked upload
               @size = nil
