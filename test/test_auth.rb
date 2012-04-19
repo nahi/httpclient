@@ -39,15 +39,18 @@ class TestAuth < Test::Unit::TestCase
     htdigest = File.join(File.dirname(__FILE__), 'htdigest')
     htdigest_userdb = WEBrick::HTTPAuth::Htdigest.new(htdigest)
     @basic_auth = WEBrick::HTTPAuth::BasicAuth.new(
+      :Logger => @logger,
       :Realm => 'auth',
       :UserDB => htpasswd_userdb
     )
     @digest_auth = WEBrick::HTTPAuth::DigestAuth.new(
+      :Logger => @logger,
       :Algorithm => 'MD5',
       :Realm => 'auth',
       :UserDB => htdigest_userdb
     )
     @digest_sess_auth = WEBrick::HTTPAuth::DigestAuth.new(
+      :Logger => @logger,
       :Algorithm => 'MD5-sess',
       :Realm => 'auth',
       :UserDB => htdigest_userdb

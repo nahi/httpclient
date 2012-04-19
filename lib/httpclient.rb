@@ -641,8 +641,8 @@ class HTTPClient
     newuri = URI.parse(res.header['location'][0])
     unless newuri.is_a?(URI::HTTP)
       newuri = uri + newuri
-      STDERR.puts("could be a relative URI in location header which is not recommended")
-      STDERR.puts("'The field value consists of a single absolute URI' in HTTP spec")
+      warn("could be a relative URI in location header which is not recommended")
+      warn("'The field value consists of a single absolute URI' in HTTP spec")
     end
     if https?(uri) && !https?(newuri)
       raise BadResponseError.new("redirecting to non-https resource")

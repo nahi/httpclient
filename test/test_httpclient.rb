@@ -416,7 +416,9 @@ EOS
 
   def test_redirect_relative
     @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: hello\n\n"
-    assert_equal('hello', @client.get_content(serverurl + 'redirect1'))
+    silent do
+      assert_equal('hello', @client.get_content(serverurl + 'redirect1'))
+    end
     #
     @client.reset_all
     @client.redirect_uri_callback = @client.method(:strict_redirect_uri_callback)
@@ -437,7 +439,9 @@ EOS
     https_url.scheme = 'https'
     @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: /foo\n\n"
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\n\nhello"
-    assert_equal('hello', @client.get_content(https_url))
+    silent do
+      assert_equal('hello', @client.get_content(https_url))
+    end
   end
 
   def test_no_content
@@ -1414,6 +1418,15 @@ EOS
   end
 
 private
+
+  def silent
+    begin
+      back, $VERBOSE = $VERBOSE, nil
+      yield
+    ensure
+      $VERBOSE = back
+    end
+  end
 
   def check_query_get(query)
     WEBrick::HTTPUtils.parse_query(
