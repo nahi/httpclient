@@ -901,6 +901,13 @@ EOS
     assert_match("ABC: DEF", lines[5])
   end
 
+  def test_http_custom_date_header
+    @client.debug_dev = (str = "")
+    res = @client.get(serverurl + 'hello', :header => {'Date' => 'foo'})
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal('Date: foo', lines[4])
+  end
+
   def test_timeout
     assert_equal(60, @client.connect_timeout)
     assert_equal(120, @client.send_timeout)

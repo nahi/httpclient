@@ -258,6 +258,11 @@ module HTTP
         }.join
       end
 
+      # Set Date header
+      def set_date_header
+        set('Date', Time.now.httpdate)
+      end
+
       # Adds a header.  Addition order is preserved.
       def add(key, value)
         if value.is_a?(Array)
@@ -394,7 +399,7 @@ module HTTP
         return if @dumped
         @dumped = true
         if defined?(Apache) && self['Date'].empty?
-          set('Date', Time.now.httpdate)
+          set_date_header
         end
         keep_alive = Message.keep_alive_enabled?(@http_version)
         if @chunked
