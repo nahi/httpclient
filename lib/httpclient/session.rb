@@ -720,7 +720,9 @@ class HTTPClient
       if @transparent_gzip_decompression
         req.header.set('Accept-Encoding', 'gzip,deflate')
       end
-      req.header.set('Date', Time.now.httpdate)
+      if req.header.get('Date').empty?
+        req.header.set_date_header
+      end
     end
 
     # Connect to the server
