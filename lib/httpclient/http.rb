@@ -557,15 +557,13 @@ module HTTP
       end
 
       def dump_file(io, dev)
-        buf = ''
-        while !io.read(@chunk_size, buf).nil?
+        while buf = io.read(@chunk_size)
           dev << buf
         end
       end
 
       def dump_chunks(io, dev)
-        buf = ''
-        while !io.read(@chunk_size, buf).nil?
+        while buf = io.read(@chunk_size)
           dev << dump_chunk(buf)
         end
       end
