@@ -2,3 +2,5 @@
 tags
 pkg
 coverage
+reports
+Gemfile.lock
