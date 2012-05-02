@@ -549,7 +549,7 @@ module HTTP
 
       def remember_pos(io)
         # IO may not support it (ex. IO.pipe)
-        @positions[io] = io.pos rescue nil
+        @positions[io] = io.pos if io.respond_to?(:pos)
       end
 
       def reset_pos(io)
