@@ -1401,7 +1401,7 @@ EOS
     @client.socket_local.port = serverport
     begin
       @client.get_content(serverurl + 'hello')
-    rescue Errno::EADDRINUSE
+    rescue Errno::EADDRINUSE, SocketError
       assert(true)
     end
   end
