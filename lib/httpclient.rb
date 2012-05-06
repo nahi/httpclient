@@ -996,7 +996,7 @@ private
     end
     req = HTTP::Message.new_request(method, uri, query, body, boundary)
     header.each do |key, value|
-      req.header.add(key, value)
+      req.header.add(key.to_s, value)
     end
     if @cookie_manager && cookie = @cookie_manager.find(uri)
       req.header.add('Cookie', cookie)

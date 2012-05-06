@@ -813,7 +813,7 @@ class HTTPClient
       parse_header
       res.http_version, res.status, res.reason = @version, @status, @reason
       @headers.each do |key, value|
-        res.header.set(key, value)
+        res.header.set(key.to_s, value)
       end
       commands = @client.request_filter.collect { |filter|
         filter.filter_response(req, res)
