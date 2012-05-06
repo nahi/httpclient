@@ -549,7 +549,7 @@ module HTTP
 
       def remember_pos(io)
         # IO may not support it (ex. IO.pipe)
-        @positions[io] = io.pos rescue nil
+        @positions[io] = io.pos if io.respond_to?(:pos)
       end
 
       def reset_pos(io)
@@ -557,15 +557,13 @@ module HTTP
       end
 
       def dump_file(io, dev)
-        buf = ''
-        while !io.read(@chunk_size, buf).nil?
+        while buf = io.read(@chunk_size)
           dev << buf
         end
       end
 
       def dump_chunks(io, dev)
-        buf = ''
-        while !io.read(@chunk_size, buf).nil?
+        while buf = io.read(@chunk_size)
           dev << dump_chunk(buf)
         end
       end
