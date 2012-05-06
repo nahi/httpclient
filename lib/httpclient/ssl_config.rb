@@ -33,6 +33,8 @@ class HTTPClient
   class SSLConfig
     include OpenSSL if SSLEnabled
 
+    # String name of OpenSSL's SSL version method name: SSLv2, SSLv23 or SSLv3
+    attr_reader :ssl_version
     # OpenSSL::X509::Certificate:: certificate for SSL client authenticateion.
     # nil by default. (no client authenticateion)
     attr_reader :client_cert
@@ -80,9 +82,19 @@ class HTTPClient
       @verify_callback = nil
       @dest = nil
       @timeout = nil
+      # TODO: change to "SSLv3" in future versions to make harder to use SSLv2.
+      @ssl_version = "SSLv23"
       @options = defined?(SSL::OP_ALL) ? SSL::OP_ALL | SSL::OP_NO_SSLv2 : nil
-      @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
+      # OpenSSL 0.9.8 default: "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
+      @ciphers = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
       @cacerts_loaded = false
+    end
+
+    # Sets SSL version method String.  Possible values: "SSLv2" for SSL2,
+    # "SSLv3" for SSL3 and TLS1.x, "SSLv23" for SSL3 with fallback to SSL2.
+    def ssl_version=(ssl_version)
+      @ssl_version = ssl_version
+      change_notify
     end
 
     # Sets certificate (OpenSSL::X509::Certificate) for SSL client
@@ -271,6 +283,7 @@ class HTTPClient
       ctx.timeout = @timeout
       ctx.options = @options
       ctx.ciphers = @ciphers
+      ctx.ssl_version = @ssl_version
     end
 
     # post connection check proc for ruby < 1.8.5.

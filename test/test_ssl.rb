@@ -34,7 +34,7 @@ class TestSSL < Test::Unit::TestCase
     assert_nil(cfg.verify_callback)
     assert_nil(cfg.timeout)
     assert_equal(OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2, cfg.options)
-    assert_equal("ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH", cfg.ciphers)
+    assert_equal("ALL:!aNULL:!eNULL:!SSLv2", cfg.ciphers)
     assert_instance_of(OpenSSL::X509::Store, cfg.cert_store)
   end
 
