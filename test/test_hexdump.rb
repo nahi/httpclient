@@ -9,4 +9,6 @@ class TestHexDump < Test::Unit::TestCase
     str.force_encoding('BINARY') if str.respond_to?(:force_encoding)
     assert_equal(["00000000  1a6cbff8 a2398e9e e95b7b7b b2e8bcfe   .l...9...[{{...."], HexDump.encode(str))
   end
-end
+end if defined?(RUBY_ENGINE) && RUBY_ENGINE != "rbx" && RUBY_VERSION >= "1.9.0"
+# Rubinius 1.8 mode does not support Regexp.quote(raw, 'n')  I don't want put
+# a pressure on supporting it because 1.9 mode works fine.
