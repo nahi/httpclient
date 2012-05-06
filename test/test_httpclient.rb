@@ -76,10 +76,10 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET /hello HTTP/0.9", lines[3])
-    assert_equal("Connection: close", lines[5])
-    assert_equal("= Response", lines[6])
-    assert_match(/^hello$/, lines[7])
-    assert_match(/^world$/, lines[8])
+    assert_equal("Connection: close", lines[6])
+    assert_equal("= Response", lines[7])
+    assert_match(/^hello$/, lines[8])
+    assert_match(/^world$/, lines[9])
   end
 
   def test_protocol_version_http10
@@ -93,8 +93,24 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET /hello HTTP/1.0", lines[3])
-    assert_equal("Connection: close", lines[5])
-    assert_equal("= Response", lines[6])
+    assert_equal("Connection: close", lines[6])
+    assert_equal("= Response", lines[7])
+  end
+
+  def test_header_accept_by_default
+    str = ""
+    @client.debug_dev = str
+    @client.get(serverurl)
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("Accept: */*", lines[4])
+  end
+
+  def test_header_accept
+    str = ""
+    @client.debug_dev = str
+    @client.get(serverurl, :header => {:Accept => 'text/html'})
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal("Accept: text/html", lines[4])
   end
 
   def test_host_given
@@ -105,7 +121,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
-    assert_equal("Host: localhost:#{serverport}", lines[5])
+    assert_equal("Host: localhost:#{serverport}", lines[6])
     #
     @client.reset_all
     str = ""
@@ -127,7 +143,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
-    assert_equal("Host: localhost:#{serverport}", lines[5])
+    assert_equal("Host: localhost:#{serverport}", lines[6])
     @client.protocol_version = 'HTTP/1.1'
     assert_equal('HTTP/1.1', @client.protocol_version)
     str = ""
