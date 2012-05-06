@@ -27,7 +27,7 @@ class TestSSL < Test::Unit::TestCase
 
   def test_options
     cfg = @client.ssl_config
-    assert_nil(cfg.dlient_cert)
+    assert_nil(cfg.client_cert)
     assert_nil(cfg.client_key)
     assert_nil(cfg.client_ca)
     assert_equal(OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT, cfg.verify_mode)
