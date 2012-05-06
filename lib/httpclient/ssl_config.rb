@@ -117,6 +117,24 @@ class HTTPClient
       change_notify
     end
 
+    # Sets OpenSSL's default trusted CA certificates.  Generally, OpenSSL is
+    # configured to use OS's trusted CA certificates located at
+    # /etc/pki/certs or /etc/ssl/certs.  Unfortunately OpenSSL's Windows build
+    # does not work with Windows Certificate Storage.
+    #
+    # On Windows or when you build OpenSSL manually, you can set the
+    # CA certificates directory by SSL_CERT_DIR env variable at runtime.
+    #
+    #   SSL_CERT_DIR=/etc/ssl/certs ruby -rhttpclient -e "..."
+    #
+    # Calling this method resets all existing sessions.
+    def set_default_paths
+      @cacerts_loaded = true # avoid lazy override
+      @cert_store = X509::Store.new
+      @cert_store.set_default_paths
+      change_notify
+    end
+
     # Drops current certificate store (OpenSSL::X509::Store) for SSL and create
     # new one for the next session.
     #
