@@ -532,7 +532,7 @@ module HTTP
     private
 
       def set_content(body, boundary = nil)
-        if body.respond_to?(:read)
+        if Message.file?(body)
           # uses Transfer-Encoding: chunked if body does not respond to :size.
           # bear in mind that server may not support it. at least ruby's CGI doesn't.
           @body = body
