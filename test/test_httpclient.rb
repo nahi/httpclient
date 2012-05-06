@@ -1395,7 +1395,7 @@ EOS
   end
 
   def test_socket_local
-    @client.socket_local.host = 'localhost'
+    @client.socket_local.host = '127.0.0.1'
     assert_equal('hello', @client.get_content(serverurl + 'hello'))
     @client.reset_all
     @client.socket_local.port = serverport
