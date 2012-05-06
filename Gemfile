@@ -5,7 +5,7 @@ platform :jruby do
 end
 
 group :development do
-  gem 'rake'
+  gem 'rake', :require => false
   gem 'rdoc'
   gem 'simplecov'
   # For Jenkins
