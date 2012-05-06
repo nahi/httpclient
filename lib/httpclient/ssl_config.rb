@@ -318,7 +318,13 @@ class HTTPClient
     # Default callback for verification: only dumps error.
     def default_verify_callback(is_ok, ctx)
       if $DEBUG
-        warn("#{ is_ok ? 'ok' : 'ng' }: #{ctx.current_cert.subject}")
+        if is_ok
+          warn("ok: #{ctx.current_cert.subject.to_s.dump}")
+        else
+          warn("ng: #{ctx.current_cert.subject.to_s.dump} at depth #{ctx.error_depth} - #{ctx.error}: #{ctx.error_string} in #{ctx.chain.inspect}")
+        end
+        warn(ctx.current_cert.to_text)
+        warn(ctx.current_cert.to_pem)
       end
       if !is_ok
         depth = ctx.error_depth
