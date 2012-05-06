@@ -717,6 +717,9 @@ class HTTPClient
       if @from
         req.header.set('From', @from)
       end
+      if req.header.get('Accept').empty?
+        req.header.set('Accept', '*/*')
+      end
       if @transparent_gzip_decompression
         req.header.set('Accept-Encoding', 'gzip,deflate')
       end

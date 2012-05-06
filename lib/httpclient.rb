@@ -198,7 +198,7 @@ require 'httpclient/cookie'
 #
 # Pass a Hash or an Array for header argument.
 #
-#     header = { 'Accept' => '*/*' }
+#     header = { 'Accept' => 'text/html' }
 #     clnt.get(uri, query, header)
 #
 #     header = [['Accept', 'image/jpeg'], ['Accept', 'image/png']]
@@ -562,7 +562,7 @@ class HTTPClient
   #         Give an array to pass multiple value like
   #         [["a", "b"], ["a", "c"]] => 'http://host/part?a=b&a=c'.
   # header:: a Hash or an Array of extra headers.  e.g.
-  #          { 'Accept' => '*/*' } or
+  #          { 'Accept' => 'text/html' } or
   #          [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
   # &block:: Give a block to get chunked message-body of response like
   #          get_content(uri) { |chunked_body| ... }.
@@ -597,7 +597,7 @@ class HTTPClient
   #           { 'Content-Type' => 'video/mp4', :content => File.new('video.mp4') }]
   #          => <Two parts with custom Content-Type header>
   # header:: a Hash or an Array of extra headers. e.g.
-  #            { 'Accept' => '*/*' }
+  #            { 'Accept' => 'text/html' }
   #          or
   #            [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
   # &block:: Give a block to get chunked message-body of response like
@@ -721,7 +721,7 @@ class HTTPClient
   #          => <Two parts with custom Content-Type header>
   #        See HTTP::Message.file? for actual condition of 'a file'.
   # header:: a Hash or an Array of extra headers.  e.g.
-  #          { 'Accept' => '*/*' } or
+  #          { 'Accept' => 'text/html' } or
   #          [['Accept', 'image/jpeg'], ['Accept', 'image/png']].
   # &block:: Give a block to get chunked message-body of response like
   #          get(uri) { |chunked_body| ... }.
