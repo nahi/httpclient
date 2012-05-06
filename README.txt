@@ -1,5 +1,5 @@
 httpclient - HTTP accessing library.
-Copyright (C) 2000-2011  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+Copyright (C) 2000-2012  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
 'httpclient' gives something like the functionality of libwww-perl (LWP) in
 Ruby.  'httpclient' formerly known as 'http-access2'.
@@ -94,6 +94,30 @@ Thanks in advance.
 
 
 == Changes
+
+= Changes in 2.2.5 =
+
+  May 06, 2012 - version 2.2.5
+
+    * Bug fixes
+    
+      * Added Magic encoding comment to hexdump.rb to avoid encoding error.
+      * Add workaround for JRuby issue on Windows (JRUBY-6136)
+	On Windows, calling File#size fails with an Unknown error (20047).
+	This workaround uses File#lstat instead.
+      * Require open-uri only on ruby 1.9, since it is not needed on 1.8.
+
+    * Features
+
+      * Allow symbol Header name for HTTP request.
+      * Dump more SSL certificate information under $DEBUG.
+      * Add HTTPClient::SSLConfig#ssl_version property.
+      * Add 'Accept: */*' header to request by default. Rails requies it.
+	It doesn't override given Accept header from API.
+      * Add HTTPClient::SSLConfig#set_default_paths. This method makes
+	HTTPClient instance to use OpenSSL's default trusted CA certificates.
+      * Allow to set Date header manually.
+	ex. clent.get(uri, :header => {'Date' => Time.now.httpdate})
 
 = Changes in 2.2.4 =
 
