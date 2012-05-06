@@ -1419,15 +1419,6 @@ EOS
 
 private
 
-  def silent
-    begin
-      back, $VERBOSE = $VERBOSE, nil
-      yield
-    ensure
-      $VERBOSE = back
-    end
-  end
-
   def check_query_get(query)
     WEBrick::HTTPUtils.parse_query(
       @client.get(serverurl + 'servlet', query).header["x-query"][0]
@@ -1457,15 +1448,6 @@ private
     end
     @server.mount('/servlet', TestServlet.new(@server))
     @server_thread = start_server_thread(@server)
-  end
-
-  def escape_env
-    env = {}
-    env.update(ENV)
-    yield
-  ensure
-    ENV.clear
-    ENV.update(env)
   end
 
   def escape_noproxy

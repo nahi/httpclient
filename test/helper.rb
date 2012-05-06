@@ -105,4 +105,22 @@ module Helper
   def params(str)
     HTTP::Message.parse(str).inject({}) { |r, (k, v)| r[k] = v.first; r }
   end
+
+  def silent
+    begin
+      back, $VERBOSE = $VERBOSE, nil
+      yield
+    ensure
+      $VERBOSE = back
+    end
+  end
+
+  def escape_env
+    env = {}
+    env.update(ENV)
+    yield
+  ensure
+    ENV.clear
+    ENV.update(env)
+  end
 end
