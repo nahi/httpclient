@@ -316,6 +316,18 @@ class HTTPClient
       end
     end
 
+    def ssl_version
+      @ssl_socket.ssl_version if @ssl_socket.respond_to?(:ssl_version)
+    end
+
+    def ssl_cipher
+      @ssl_socket.cipher
+    end
+
+    def ssl_state
+      @ssl_socket.state
+    end
+
     def peer_cert
       @ssl_socket.peer_cert
     end
@@ -741,7 +753,15 @@ class HTTPClient
             else
               @socket = create_ssl_socket(@socket)
               connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
-              @socket.ssl_connect(@dest.host)
+              begin
+                @socket.ssl_connect(@dest.host)
+              ensure
+                if $DEBUG
+                  warn("Protocol version: #{@socket.ssl_version}")
+                  warn("Cipher: #{@socket.ssl_cipher.inspect}")
+                  warn("State: #{@socket.ssl_state}")
+                end
+              end
               @socket.post_connection_check(@dest)
               @ssl_peer_cert = @socket.peer_cert
             end
