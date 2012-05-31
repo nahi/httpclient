@@ -167,7 +167,7 @@ class TestHTTPClient < Test::Unit::TestCase
     setup_proxyserver
     escape_noproxy do
       assert_raises(URI::InvalidURIError) do
-       	@client.proxy = "http://"
+        @client.proxy = "http://"
       end
       @client.proxy = ""
       assert_nil(@client.proxy)
@@ -1002,7 +1002,7 @@ EOS
   def test_cookies
     cookiefile = File.join(File.dirname(File.expand_path(__FILE__)), 'test_cookies_file')
     File.open(cookiefile, "wb") do |f|
-      f << "http://rubyforge.org/account/login.php	session_ser	LjEwMy45Ni40Ni0q%2A-fa0537de8cc31	2000000000	.rubyforge.org	/	13\n"
+      f << "http://rubyforge.org/account/login.php\tsession_ser\tLjEwMy45Ni40Ni0q%2A-fa0537de8cc31\t2000000000\t.rubyforge.org\t/\t13\n"
     end
     @client.set_cookie_store(cookiefile)
     cookie = @client.cookie_manager.cookies.first
@@ -1014,7 +1014,7 @@ EOS
     @client.get_content('http://rubyforge.org/account/login.php')
     @client.save_cookie_store
     str = File.read(cookiefile)
-    assert_match(%r(http://rubyforge.org/account/login.php	foo	bar	1924873200	rubyforge.org	/account	1), str)
+    assert_match(%r(http://rubyforge.org/account/login.php\tfoo\tbar\t1924873200\trubyforge.org\t/account\t1), str)
     File.unlink(cookiefile)
   end
 
@@ -1460,8 +1460,8 @@ private
     @serverport = @server.config[:Port]
     [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked, :largebody, :status, :compressed, :charset].each do |sym|
       @server.mount(
-	"/#{sym}",
-	WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
+        "/#{sym}",
+        WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
       )
     end
     @server.mount('/servlet', TestServlet.new(@server))
@@ -1489,11 +1489,11 @@ private
   end
 
   def do_servlet_redirect(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "servlet") 
+    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "servlet")
   end
 
   def do_redirect1(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, serverurl + "hello") 
+    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, serverurl + "hello")
   end
 
   def do_redirect2(req, res)
@@ -1501,15 +1501,15 @@ private
   end
 
   def do_redirect3(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "hello") 
+    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "hello")
   end
 
   def do_redirect_self(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "redirect_self") 
+    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "redirect_self")
   end
 
   def do_relative_redirect(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, "hello") 
+    res.set_redirect(WEBrick::HTTPStatus::Found, "hello")
   end
 
   def do_chunked(req, res)
@@ -1555,7 +1555,7 @@ private
     end
 
     def do_HEAD(req, res)
-      res["x-head"] = 'head'	# use this for test purpose only.
+      res["x-head"] = 'head'    # use this for test purpose only.
       res["x-query"] = query_response(req)
     end
 
@@ -1615,9 +1615,9 @@ private
     def query_escape(query)
       escaped = []
       query.sort_by { |k, v| k }.collect do |k, v|
-	v.to_ary.each do |ve|
-	  escaped << CGI.escape(k) + '=' + CGI.escape(ve)
-	end
+        v.to_ary.each do |ve|
+          escaped << CGI.escape(k) + '=' + CGI.escape(ve)
+        end
       end
       escaped.join('&')
     end
