@@ -426,16 +426,25 @@ class HTTPClient
       @auth = [user, passwd]
     end
 
-    # overrides DigestAuth#get. Uses default user name and password regardless of target uri
+    # overrides DigestAuth#get. Uses default user name and password
+    # regardless of target uri if the proxy has required authentication
+    # before
     def get(req)
       target_uri = req.header.request_uri
-      param = Util.hash_find_value(@challenge) { |uri, v|
-        Util.uri_part_of(target_uri, uri)
-      }
+      param = @challenge
       return nil unless param
       user, passwd = @auth
       return nil unless user
       calc_cred(req, user, passwd, param)
+    end
+
+    def reset_challenge
+      @challenge = nil
+    end
+
+    def challenge(uri, param_str)
+      @challenge = parse_challenge_param(param_str)
+      true
     end
 
   end
