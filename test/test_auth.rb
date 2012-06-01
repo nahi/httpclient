@@ -105,10 +105,30 @@ class TestAuth < Test::Unit::TestCase
     end
   end
 
+  def test_basic_auth_reuses_credentials
+    c = HTTPClient.new
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth/"))
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.debug_dev = str = ''
+    c.get_content("http://localhost:#{serverport}/basic_auth/sub/dir/")
+    assert_match /Authorization: Basic YWRtaW46YWRtaW4=/, str
+  end
+
   def test_digest_auth
     c = HTTPClient.new
     c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
     assert_equal('digest_auth OK', c.get_content("http://localhost:#{serverport}/digest_auth"))
+  end
+
+  def test_digest_auth_reuses_credentials
+    c = HTTPClient.new
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    assert_equal('digest_auth OK', c.get_content("http://localhost:#{serverport}/digest_auth/"))
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.debug_dev = str = ''
+    c.get_content("http://localhost:#{serverport}/digest_auth/sub/dir/")
+    assert_match /Authorization: Digest/, str
   end
 
   def test_digest_auth_with_block
@@ -163,6 +183,18 @@ class TestAuth < Test::Unit::TestCase
     assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
 
+  def test_proxy_auth_reuses_credentials
+    c = HTTPClient.new
+    c.set_proxy_auth('admin', 'admin')
+    c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Basic realm=\"foo\"\nContent-Length: 2\n\nNG"
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.get_content('http://www1.example.com/')
+    c.debug_dev = str = ''
+    c.get_content('http://www2.example.com/')
+    assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
+  end
+
   def test_digest_proxy_auth
     c = HTTPClient.new
     c.set_proxy_auth('admin', 'admin')
@@ -193,6 +225,22 @@ class TestAuth < Test::Unit::TestCase
     assert_match(%r"response=\"#{response}\"", str)
   end
 
+  def test_digest_proxy_auth_reuses_credentials
+    c = HTTPClient.new
+    c.set_proxy_auth('admin', 'admin')
+    c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Digest realm=\"foo\", nonce=\"nonce\", stale=false\nContent-Length: 2\n\nNG"
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    md5 = Digest::MD5.new
+    ha1 = md5.hexdigest("admin:foo:admin")
+    ha2 = md5.hexdigest("GET:/")
+    response = md5.hexdigest("#{ha1}:nonce:#{ha2}")
+    c.get_content('http://www1.example.com/')
+    c.debug_dev = str = ''
+    c.get_content('http://www2.example.com/')
+    assert_match(/Proxy-Authorization: Digest/, str)
+    assert_match(%r"response=\"#{response}\"", str)
+  end
 
   def test_oauth
     c = HTTPClient.new
