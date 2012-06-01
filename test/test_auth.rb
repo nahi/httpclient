@@ -1,5 +1,5 @@
 require File.expand_path('helper', File.dirname(__FILE__))
-
+require 'digest/md5'
 
 class TestAuth < Test::Unit::TestCase
   include Helper
@@ -162,6 +162,37 @@ class TestAuth < Test::Unit::TestCase
     c.get_content('http://example.com/')
     assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
+
+  def test_digest_proxy_auth
+    c = HTTPClient.new
+    c.set_proxy_auth('admin', 'admin')
+    c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Digest realm=\"foo\", nonce=\"nonce\", stale=false\nContent-Length: 2\n\nNG"
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    md5 = Digest::MD5.new
+    ha1 = md5.hexdigest("admin:foo:admin")
+    ha2 = md5.hexdigest("GET:/")
+    response = md5.hexdigest("#{ha1}:nonce:#{ha2}")
+    c.debug_dev = str = ''
+    c.get_content('http://example.com/')
+    assert_match(/Proxy-Authorization: Digest/, str)
+    assert_match(%r"response=\"#{response}\"", str)
+  end
+
+  def test_prefer_digest_to_basic_proxy_auth
+    c = HTTPClient.new
+    c.set_proxy_auth('admin', 'admin')
+    c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Digest realm=\"foo\", nonce=\"nonce\", stale=false\nProxy-Authenticate: Basic realm=\"bar\"\nContent-Length: 2\n\nNG"
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    md5 = Digest::MD5.new
+    ha1 = md5.hexdigest("admin:foo:admin")
+    ha2 = md5.hexdigest("GET:/")
+    response = md5.hexdigest("#{ha1}:nonce:#{ha2}")
+    c.debug_dev = str = ''
+    c.get_content('http://example.com/')
+    assert_match(/Proxy-Authorization: Digest/, str)
+    assert_match(%r"response=\"#{response}\"", str)
+  end
+
 
   def test_oauth
     c = HTTPClient.new
