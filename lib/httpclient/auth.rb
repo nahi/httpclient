@@ -162,7 +162,7 @@ class HTTPClient
 
     # Creates new ProxyAuth.
     def initialize
-      @basic_auth = BasicAuth.new
+      @basic_auth = ProxyBasicAuth.new
       @negotiate_auth = NegotiateAuth.new
       @ntlm_auth = NegotiateAuth.new('NTLM')
       @sspi_negotiate_auth = SSPINegotiateAuth.new
@@ -283,6 +283,25 @@ class HTTPClient
     end
   end
 
+  class ProxyBasicAuth < BasicAuth
+
+    def set(uri, user, passwd)
+      @set = true
+      @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
+    end
+
+    def get(req)
+      target_uri = req.header.request_uri
+      return nil unless @challengeable['challenged']
+      @cred
+    end
+
+    # Challenge handler: remember URL for response.
+    def challenge(uri, param_str = nil)
+      @challengeable['challenged'] = true
+      true
+    end
+  end
 
   # Authentication filter for handling DigestAuth negotiation.
   # Used in WWWAuth.
