@@ -167,6 +167,16 @@ class TestAuth < Test::Unit::TestCase
     assert_equal('digest_auth OKbar=baz', c.get_content("http://localhost:#{serverport}/digest_auth/foo?bar=baz"))
   end
 
+  def test_perfer_digest
+    c = HTTPClient.new
+    c.set_auth('http://example.com/', 'admin', 'admin')
+    c.test_loopback_http_response << "HTTP/1.0 401 Unauthorized\nWWW-Authenticate: Basic realm=\"foo\"\nWWW-Authenticate: Digest realm=\"foo\", nonce=\"nonce\", stale=false\nContent-Length: 2\n\nNG"
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.debug_dev = str = ''
+    c.get_content('http://example.com/')
+    assert_match(/^Authorization: Digest/, str)
+  end
+
   def test_digest_sess_auth
     c = HTTPClient.new
     c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
