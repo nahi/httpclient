@@ -120,6 +120,10 @@ class HTTPClient
 
     # Filter API implementation.  Traps HTTP response and parses
     # 'WWW-Authenticate' header.
+    #
+    # This remembers the challenges for all authentication methods
+    # available to the client. On the subsequent retry of the request,
+    # filter_request will select the strongest method.
     def filter_response(req, res)
       command = nil
       if res.status == HTTP::Status::UNAUTHORIZED
