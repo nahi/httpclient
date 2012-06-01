@@ -156,6 +156,7 @@ class HTTPClient
   # SSPINegotiateAuth requires 'win32/sspi' module.
   class ProxyAuth < AuthFilterBase
     attr_reader :basic_auth
+    attr_reader :digest_auth
     attr_reader :negotiate_auth
     attr_reader :sspi_negotiate_auth
 
