@@ -134,6 +134,14 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("Host: foo", lines[4]) # use given param
   end
 
+  def test_redirect_returns_not_modified
+    assert_nothing_raised do
+      timeout(2) do
+        @client.get(serverurl + 'status', {status: 306}, {follow_redirect: true})
+      end
+    end
+  end
+
   def test_protocol_version_http11
     assert_equal(nil, @client.protocol_version)
     str = ""

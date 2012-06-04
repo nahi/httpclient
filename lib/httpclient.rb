@@ -577,7 +577,7 @@ class HTTPClient
   # follow HTTP redirect by yourself if you need.
   def get_content(uri, *args, &block)
     query, header = keyword_argument(args, :query, :header)
-    follow_redirect(:get, uri, query, nil, header || {}, &block).content
+    success_content(follow_redirect(:get, uri, query, nil, header || {}, &block))
   end
 
   # Posts a content.
@@ -612,7 +612,7 @@ class HTTPClient
   # use post method.
   def post_content(uri, *args, &block)
     body, header = keyword_argument(args, :body, :header)
-    follow_redirect(:post, uri, nil, body, header || {}, &block).content
+    success_content(follow_redirect(:post, uri, nil, body, header || {}, &block))
   end
 
   # A method for redirect uri callback.  How to use:
@@ -939,16 +939,22 @@ private
     while retry_number < @follow_redirect_count
       body.pos = pos if pos
       res = do_request(method, uri, query, body, header, &filtered_block)
-      if HTTP::Status.successful?(res.status)
-        return res
-      elsif HTTP::Status.redirect?(res.status)
+      if HTTP::Status.redirect?(res.status)
         uri = urify(@redirect_uri_callback.call(uri, res))
         retry_number += 1
       else
-        raise BadResponseError.new("unexpected response: #{res.header.inspect}", res)
+        return res
       end
     end
     raise BadResponseError.new("retry count exceeded", res)
+  end
+
+  def success_content(res)
+    if HTTP::Status.successful?(res.status)
+      return res.content
+    else
+      raise BadResponseError.new("unexpected response: #{res.header.inspect}", res)
+    end
   end
 
   def protect_keep_alive_disconnected
