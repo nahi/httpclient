@@ -57,9 +57,15 @@ class TestAuth < Test::Unit::TestCase
     )
     @server_thread = start_server_thread(@server)
 
+    @proxy_digest_auth = WEBrick::HTTPAuth::ProxyDigestAuth.new(
+      :Logger => @proxylogger,
+      :Algorithm => 'MD5',
+      :Realm => 'auth',
+      :UserDB => htdigest_userdb
+    )
 
     @proxyserver = WEBrick::HTTPProxyServer.new(
-      :ProxyAuthProc => @digest_auth,
+      :ProxyAuthProc => @proxy_digest_auth.method(:authenticate).to_proc,
       :BindAddress => "localhost",
       :Logger => @proxylogger,
       :Port => 0,
@@ -234,8 +240,17 @@ class TestAuth < Test::Unit::TestCase
   def test_digest_proxy_auth
     c=HTTPClient.new("http://localhost:#{proxyport}/")
     c.set_proxy_auth('admin', 'admin')
-    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
-    assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
+    c.set_auth("http://127.0.0.1:#{serverport}/", 'admin', 'admin')
+    assert_equal('basic_auth OK', c.get_content("http://127.0.0.1:#{serverport}/basic_auth"))
+  end
+
+  def test_digest_proxy_invalid_auth
+    c=HTTPClient.new("http://localhost:#{proxyport}/")
+    c.set_proxy_auth('admin', 'wrong')
+    c.set_auth("http://127.0.0.1:#{serverport}/", 'admin', 'admin')
+    assert_raises(HTTPClient::BadResponseError) do
+      c.get_content("http://127.0.0.1:#{serverport}/basic_auth")
+    end
   end
 
   def test_prefer_digest_to_basic_proxy_auth
