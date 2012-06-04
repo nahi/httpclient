@@ -137,7 +137,7 @@ class TestHTTPClient < Test::Unit::TestCase
   def test_redirect_returns_not_modified
     assert_nothing_raised do
       timeout(2) do
-        @client.get(serverurl + 'status', {status: 306}, {follow_redirect: true})
+        @client.get(serverurl + 'status', {:status => 306}, {:follow_redirect => true})
       end
     end
   end
