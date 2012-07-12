@@ -1,9 +1,12 @@
 # -*- encoding: utf-8 -*-
 require 'test/unit'
-require 'simplecov'
-require 'simplecov-rcov'
-SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
-SimpleCov.start
+begin
+  require 'simplecov'
+  require 'simplecov-rcov'
+  SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
+  SimpleCov.start
+rescue LoadError
+end
 
 require 'httpclient'
 require 'webrick'
