@@ -359,6 +359,8 @@ class HTTPClient
 
     def readpartial(*args)
       str = @ssl_socket.readpartial(*args)
+      # SSLSocket#readpartial is inconsistent in the returned encoding
+      str.force_encoding(__ENCODING__)
       debug(str)
       str
     end
