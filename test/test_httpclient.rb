@@ -806,7 +806,7 @@ EOS
     param = {'1'=>'2', '3'=>'4'}
     @client.debug_dev = str = ''
     assert_equal("delete", @client.delete(serverurl + 'servlet', param).content)
-    assert_match(/1=2&3=4/, str)
+    assert_equal({'1' => ['2'], '3' => ['4']}, HTTP::Message.parse(str.split(/\r?\n\r?\n/)[2]))
   end
 
   def test_delete_async
