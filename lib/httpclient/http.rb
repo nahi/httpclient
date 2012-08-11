@@ -199,9 +199,14 @@ module HTTP
       end
 
       # Initialize this instance as a response.
-      def init_response(status_code)
+      def init_response(status_code, req)
         @is_request = false
         self.status_code = status_code
+        if req
+          @request_method = req.request_method
+          @request_uri = req.request_uri
+          @request_query = req.request_query
+        end
       end
 
       # Sets status code and reason phrase.
@@ -456,7 +461,7 @@ module HTTP
       end
 
       # Initialize this instance as a response.
-      def init_response(body = nil)
+      def init_response(body)
         @body = body
         if @body.respond_to?(:bytesize)
           @size = @body.bytesize
@@ -721,9 +726,9 @@ module HTTP
 
       # Creates a Message instance of response.
       # body:: a String or an IO of response message body.
-      def new_response(body)
+      def new_response(body, req = nil)
         m = new
-        m.http_header.init_response(Status::OK)
+        m.http_header.init_response(Status::OK, req)
         m.http_body = Body.new
         m.http_body.init_response(body)
         m.http_header.body_size = m.http_body.size || 0

@@ -387,6 +387,16 @@ EOS
     assert_equal('message body 1', res.content)
   end
 
+  def test_request_uri_in_response
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\ncontent-length: 100\n\nmessage body"
+    assert_equal(URI('http://google.com/'), @client.get('http://google.com/').header.request_uri)
+  end
+
+  def test_request_uri_in_response_when_redirect
+    assert_equal(URI(serverurl + 'hello'), @client.get(serverurl + 'redirect1', :follow_redirect => true).header.request_uri)
+    assert_equal(URI(serverurl + 'hello'), @client.get(serverurl + 'redirect2', :follow_redirect => true).header.request_uri)
+  end
+
   def test_redirect_non_https
     url = serverurl + 'redirect1'
     https_url = URI.parse(url)

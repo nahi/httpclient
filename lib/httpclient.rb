@@ -1051,11 +1051,11 @@ private
     end
     if str = @test_loopback_response.shift
       dump_dummy_request_response(req.http_body.dump, str) if @debug_dev
-      conn.push(HTTP::Message.new_response(str))
+      conn.push(HTTP::Message.new_response(str, req.header))
       return
     end
     content = block ? nil : ''
-    res = HTTP::Message.new_response(content)
+    res = HTTP::Message.new_response(content, req.header)
     @debug_dev << "= Request\n\n" if @debug_dev
     sess = @session_manager.query(req, proxy)
     res.peer_cert = sess.ssl_peer_cert
@@ -1087,11 +1087,11 @@ private
     end
     if str = @test_loopback_response.shift
       dump_dummy_request_response(req.http_body.dump, str) if @debug_dev
-      conn.push(HTTP::Message.new_response(StringIO.new(str)))
+      conn.push(HTTP::Message.new_response(StringIO.new(str), req.header))
       return
     end
     piper, pipew = IO.pipe
-    res = HTTP::Message.new_response(piper)
+    res = HTTP::Message.new_response(piper, req.header)
     @debug_dev << "= Request\n\n" if @debug_dev
     sess = @session_manager.query(req, proxy)
     res.peer_cert = sess.ssl_peer_cert
