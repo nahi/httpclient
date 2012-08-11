@@ -826,13 +826,36 @@ module HTTP
         end
       end
 
+      def Array.try_convert(value)
+        return value if value.instance_of?(Array)
+        return nil if !value.respond_to?(:to_ary)
+        converted = value.to_ary
+        return converted if converted.instance_of?(Array)
+
+        cname = value.class.name
+        raise TypeError, "can't convert %s to %s (%s#%s gives %s)" %
+          [cname, Array.name, cname, :to_ary, converted.class.name]
+      end unless Array.respond_to?(:try_convert)
+
       def escape_query(query) # :nodoc:
-        query.collect { |attr, value|
-          if value.respond_to?(:read)
-            value = value.read
+        pairs = []
+        query.each { |attr, value|
+          left = escape(attr.to_s) << '='
+          if values = Array.try_convert(value)
+            values.each { |value|
+              if value.respond_to?(:read)
+                value = value.read
+              end
+              pairs.push(left + escape(value.to_s))
+            }
+          else
+            if value.respond_to?(:read)
+              value = value.read
+            end
+            pairs.push(left << escape(value.to_s))
           end
-          escape(attr.to_s) << '=' << escape(value.to_s)
-        }.join('&')
+        }
+        pairs.join('&')
       end
 
       # from CGI.escape

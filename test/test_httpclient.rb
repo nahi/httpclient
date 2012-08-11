@@ -910,6 +910,18 @@ EOS
     assert_equal({}, check_query_get(''))
     assert_equal({'1'=>'2'}, check_query_get({1=>StringIO.new('2')}))
     assert_equal({'1'=>'2', '3'=>'4'}, check_query_get(StringIO.new('3=4&1=2')))
+
+    hash = check_query_get({"a"=>["A","a"], "B"=>"b"})
+    assert_equal({'a'=>'A', 'B'=>'b'}, hash)
+    assert_equal(['A','a'], hash['a'].to_ary)
+
+    hash = check_query_get({"a"=>WEBrick::HTTPUtils::FormData.new("A","a"), "B"=>"b"})
+    assert_equal({'a'=>'A', 'B'=>'b'}, hash)
+    assert_equal(['A','a'], hash['a'].to_ary)
+
+    hash = check_query_get({"a"=>[StringIO.new("A"),StringIO.new("a")], "B"=>StringIO.new("b")})
+    assert_equal({'a'=>'A', 'B'=>'b'}, hash)
+    assert_equal(['A','a'], hash['a'].to_ary)
   end
 
   def test_post_body
