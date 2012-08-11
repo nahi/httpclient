@@ -607,6 +607,8 @@ class HTTPClient
   # post_content follows HTTP redirect status (see HTTP::Status.redirect?)
   # internally and try to post the content to redirected URL.  See
   # redirect_uri_callback= how HTTP redirection is handled.
+  # Bear in mind that you should not depend on post_content because it sends
+  # the same POST method to the new location which is prohibited in HTTP spec.
   #
   # If you need to get full HTTP response including HTTP status and headers,
   # use post method.
@@ -653,7 +655,7 @@ class HTTPClient
 
   # Sends HEAD request to the specified URL.  See request for arguments.
   def head(uri, *args)
-    request(:head, uri, argument_to_hash(args, :query, :header))
+    request(:head, uri, argument_to_hash(args, :query, :header, :follow_redirect))
   end
 
   # Sends GET request to the specified URL.  See request for arguments.
@@ -662,6 +664,8 @@ class HTTPClient
   end
 
   # Sends POST request to the specified URL.  See request for arguments.
+  # You should not depend on :follow_redirect => true for POST method.  It
+  # sends the same POST method to the new location which is prohibited in HTTP spec.
   def post(uri, *args, &block)
     request(:post, uri, argument_to_hash(args, :body, :header, :follow_redirect), &block)
   end

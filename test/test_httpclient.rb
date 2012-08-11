@@ -401,8 +401,9 @@ EOS
   end
 
   def test_request_uri_in_response_when_redirect
-    assert_equal(URI(serverurl + 'hello'), @client.get(serverurl + 'redirect1', :follow_redirect => true).header.request_uri)
-    assert_equal(URI(serverurl + 'hello'), @client.get(serverurl + 'redirect2', :follow_redirect => true).header.request_uri)
+    expected = URI(serverurl + 'hello')
+    assert_equal(expected, @client.get(serverurl + 'redirect1', :follow_redirect => true).header.request_uri)
+    assert_equal(expected, @client.get(serverurl + 'redirect2', :follow_redirect => true).header.request_uri)
   end
 
   def test_redirect_non_https
@@ -600,6 +601,13 @@ EOS
     res = @client.get(url, param)
     assert_equal(param.merge("5"=>"6", "7"=>"8"), params(res.header["x-query"][0]))
     assert_nil(res.contenttype)
+  end
+
+  def test_head_follow_redirect
+    expected = URI(serverurl + 'hello')
+    assert_equal(expected, @client.head(serverurl + 'hello', :follow_redirect => true).header.request_uri)
+    assert_equal(expected, @client.head(serverurl + 'redirect1', :follow_redirect => true).header.request_uri)
+    assert_equal(expected, @client.head(serverurl + 'redirect2', :follow_redirect => true).header.request_uri)
   end
 
   def test_get_follow_redirect
