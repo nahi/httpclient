@@ -777,8 +777,10 @@ EOS
   def test_put
     assert_equal("put", @client.put(serverurl + 'servlet').content)
     param = {'1'=>'2', '3'=>'4'}
+    @client.debug_dev = str = ''
     res = @client.put(serverurl + 'servlet', param)
     assert_equal(param, params(res.header["x-query"][0]))
+    assert_equal('Content-Type: application/x-www-form-urlencoded', str.split(/\r?\n/)[5])
   end
 
   def test_put_bytesize
@@ -797,6 +799,14 @@ EOS
 
   def test_delete
     assert_equal("delete", @client.delete(serverurl + 'servlet').content)
+  end
+
+  # Not prohibited by spec, but normally it's ignored
+  def test_delete_with_body
+    param = {'1'=>'2', '3'=>'4'}
+    @client.debug_dev = str = ''
+    assert_equal("delete", @client.delete(serverurl + 'servlet', param).content)
+    assert_match(/1=2&3=4/, str)
   end
 
   def test_delete_async

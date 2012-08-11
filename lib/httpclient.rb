@@ -673,7 +673,7 @@ class HTTPClient
 
   # Sends DELETE request to the specified URL.  See request for arguments.
   def delete(uri, *args, &block)
-    request(:delete, uri, argument_to_hash(args, :header), &block)
+    request(:delete, uri, argument_to_hash(args, :body, :header), &block)
   end
 
   # Sends OPTIONS request to the specified URL.  See request for arguments.
@@ -693,7 +693,7 @@ class HTTPClient
   
   # Sends TRACE request to the specified URL.  See request for arguments.
   def trace(uri, *args, &block)
-    request('TRACE', uri, argument_to_hash(args, :query, :body, :header), &block)
+    request('TRACE', uri, argument_to_hash(args, :query, :header), &block)
   end
 
   # Sends a request to the specified URL.
@@ -984,7 +984,7 @@ private
             header = override_header(header, 'Content-Type', content_type)
           end
         end
-      elsif method == 'POST'
+      else
         if file_in_form_data?(body)
           boundary = create_boundary
           content_type = "multipart/form-data; boundary=#{boundary}"
