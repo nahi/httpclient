@@ -120,6 +120,10 @@ class HTTPClient
 
     # Filter API implementation.  Traps HTTP response and parses
     # 'WWW-Authenticate' header.
+    #
+    # This remembers the challenges for all authentication methods
+    # available to the client. On the subsequent retry of the request,
+    # filter_request will select the strongest method.
     def filter_response(req, res)
       command = nil
       if res.status == HTTP::Status::UNAUTHORIZED
@@ -156,17 +160,19 @@ class HTTPClient
   # SSPINegotiateAuth requires 'win32/sspi' module.
   class ProxyAuth < AuthFilterBase
     attr_reader :basic_auth
+    attr_reader :digest_auth
     attr_reader :negotiate_auth
     attr_reader :sspi_negotiate_auth
 
     # Creates new ProxyAuth.
     def initialize
-      @basic_auth = BasicAuth.new
+      @basic_auth = ProxyBasicAuth.new
       @negotiate_auth = NegotiateAuth.new
       @ntlm_auth = NegotiateAuth.new('NTLM')
       @sspi_negotiate_auth = SSPINegotiateAuth.new
+      @digest_auth = ProxyDigestAuth.new
       # sort authenticators by priority
-      @authenticator = [@negotiate_auth, @ntlm_auth, @sspi_negotiate_auth, @basic_auth]
+      @authenticator = [@negotiate_auth, @ntlm_auth, @sspi_negotiate_auth, @digest_auth, @basic_auth]
     end
 
     # Resets challenge state.  See sub filters for more details.
@@ -281,6 +287,25 @@ class HTTPClient
     end
   end
 
+  class ProxyBasicAuth < BasicAuth
+
+    def set(uri, user, passwd)
+      @set = true
+      @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
+    end
+
+    def get(req)
+      target_uri = req.header.request_uri
+      return nil unless @challengeable['challenged']
+      @cred
+    end
+
+    # Challenge handler: remember URL for response.
+    def challenge(uri, param_str = nil)
+      @challengeable['challenged'] = true
+      true
+    end
+  end
 
   # Authentication filter for handling DigestAuth negotiation.
   # Used in WWWAuth.
@@ -352,9 +377,12 @@ class HTTPClient
       path = req.header.create_query_uri
       a_1 = "#{user}:#{param['realm']}:#{passwd}"
       a_2 = "#{method}:#{path}"
+      qop = param['qop']
       nonce = param['nonce']
-      cnonce = generate_cnonce()
-      @nonce_count += 1
+      cnonce = nil
+      if qop || param['algorithm'] =~ /MD5-sess/
+        cnonce = generate_cnonce()
+      end
       a_1_md5sum = Digest::MD5.hexdigest(a_1)
       if param['algorithm'] =~ /MD5-sess/
         a_1_md5sum = Digest::MD5.hexdigest("#{a_1_md5sum}:#{nonce}:#{cnonce}")
@@ -365,18 +393,25 @@ class HTTPClient
       message_digest = []
       message_digest << a_1_md5sum
       message_digest << nonce
-      message_digest << ('%08x' % @nonce_count)
-      message_digest << cnonce
-      message_digest << param['qop']
+      if qop
+        @nonce_count += 1
+        message_digest << ('%08x' % @nonce_count)
+        message_digest << cnonce
+        message_digest << param['qop']
+      end
       message_digest << Digest::MD5.hexdigest(a_2)
       header = []
       header << "username=\"#{user}\""
       header << "realm=\"#{param['realm']}\""
       header << "nonce=\"#{nonce}\""
       header << "uri=\"#{path}\""
-      header << "cnonce=\"#{cnonce}\""
-      header << "nc=#{'%08x' % @nonce_count}"
-      header << "qop=#{param['qop']}"
+      if cnonce
+        header << "cnonce=\"#{cnonce}\""
+      end
+      if qop
+        header << "nc=#{'%08x' % @nonce_count}"
+        header << "qop=#{param['qop']}"
+      end
       header << "response=\"#{Digest::MD5.hexdigest(message_digest.join(":"))}\""
       header << "algorithm=#{algorithm}"
       header << "opaque=\"#{param['opaque']}\"" if param.key?('opaque')
@@ -403,6 +438,39 @@ class HTTPClient
     end
   end
 
+
+  # Authentication filter for handling DigestAuth negotiation.
+  # Ignores uri argument. Used in ProxyAuth.
+  class ProxyDigestAuth < DigestAuth
+
+    # overrides DigestAuth#set. sets default user name and password. uri is not used.
+    def set(uri, user, passwd)
+      @set = true
+      @auth = [user, passwd]
+    end
+
+    # overrides DigestAuth#get. Uses default user name and password
+    # regardless of target uri if the proxy has required authentication
+    # before
+    def get(req)
+      target_uri = req.header.request_uri
+      param = @challenge
+      return nil unless param
+      user, passwd = @auth
+      return nil unless user
+      calc_cred(req, user, passwd, param)
+    end
+
+    def reset_challenge
+      @challenge = nil
+    end
+
+    def challenge(uri, param_str)
+      @challenge = parse_challenge_param(param_str)
+      true
+    end
+
+  end
 
   # Authentication filter for handling Negotiate/NTLM negotiation.
   # Used in WWWAuth and ProxyAuth.
