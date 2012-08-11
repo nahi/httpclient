@@ -746,12 +746,12 @@ class HTTPClient
       retry_number = 0
       begin
         timeout(@connect_timeout, ConnectTimeoutError) do
-          @socket = create_socket(site)
+          @socket = create_socket(site) unless @next_connection
           if https?(@dest)
             if @socket.is_a?(LoopBackSocket)
               connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
             else
-              @socket = create_ssl_socket(@socket)
+              @socket = create_ssl_socket(@socket) unless @next_connection
               connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
               begin
                 @socket.ssl_connect(@dest.host)
@@ -774,10 +774,12 @@ class HTTPClient
       rescue RetryableResponse
         retry_number += 1
         if retry_number < @protocol_retry_count
+          consume_body if @next_connection
           retry
         end
         raise BadResponseError.new("connect to the server failed with status #{@status} #{@reason}")
-      rescue TimeoutError
+      rescue TimeoutError, KeepAliveDisconnected
+        @next_connection = nil
         if @connect_retry == 0
           retry
         else
@@ -827,6 +829,8 @@ class HTTPClient
         filter.filter_request(req)
       end
       set_header(req)
+      # TODO: this header should be optional
+      req.header.set('Connection', 'keep-alive')
       req.dump(@socket)
       @socket.flush unless @socket_sync
       res = HTTP::Message.new_response('')
@@ -1009,6 +1013,12 @@ class HTTPClient
           return
         end
       end
+    end
+
+    def consume_body
+      @state = :DATA
+      get_body { }
+      @state = :INIT
     end
   end
 
