@@ -95,6 +95,37 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.2.6 =
+
+  August 14, 2012 - version 2.2.6
+
+    * Bug fixes
+
+      * Make get_content doesn't raise a BadResponseError for perfectly good
+	responses like 304 Not Modified. Thanks to Florian Hars.
+
+      * Add 'Content-Type: application/x-www-form-urlencoded' for the PUT
+	request that has urlencoded entity-body.
+
+    * Features
+
+      * Add HTTPClient::IncludeClient by Jonathan Rochkind, a mix-in for easily
+	adding a thread-safe lazily initialized class-level HTTPClient object
+	to your class.
+
+      * Proxy DigestAuth support. Thanks to Alexander Kotov and Florian Hars.
+
+      * Accept an array of strings (and IO-likes) as a query value
+	e.g. `{ x: 'a', y: [1,2,3] }` is encoded into `"x=a&y=1&y=2&y=3"`.
+	Thanks to Akinori MUSHA.
+
+      * Allow body for DELETE method.
+
+      * Allow :follow_redirect => true for HEAD request.
+
+      * Fill request parameters request_method, request_uri and request_query
+	as part of response Message::Header.
+
 = Changes in 2.2.5 =
 
   May 06, 2012 - version 2.2.5
