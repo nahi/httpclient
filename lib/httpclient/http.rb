@@ -199,7 +199,7 @@ module HTTP
       end
 
       # Initialize this instance as a response.
-      def init_response(status_code, req)
+      def init_response(status_code, req = nil)
         @is_request = false
         self.status_code = status_code
         if req
@@ -461,7 +461,7 @@ module HTTP
       end
 
       # Initialize this instance as a response.
-      def init_response(body)
+      def init_response(body = nil)
         @body = body
         if @body.respond_to?(:bytesize)
           @size = @body.bytesize
