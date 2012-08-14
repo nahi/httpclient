@@ -95,6 +95,15 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.2.7 =
+
+  August 14, 2012 - version 2.2.7
+
+    * Bug fixes
+
+      * Fix arity incompatibility introduced in 2.2.6.  It broke Webmock.
+	Thanks Andrew France for the report!
+
 = Changes in 2.2.6 =
 
   August 14, 2012 - version 2.2.6
