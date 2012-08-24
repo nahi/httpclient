@@ -1045,7 +1045,7 @@ private
       return false
     end
     @no_proxy.scan(/([^:,]+)(?::(\d+))?/) do |host, port|
-      if /(\A|\.)#{Regexp.quote(host)}\z/i =~ uri.host &&
+      if /(\A|\.)#{Regexp.quote(host.gsub(/^\./,''))}\z/i =~ uri.host &&
           (!port || uri.port == port.to_i)
         return true
       end
