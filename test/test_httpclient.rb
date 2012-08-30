@@ -1313,6 +1313,17 @@ EOS
     assert_equal('PART_NUMBER', res.cookies[1].name)
   end
 
+  def test_ok_response_success
+    res = HTTP::Message.new_response('response')
+    assert_true res.ok?
+    res.status = 404
+    assert_false res.ok?
+    res.status = 500
+    assert_false res.ok?
+    res.status = 302
+    assert_false res.ok?
+  end
+
   if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'
     def test_timeout_scheduler
       assert_equal('hello', @client.get_content(serverurl + 'hello'))
