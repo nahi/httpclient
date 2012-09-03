@@ -1027,6 +1027,11 @@ module HTTP
         }
       end
     end
+
+    # Convenience method to return boolean of whether we had a successful request
+    def ok?
+      HTTP::Status.successful?(status)
+    end
   end
 
 
