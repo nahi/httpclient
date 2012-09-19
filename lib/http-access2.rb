@@ -5,9 +5,11 @@
 # redistribute it and/or modify it under the same terms of Ruby's license;
 # either the dual license version in 2003, or any later version.
 
-# http-access2.rb is based on http-access.rb in http-access/0.0.4.  Some part
-# of code in http-access.rb was recycled in http-access2.rb.  Those part is
-# copyrighted by Maehashi-san.
+# http-access2.rb is based on http-access.rb in http-access/0.0.4.  Some
+# part of it is copyrighted by Maebashi-san who made and published
+# http-access/0.0.4.  http-access/0.0.4 did not include license notice but
+# when I asked Maebashi-san he agreed that I can redistribute it under the
+# same terms of Ruby.  Many thanks to Maebashi-san.
 
 
 require 'httpclient'
