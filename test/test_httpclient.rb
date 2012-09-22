@@ -298,6 +298,36 @@ class TestHTTPClient < Test::Unit::TestCase
     end
   end
 
+  def test_no_proxy_with_initial_dot
+    @client.debug_dev = str = ""
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
+    @client.no_proxy = ''
+    @client.proxy = proxyurl
+    @client.head('http://www.foo.com')
+    assert(/CONNECT TO localhost/ =~ str, 'via proxy')
+    #
+    @client.debug_dev = str = ""
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
+    @client.no_proxy = '.foo.com'
+    @client.proxy = proxyurl
+    @client.head('http://www.foo.com')
+    assert(/CONNECT TO www.foo.com/ =~ str, 'no proxy because .foo.com matches with www.foo.com')
+    #
+    @client.debug_dev = str = ""
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
+    @client.no_proxy = '.foo.com'
+    @client.proxy = proxyurl
+    @client.head('http://foo.com')
+    assert(/CONNECT TO localhost/ =~ str, 'via proxy because .foo.com does not matche with foo.com')
+    #
+    @client.debug_dev = str = ""
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
+    @client.no_proxy = 'foo.com'
+    @client.proxy = proxyurl
+    @client.head('http://foo.com')
+    assert(/CONNECT TO foo.com/ =~ str, 'no proxy because foo.com matches with foo.com')
+  end
+
   def test_cookie_update_while_authentication
     escape_noproxy do
       @client.test_loopback_http_response << <<EOS

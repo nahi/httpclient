@@ -378,6 +378,7 @@ class HTTPClient
     proxy, agent_name, from = keyword_argument(args, :proxy, :agent_name, :from)
     @proxy = nil        # assigned later.
     @no_proxy = nil
+    @no_proxy_regexps = []
     @www_auth = WWWAuth.new
     @proxy_auth = ProxyAuth.new
     @request_filter = [@proxy_auth, @www_auth]
@@ -478,6 +479,17 @@ class HTTPClient
   # Calling this method resets all existing sessions.
   def no_proxy=(no_proxy)
     @no_proxy = no_proxy
+    @no_proxy_regexps.clear
+    if @no_proxy
+      @no_proxy.scan(/([^:,]+)(?::(\d+))?/) do |host, port|
+        if host[0] == ?.
+          regexp = /#{Regexp.quote(host)}\z/i
+        else
+          regexp = /(\A|\.)#{Regexp.quote(host)}\z/i
+        end
+        @no_proxy_regexps << [regexp, port]
+      end
+    end
     reset_all
   end
 
@@ -1041,13 +1053,11 @@ private
     if !@proxy or NO_PROXY_HOSTS.include?(uri.host)
       return true
     end
-    unless @no_proxy
-      return false
-    end
-    @no_proxy.scan(/([^:,]+)(?::(\d+))?/) do |host, port|
-      if /(\A|\.)#{Regexp.quote(host.gsub(/^\./,''))}\z/i =~ uri.host &&
-          (!port || uri.port == port.to_i)
-        return true
+    @no_proxy_regexps.each do |regexp, port|
+      if !port || uri.port == port.to_i
+        if regexp =~ uri.host
+          return true
+        end
       end
     end
     false
