@@ -633,7 +633,7 @@ module HTTP
       def build_query_multipart_str(query, boundary)
         parts = Parts.new
         query.each do |attr, value|
-          value ||= ''
+          value = '' if value.nil?
           headers = ["--#{boundary}"]
           if Message.file?(value)
             remember_pos(value)
