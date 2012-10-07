@@ -715,6 +715,18 @@ EOS
     assert_equal("post,--hello\r\nContent-Disposition: form-data; name=\"1\"\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\"\r\n\r\n4\r\n--hello--\r\n\r\n", res.content)
   end
 
+  def test_post_with_custom_multipart_and_boolean_params
+    param = [['boolean_true', true]]
+    ext = { 'content-type' => 'multipart/form-data' }
+    assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
+    res = @client.post(serverurl + 'servlet', param, ext)
+    assert_match(/Content-Disposition: form-data; name="boolean_true"\r\n\r\ntrue\r\n/, res.content)
+    #
+    param = [['boolean_false', false]]
+    res = @client.post(serverurl + 'servlet', param, ext)
+    assert_match(/Content-Disposition: form-data; name="boolean_false"\r\n\r\nfalse\r\n/, res.content)
+  end
+
   def test_post_with_file
     STDOUT.sync = true
     File.open(__FILE__) do |file|
