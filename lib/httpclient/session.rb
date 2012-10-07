@@ -874,17 +874,17 @@ class HTTPClient
       timeout(@receive_timeout, ReceiveTimeoutError) do
         initial_line = nil
         begin
-          initial_line = @socket.gets("\n")
-          if initial_line.nil?
+          begin
+            initial_line = @socket.gets("\n")
+            if initial_line.nil?
+              close
+              raise KeepAliveDisconnected.new(self)
+            end
+          rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE, IOError
+            # JRuby can raise IOError instead of ECONNRESET for now
             close
             raise KeepAliveDisconnected.new(self)
           end
-        rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE, IOError
-          # JRuby can raise IOError instead of ECONNRESET for now
-          close
-          raise KeepAliveDisconnected.new(self)
-        end
-        begin
           if StatusParseRegexp !~ initial_line
             @version = '0.9'
             @status = nil

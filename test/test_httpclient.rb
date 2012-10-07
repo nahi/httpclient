@@ -1540,6 +1540,16 @@ EOS
     end
   end
 
+  if RUBY_VERSION >= "1.9.3"
+    def test_continue
+      @client.debug_dev = str = ''
+      res = @client.get(serverurl + 'continue', :header => {:Expect => '100-continue'})
+      assert_equal(200, res.status)
+      assert_equal('done!', res.body)
+      assert_match(/Expect: 100-continue/, str)
+    end
+  end
+
 private
 
   def check_query_get(query)
@@ -1563,7 +1573,11 @@ private
       :DocumentRoot => File.dirname(File.expand_path(__FILE__))
     )
     @serverport = @server.config[:Port]
-    [:hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3, :redirect_self, :relative_redirect, :chunked, :largebody, :status, :compressed, :charset].each do |sym|
+    [
+      :hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3,
+      :redirect_self, :relative_redirect, :chunked, :largebody, :status,
+      :compressed, :charset, :continue
+    ].each do |sym|
       @server.mount(
         "/#{sym}",
         WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
@@ -1652,6 +1666,11 @@ private
 
   def do_status(req, res)
     res.status = req.query['status'].to_i
+  end
+
+  def do_continue(req, res)
+    req.continue
+    res.body = 'done!'
   end
 
   class TestServlet < WEBrick::HTTPServlet::AbstractServlet
