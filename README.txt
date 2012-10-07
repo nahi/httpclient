@@ -12,6 +12,7 @@ See HTTPClient for documentation.
 * methods like GET/HEAD/POST/* via HTTP/1.1.
 * HTTPS(SSL), Cookies, proxy, authentication(Digest, NTLM, Basic), etc.
 * asynchronous HTTP request, streaming HTTP request.
+* debug mode CLI.
 
 * by contrast with net/http in standard distribution;
   * Cookies support
@@ -29,6 +30,16 @@ See HTTPClient for documentation.
   * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.
     (of course you can set it in header by yourself)
 
+== httpclient command
+
+Usage: 1) % httpclient get https://www.google.co.jp/ q=ruby
+Usage: 2) %httpclient
+
+For 1) it issues a GET request to the given URI and shows the wiredump and
+the parsed result.  For 2) it invokes irb shell with the binding that has a
+HTTPClient as 'self'.  You can call HTTPClient instance methods like;
+
+  > get "https://www.google.co.jp/", :q => :ruby
 
 == Author
 
