@@ -725,6 +725,10 @@ EOS
     param = [['boolean_false', false]]
     res = @client.post(serverurl + 'servlet', param, ext)
     assert_match(/Content-Disposition: form-data; name="boolean_false"\r\n\r\nfalse\r\n/, res.content)
+    #
+    param = [['nil', nil]]
+    res = @client.post(serverurl + 'servlet', param, ext)
+    assert_match(/Content-Disposition: form-data; name="nil"\r\n\r\n\r\n/, res.content)
   end
 
   def test_post_with_file

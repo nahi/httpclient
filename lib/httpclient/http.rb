@@ -633,7 +633,6 @@ module HTTP
       def build_query_multipart_str(query, boundary)
         parts = Parts.new
         query.each do |attr, value|
-          value = '' if value.nil?
           headers = ["--#{boundary}"]
           if Message.file?(value)
             remember_pos(value)
@@ -659,6 +658,7 @@ module HTTP
             remember_pos(value) if Message.file?(value)
           else
             headers << %{Content-Disposition: form-data; name="#{attr}"}
+            value = value.to_s
           end
           parts.add(headers.join(CRLF) + CRLF + CRLF)
           parts.add(value)
