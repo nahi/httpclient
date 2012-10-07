@@ -1032,7 +1032,15 @@ module HTTP
     def ok?
       HTTP::Status.successful?(status)
     end
-  end
 
+    def redirect?
+      HTTP::Status.redirect?(status)
+    end
+
+    # SEE_OTHER is a redirect, but it should sent as GET
+    def see_other?
+      status == HTTP::Status::SEE_OTHER
+    end
+  end
 
 end

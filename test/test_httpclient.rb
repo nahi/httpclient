@@ -479,6 +479,10 @@ EOS
     end
   end
 
+  def test_redirect_see_other
+    assert_equal('hello', @client.post_content(serverurl + 'redirect_see_other'))
+  end
+
   def test_redirect_relative
     @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: hello\n\n"
     silent do
@@ -1575,8 +1579,8 @@ private
     @serverport = @server.config[:Port]
     [
       :hello, :sleep, :servlet_redirect, :redirect1, :redirect2, :redirect3,
-      :redirect_self, :relative_redirect, :chunked, :largebody, :status,
-      :compressed, :charset, :continue
+      :redirect_self, :relative_redirect, :redirect_see_other, :chunked,
+      :largebody, :status, :compressed, :charset, :continue
     ].each do |sym|
       @server.mount(
         "/#{sym}",
@@ -1629,6 +1633,14 @@ private
 
   def do_relative_redirect(req, res)
     res.set_redirect(WEBrick::HTTPStatus::Found, "hello")
+  end
+
+  def do_redirect_see_other(req, res)
+    if req.request_method == 'POST'
+      res.set_redirect(WEBrick::HTTPStatus::SeeOther, serverurl + "redirect_see_other") # self
+    else
+      res.body = 'hello'
+    end
   end
 
   def do_chunked(req, res)

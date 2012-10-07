@@ -945,7 +945,7 @@ private
     uri = urify(uri)
     if block
       filtered_block = proc { |r, str|
-        block.call(str) if HTTP::Status.successful?(r.status)
+        block.call(str) if r.ok?
       }
     end
     if HTTP::Message.file?(body)
@@ -955,7 +955,8 @@ private
     while retry_number < @follow_redirect_count
       body.pos = pos if pos
       res = do_request(method, uri, query, body, header, &filtered_block)
-      if HTTP::Status.redirect?(res.status)
+      if res.redirect?
+        method = :get if res.see_other? # See RFC2616 10.3.4
         uri = urify(@redirect_uri_callback.call(uri, res))
         retry_number += 1
       else
@@ -966,7 +967,7 @@ private
   end
 
   def success_content(res)
-    if HTTP::Status.successful?(res.status)
+    if res.ok?
       return res.content
     else
       raise BadResponseError.new("unexpected response: #{res.header.inspect}", res)
