@@ -82,8 +82,7 @@ class HTTPClient
       @verify_callback = nil
       @dest = nil
       @timeout = nil
-      # TODO: change to "SSLv3" in future versions to make harder to use SSLv2.
-      @ssl_version = "SSLv23"
+      @ssl_version = "SSLv3"
       @options = defined?(SSL::OP_ALL) ? SSL::OP_ALL | SSL::OP_NO_SSLv2 : nil
       # OpenSSL 0.9.8 default: "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
       @ciphers = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
