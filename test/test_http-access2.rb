@@ -7,6 +7,7 @@ module HTTPAccess2
 
 class TestClient < Test::Unit::TestCase
   include Helper
+  include HTTPClient::Util
 
   def setup
     super
@@ -23,7 +24,7 @@ class TestClient < Test::Unit::TestCase
     escape_noproxy do
       @proxyio.string = ""
       @client = HTTPAccess2::Client.new(proxyurl)
-      assert_equal(URI.parse(proxyurl), @client.proxy)
+      assert_equal(urify(proxyurl), @client.proxy)
       assert_equal(200, @client.head(serverurl).status)
       assert(!@proxyio.string.empty?)
     end
@@ -114,14 +115,16 @@ class TestClient < Test::Unit::TestCase
   def test_proxy
     setup_proxyserver
     escape_noproxy do
-      assert_raises(URI::InvalidURIError) do
+      begin
        	@client.proxy = "http://"
+      rescue
+        assert_match(/InvalidURIError/, $!.class.to_s)
       end
       @client.proxy = ""
       assert_nil(@client.proxy)
       @client.proxy = "http://foo:1234"
-      assert_equal(URI.parse("http://foo:1234"), @client.proxy)
-      uri = URI.parse("http://bar:2345")
+      assert_equal(urify("http://foo:1234"), @client.proxy)
+      uri = urify("http://bar:2345")
       @client.proxy = uri
       assert_equal(uri, @client.proxy)
       #

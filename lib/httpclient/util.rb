@@ -1,12 +1,9 @@
 # HTTPClient - HTTP client library.
-# Copyright (C) 2000-2009  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+# Copyright (C) 2000-2012  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 #
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;
 # either the dual license version in 2003, or any later version.
-
-
-require 'uri'
 
 
 unless ''.respond_to?(:bytesize)
@@ -21,6 +18,37 @@ class HTTPClient
 
   # A module for common function.
   module Util
+
+    # URI abstraction; Addressable::URI or URI
+    require 'uri'
+    begin
+      require 'addressable/uri'
+      class AddressableURI < Addressable::URI
+        # Overwrites the original definition just for one line...
+        def authority
+          self.host && @authority ||= (begin
+            authority = ""
+            if self.userinfo != nil
+              authority << "#{self.userinfo}@"
+            end
+            authority << self.host
+            if self.port != self.default_port # ...HERE! Compares with default_port because self.port is not nil in this wrapper.
+              authority << ":#{self.port}"
+            end
+            authority
+          end)
+        end
+
+        # HTTPClient expects urify("http://foo/").port to be not nil but 80 like URI.
+        def port
+          super || default_port
+        end
+      end
+      AddressableEnabled = true
+    rescue LoadError
+      AddressableEnabled = false
+    end
+
     # Keyword argument helper.
     # args:: given arguments.
     # *field:: a list of arguments to be extracted.
@@ -79,10 +107,13 @@ class HTTPClient
         nil
       elsif uri.is_a?(URI)
         uri
+      elsif AddressableEnabled
+        AddressableURI.parse(uri.to_s)
       else
         URI.parse(uri.to_s)
       end
     end
+    module_function :urify
 
     # Returns true if the given 2 URIs have a part_of relationship.
     # * the same scheme
@@ -114,7 +145,11 @@ class HTTPClient
 
     # Checks if the given URI is https.
     def https?(uri)
-      uri.scheme.downcase == 'https'
+      uri.scheme && uri.scheme.downcase == 'https'
+    end
+
+    def http?(uri)
+      uri.scheme && uri.scheme.downcase == 'http'
     end
   end
 

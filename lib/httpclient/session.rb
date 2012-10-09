@@ -751,10 +751,10 @@ class HTTPClient
           @socket = create_socket(site)
           if https?(@dest)
             if @socket.is_a?(LoopBackSocket)
-              connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
+              connect_ssl_proxy(@socket, urify(@dest.to_s)) if @proxy
             else
               @socket = create_ssl_socket(@socket)
-              connect_ssl_proxy(@socket, URI.parse(@dest.to_s)) if @proxy
+              connect_ssl_proxy(@socket, urify(@dest.to_s)) if @proxy
               begin
                 @socket.ssl_connect(@dest.host)
               ensure

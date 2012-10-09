@@ -4,6 +4,7 @@ require File.expand_path('helper', File.dirname(__FILE__))
 
 class TestHTTPClient < Test::Unit::TestCase
   include Helper
+  include HTTPClient::Util
 
   def setup
     super
@@ -20,7 +21,7 @@ class TestHTTPClient < Test::Unit::TestCase
     escape_noproxy do
       @proxyio.string = ""
       @client = HTTPClient.new(proxyurl)
-      assert_equal(URI.parse(proxyurl), @client.proxy)
+      assert_equal(urify(proxyurl), @client.proxy)
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ =~ @proxyio.string)
     end
@@ -174,14 +175,16 @@ class TestHTTPClient < Test::Unit::TestCase
   def test_proxy
     setup_proxyserver
     escape_noproxy do
-      assert_raises(URI::InvalidURIError) do
+      begin
         @client.proxy = "http://"
+      rescue
+        assert_match(/InvalidURIError/, $!.class.to_s)
       end
       @client.proxy = ""
       assert_nil(@client.proxy)
       @client.proxy = "http://admin:admin@foo:1234"
-      assert_equal(URI.parse("http://admin:admin@foo:1234"), @client.proxy)
-      uri = URI.parse("http://bar:2345")
+      assert_equal(urify("http://admin:admin@foo:1234"), @client.proxy)
+      uri = urify("http://bar:2345")
       @client.proxy = uri
       assert_equal(uri, @client.proxy)
       #
@@ -220,7 +223,7 @@ class TestHTTPClient < Test::Unit::TestCase
       ENV['http_proxy'] = "http://admin:admin@foo:1234"
       ENV['NO_PROXY'] = "foobar"
       client = HTTPClient.new
-      assert_equal(URI.parse("http://admin:admin@foo:1234"), client.proxy)
+      assert_equal(urify("http://admin:admin@foo:1234"), client.proxy)
       assert_equal('foobar', client.no_proxy)
     end
   end
@@ -235,7 +238,7 @@ class TestHTTPClient < Test::Unit::TestCase
       assert_equal(nil, client.proxy)
       ENV['CGI_HTTP_PROXY'] = "http://admin:admin@foo:1234"
       client = HTTPClient.new
-      assert_equal(URI.parse("http://admin:admin@foo:1234"), client.proxy)
+      assert_equal(urify("http://admin:admin@foo:1234"), client.proxy)
     end
   end
 
@@ -427,18 +430,18 @@ EOS
 
   def test_request_uri_in_response
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\ncontent-length: 100\n\nmessage body"
-    assert_equal(URI('http://google.com/'), @client.get('http://google.com/').header.request_uri)
+    assert_equal(urify('http://google.com/'), @client.get('http://google.com/').header.request_uri)
   end
 
   def test_request_uri_in_response_when_redirect
-    expected = URI(serverurl + 'hello')
+    expected = urify(serverurl + 'hello')
     assert_equal(expected, @client.get(serverurl + 'redirect1', :follow_redirect => true).header.request_uri)
     assert_equal(expected, @client.get(serverurl + 'redirect2', :follow_redirect => true).header.request_uri)
   end
 
   def test_redirect_non_https
     url = serverurl + 'redirect1'
-    https_url = URI.parse(url)
+    https_url = urify(url)
     https_url.scheme = 'https'
     #
     redirect_to_http = "HTTP/1.0 302 OK\nLocation: #{url}\n\n"
@@ -504,7 +507,7 @@ EOS
 
   def test_redirect_https_relative
     url = serverurl + 'redirect1'
-    https_url = URI.parse(url)
+    https_url = urify(url)
     https_url.scheme = 'https'
     @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: /foo\n\n"
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\n\nhello"
@@ -638,7 +641,7 @@ EOS
   end
 
   def test_head_follow_redirect
-    expected = URI(serverurl + 'hello')
+    expected = urify(serverurl + 'hello')
     assert_equal(expected, @client.head(serverurl + 'hello', :follow_redirect => true).header.request_uri)
     assert_equal(expected, @client.head(serverurl + 'redirect1', :follow_redirect => true).header.request_uri)
     assert_equal(expected, @client.head(serverurl + 'redirect2', :follow_redirect => true).header.request_uri)
@@ -1176,8 +1179,8 @@ EOS
     extend HTTPClient::Util
     assert_nil(urify(nil))
     uri = 'http://foo'
-    assert_equal(URI.parse(uri), urify(uri))
-    assert_equal(URI.parse(uri), urify(URI.parse(uri)))
+    assert_equal(urify(uri), urify(uri))
+    assert_equal(urify(uri), urify(urify(uri)))
   end
 
   def test_connection
@@ -1197,7 +1200,7 @@ EOS
       site.inspect
     end
     #
-    site = HTTPClient::Site.new(URI.parse('http://localhost:12345/foo'))
+    site = HTTPClient::Site.new(urify('http://localhost:12345/foo'))
     assert_equal('http', site.scheme)
     assert_equal('localhost', site.host)
     assert_equal(12345, site.port)
@@ -1207,9 +1210,9 @@ EOS
       site.inspect
     end
     #
-    site1 = HTTPClient::Site.new(URI.parse('http://localhost:12341/'))
-    site2 = HTTPClient::Site.new(URI.parse('http://localhost:12342/'))
-    site3 = HTTPClient::Site.new(URI.parse('http://localhost:12342/'))
+    site1 = HTTPClient::Site.new(urify('http://localhost:12341/'))
+    site2 = HTTPClient::Site.new(urify('http://localhost:12342/'))
+    site3 = HTTPClient::Site.new(urify('http://localhost:12342/'))
     assert(!(site1 == site2))
     h = { site1 => 'site1', site2 => 'site2' }
     h[site3] = 'site3'
@@ -1262,9 +1265,9 @@ EOS
   end
 
   def test_connect_request
-    req = HTTP::Message.new_connect_request(URI.parse('https://foo/bar'))
+    req = HTTP::Message.new_connect_request(urify('https://foo/bar'))
     assert_equal("CONNECT foo:443 HTTP/1.0\r\n\r\n", req.dump)
-    req = HTTP::Message.new_connect_request(URI.parse('https://example.com/'))
+    req = HTTP::Message.new_connect_request(urify('https://example.com/'))
     assert_equal("CONNECT example.com:443 HTTP/1.0\r\n\r\n", req.dump)
   end
 
@@ -1365,13 +1368,13 @@ EOS
 
   def test_ok_response_success
     res = HTTP::Message.new_response('response')
-    assert_true res.ok?
+    assert_equal(true, res.ok?)
     res.status = 404
-    assert_false res.ok?
+    assert_equal(false, res.ok?)
     res.status = 500
-    assert_false res.ok?
+    assert_equal(false, res.ok?)
     res.status = 302
-    assert_false res.ok?
+    assert_equal(false, res.ok?)
   end
 
   if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'

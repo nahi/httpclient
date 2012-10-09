@@ -11,9 +11,9 @@
 #
 #    w3m homepage:  http://ei5nazha.yz.yamagata-u.ac.jp/~aito/w3m/eng/
 
-require 'uri'
 require 'time'
 require 'monitor'
+require 'httpclient/util'
 
 class WebAgent
 
@@ -421,7 +421,7 @@ class WebAgent
             cookie = WebAgent::Cookie.new()
             @cookies << cookie
             col = line.chomp.split(/\t/)
-            cookie.url = URI.parse(col[0])
+            cookie.url = HTTPClient::Util.urify(col[0])
             cookie.name = col[1]
             cookie.value = col[2]
             if col[3].empty? or col[3] == '0'

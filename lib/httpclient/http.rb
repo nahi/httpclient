@@ -188,7 +188,7 @@ module HTTP
       end
 
       # Placeholder URI object for nil uri.
-      NIL_URI = URI.parse('http://nil-uri-given/')
+      NIL_URI = HTTPClient::Util.urify('http://nil-uri-given/')
       # Initialize this instance as a general request.
       def init_request(method, uri, query = nil)
         @is_request = true

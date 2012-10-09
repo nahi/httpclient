@@ -4,6 +4,7 @@ require 'uri'
 require 'httpclient/cookie'
 
 class TestCookie < Test::Unit::TestCase
+  include HTTPClient::Util
 
   def setup()
     @c = WebAgent::Cookie.new()
@@ -20,7 +21,7 @@ class TestCookie < Test::Unit::TestCase
   end
 
   def test_match()
-    url = URI.parse('http://www.rubycolor.org/hoge/funi/#919191')
+    url = urify('http://www.rubycolor.org/hoge/funi/#919191')
 
     @c.domain = 'www.rubycolor.org'
     assert_equal(true, @c.match?(url))
@@ -51,7 +52,7 @@ class TestCookie < Test::Unit::TestCase
     @c.secure = true
     assert_equal(false, @c.match?(url))
 
-    url2 = URI.parse('https://www.rubycolor.org/hoge/funi/#919191')
+    url2 = urify('https://www.rubycolor.org/hoge/funi/#919191')
     @c.domain = 'www.rubycolor.org'
     @c.path = '/hoge'
     @c.secure = true
@@ -123,6 +124,7 @@ class TestCookie < Test::Unit::TestCase
 end
 
 class TestCookieManager < Test::Unit::TestCase
+  include HTTPClient::Util
 
   def setup()
     @cm = WebAgent::CookieManager.new()
@@ -147,7 +149,7 @@ class TestCookieManager < Test::Unit::TestCase
   
   def test_parse()
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=Wed, 01-Dec-2010 00:00:00 GMT; path=/"
-    @cm.parse(str,URI.parse('http://www.test.jp'))
+    @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
     assert_instance_of(WebAgent::Cookie, cookie)
     assert_equal("inkid", cookie.name)
@@ -158,7 +160,7 @@ class TestCookieManager < Test::Unit::TestCase
 
   def test_parse2()
     str = "xmen=off,0,0,1; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
-    @cm.parse(str,URI.parse('http://www.excite.co.jp'))
+    @cm.parse(str, urify('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
     assert_instance_of(WebAgent::Cookie, cookie)
     assert_equal("xmen", cookie.name)
@@ -170,7 +172,7 @@ class TestCookieManager < Test::Unit::TestCase
 
   def test_parse3()
     str = "xmen=off,0,0,1; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT;Secure;HTTPOnly"
-    @cm.parse(str,URI.parse('http://www.excite.co.jp'))
+    @cm.parse(str, urify('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
     assert_instance_of(WebAgent::Cookie, cookie)
     assert_equal("xmen", cookie.name)
@@ -184,7 +186,7 @@ class TestCookieManager < Test::Unit::TestCase
   
   def test_parse_double_semicolon()
     str = "xmen=off,0,0,1;; path=\"/;;\"; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
-    @cm.parse(str,URI.parse('http://www.excite.co.jp'))
+    @cm.parse(str, urify('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
     assert_instance_of(WebAgent::Cookie, cookie)
     assert_equal("xmen", cookie.name)
@@ -218,7 +220,7 @@ class TestCookieManager < Test::Unit::TestCase
 
   def test_parse_expires
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=; path=/"
-    @cm.parse(str,URI.parse('http://www.test.jp'))
+    @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
     assert_equal("inkid", cookie.name)
     assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
@@ -226,7 +228,7 @@ class TestCookieManager < Test::Unit::TestCase
     assert_equal("/", cookie.path)
     #
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; path=/; expires="
-    @cm.parse(str,URI.parse('http://www.test.jp'))
+    @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
     assert_equal("inkid", cookie.name)
     assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
@@ -234,7 +236,7 @@ class TestCookieManager < Test::Unit::TestCase
     assert_equal("/", cookie.path)
     #
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; path=/; expires=\"\""
-    @cm.parse(str,URI.parse('http://www.test.jp'))
+    @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
     assert_equal("inkid", cookie.name)
     assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
@@ -244,15 +246,15 @@ class TestCookieManager < Test::Unit::TestCase
 
   def test_find_cookie()
     str = "xmen=off,0,0,1; path=/; domain=.excite2.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
-    @cm.parse(str, URI.parse("http://www.excite2.co.jp/"))
+    @cm.parse(str, urify("http://www.excite2.co.jp/"))
 
     str = "xmen=off,0,0,2; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
-    @cm.parse(str, URI.parse("http://www.excite.co.jp/"))
+    @cm.parse(str, urify("http://www.excite.co.jp/"))
 
     @cm.cookies[0].use = true
     @cm.cookies[1].use = true
 
-    url = URI.parse('http://www.excite.co.jp/hoge/funi/')
+    url = urify('http://www.excite.co.jp/hoge/funi/')
     cookie_str = @cm.find(url)
     assert_equal("xmen=off,0,0,2", cookie_str)
   end
@@ -331,7 +333,7 @@ EOF
   def test_not_saved_expired_cookies
     begin
       @cm.cookies_file = 'tmp_test.tmp'
-      uri = URI.parse('http://www.example.org')
+      uri = urify('http://www.example.org')
       @cm.parse("foo=1; path=/", uri)
       @cm.parse("bar=2; path=/; expires=", uri)
       @cm.parse("baz=3; path=/; expires=\"\"", uri)
@@ -349,7 +351,7 @@ EOF
     c = WebAgent::Cookie.new()
     c.name = "hoge"
     c.value = "funi"
-    c.url = URI.parse("http://www.inac.co.jp/hoge")
+    c.url = urify("http://www.inac.co.jp/hoge")
     @cm.add(c)
     c = @cm.cookies[0]
     assert_equal('hoge', c.name)
@@ -362,14 +364,14 @@ EOF
     c.name = "hoge"
     c.value = "funi"
     c.path = ''
-    c.url = URI.parse("http://www.inac.co.jp/hoge/hoge2/hoge3")
+    c.url = urify("http://www.inac.co.jp/hoge/hoge2/hoge3")
     @cm.add(c)
     #
     c = WebAgent::Cookie.new()
     c.name = "hoge"
     c.value = "funi"
     #c.path = '' NO path given -> same as URL
-    c.url = URI.parse("http://www.inac.co.jp/hoge/hoge2/hoge3")
+    c.url = urify("http://www.inac.co.jp/hoge/hoge2/hoge3")
     @cm.add(c)
     #
     c1, c2 = @cm.cookies

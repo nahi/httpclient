@@ -6,7 +6,6 @@
 # either the dual license version in 2003, or any later version.
 
 
-require 'uri'
 require 'stringio'
 require 'digest/sha1'
 
@@ -635,11 +634,11 @@ class HTTPClient
   #   Location: ../foo/
   # in HTTP header. (raises BadResponseError instead)
   def strict_redirect_uri_callback(uri, res)
-    newuri = URI.parse(res.header['location'][0])
+    newuri = urify(res.header['location'][0])
     if https?(uri) && !https?(newuri)
       raise BadResponseError.new("redirecting to non-https resource")
     end
-    unless newuri.is_a?(URI::HTTP)
+    if !http?(newuri) && !https?(newuri)
       raise BadResponseError.new("unexpected location: #{newuri}", res)
     end
     puts "redirect to: #{newuri}" if $DEBUG
@@ -652,8 +651,8 @@ class HTTPClient
   #   Location: ../foo/
   # in HTTP header.
   def default_redirect_uri_callback(uri, res)
-    newuri = URI.parse(res.header['location'][0])
-    unless newuri.is_a?(URI::HTTP)
+    newuri = urify(res.header['location'][0])
+    if !http?(newuri) && !https?(newuri)
       newuri = uri + newuri
       warn("could be a relative URI in location header which is not recommended")
       warn("'The field value consists of a single absolute URI' in HTTP spec")
