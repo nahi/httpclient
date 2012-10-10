@@ -748,6 +748,19 @@ EOS
     end
   end
 
+  def test_post_with_file_without_size
+    STDOUT.sync = true
+    File.open(__FILE__) do |file|
+      def file.size
+        # Simulates some strange Windows behaviour
+        raise SystemCallError.new "Unknown Error (20047)"
+      end
+      assert_nothing_raised do
+        @client.post(serverurl + 'servlet', {1=>2, 3=>file})
+      end
+    end
+  end
+
   def test_post_with_io # streaming, but not chunked
     myio = StringIO.new("X" * (HTTP::Message::Body::DEFAULT_CHUNK_SIZE + 1))
     def myio.read(*args)
