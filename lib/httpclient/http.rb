@@ -542,7 +542,7 @@ module HTTP
           # bear in mind that server may not support it. at least ruby's CGI doesn't.
           @body = body
           remember_pos(@body)
-          @size = body.respond_to?(:size) ? body.size - body.pos : nil
+          @size = (body.size - body.pos) rescue body.size if body.respond_to?(:size)
         elsif boundary and Message.multiparam_query?(body)
           @body = build_query_multipart_str(body, boundary)
           @size = @body.size
@@ -554,11 +554,11 @@ module HTTP
 
       def remember_pos(io)
         # IO may not support it (ex. IO.pipe)
-        @positions[io] = io.pos if io.respond_to?(:pos)
+        @positions[io] = io.pos rescue nil if io.respond_to?(:pos)
       end
 
       def reset_pos(io)
-        io.pos = @positions[io] if @positions.key?(io)
+        io.pos = @positions[io] if @positions[io]
       end
 
       def dump_file(io, dev)
@@ -578,9 +578,18 @@ module HTTP
       end
 
       def dump_chunks(io, dev)
+        return dump_chunks_length(io, io.size, dev) if io.respond_to?(:size) && io.size
         buf = ''
         while !io.read(@chunk_size, buf).nil?
           dev << dump_chunk(buf)
+        end
+      end
+
+      def dump_chunks_length(io, size, dev)
+        buf = ''
+        while size > 0 && !(read = io.read(size > @chunk_size ? @chunk_size : size, buf)).nil?
+          dev << dump_chunk(buf)
+          size -= read.bytesize
         end
       end
 

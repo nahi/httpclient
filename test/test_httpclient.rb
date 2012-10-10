@@ -764,7 +764,7 @@ EOS
     assert_match(/\r\n2\r\n/m, res.content)
     assert_match(/\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m, res.content)
     assert_match(/\r\nContent-Length:/m, str.string)
-    assert_equal(3, myio.called)
+    assert_equal(2, myio.called, 'should just read 2 times, no need to extra read for detecting EOF')
   end
 
   def test_post_with_io_nosize # streaming + chunked post
@@ -781,7 +781,7 @@ EOS
     assert_match(/\r\nTransfer-Encoding: chunked\r\n/m, str.string)
   end
 
-  def test_post_with_io_size_mismatch
+  def test_post_with_sized_io
     myio = StringIO.new("45")
     def myio.size
       1
@@ -789,6 +789,16 @@ EOS
     @client.debug_dev = str = StringIO.new
     res = @client.post(serverurl + 'servlet', myio)
     assert_match(/\r\n4\n/, str.string, 'should send "4" not "45"')
+  end
+
+  def test_post_with_sized_io_chunked
+    myio = StringIO.new("45")
+    def myio.size
+      1
+    end
+    @client.debug_dev = str = StringIO.new
+    res = @client.post(serverurl + 'servlet', {:file => myio})
+    assert_match(/\r\n4\r\n/, str.string, 'should send "4" not "45"')
   end
 
   def test_post_async
