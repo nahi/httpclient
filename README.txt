@@ -107,6 +107,37 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.3.0 =
+
+  October 10, 2012 - version 2.3.0
+
+    * Features
+
+      * Added debug mode CLI.  bin/httpclient is installed as CLI.
+          Usage: 1) % httpclient get https://www.google.co.jp/ q=ruby
+          Usage: 2) %httpclient
+        For 1) it issues a GET request to the given URI and shows the wiredump
+        and the parsed result.  For 2) it invokes irb shell with the binding
+        that has a HTTPClient as 'self'.  You can call HTTPClient instance
+        methods like;
+          > get "https://www.google.co.jp/", :q => :ruby
+
+      * #119 Addressable gem support (only if it exists); should handle IRI
+        properly.
+
+    * Bug fixes
+
+      * #115 Cookies couldn't work properly if the path in an URI is ommited.
+      * #112, #117 Proper handling of sized IO (the IO object that responds to
+        :size) for chunked POST. HTTPClient did read till EOF even if the
+        given IO has :size method.
+      * Handle '303 See Other' properly.  RFC2616 says it should be redirected
+        with GET.
+      * #116 Fix "100-continue" support.  It was just ignored.
+      * #118 Support for boolean values when making POST/PUT requests with
+        multiipart/form Content-Type.
+      * #110 Allows leading dots in no_proxy hostname suffixes.
+
 = Changes in 2.2.7 =
 
   August 14, 2012 - version 2.2.7
@@ -114,7 +145,7 @@ Thanks in advance.
     * Bug fixes
 
       * Fix arity incompatibility introduced in 2.2.6.  It broke Webmock.
-	Thanks Andrew France for the report!
+        Thanks Andrew France for the report!
 
 = Changes in 2.2.6 =
 
@@ -123,29 +154,29 @@ Thanks in advance.
     * Bug fixes
 
       * Make get_content doesn't raise a BadResponseError for perfectly good
-	responses like 304 Not Modified. Thanks to Florian Hars.
+        responses like 304 Not Modified. Thanks to Florian Hars.
 
       * Add 'Content-Type: application/x-www-form-urlencoded' for the PUT
-	request that has urlencoded entity-body.
+        request that has urlencoded entity-body.
 
     * Features
 
       * Add HTTPClient::IncludeClient by Jonathan Rochkind, a mix-in for easily
-	adding a thread-safe lazily initialized class-level HTTPClient object
-	to your class.
+        adding a thread-safe lazily initialized class-level HTTPClient object
+        to your class.
 
       * Proxy DigestAuth support. Thanks to Alexander Kotov and Florian Hars.
 
       * Accept an array of strings (and IO-likes) as a query value
-	e.g. `{ x: 'a', y: [1,2,3] }` is encoded into `"x=a&y=1&y=2&y=3"`.
-	Thanks to Akinori MUSHA.
+        e.g. `{ x: 'a', y: [1,2,3] }` is encoded into `"x=a&y=1&y=2&y=3"`.
+        Thanks to Akinori MUSHA.
 
       * Allow body for DELETE method.
 
       * Allow :follow_redirect => true for HEAD request.
 
       * Fill request parameters request_method, request_uri and request_query
-	as part of response Message::Header.
+        as part of response Message::Header.
 
 = Changes in 2.2.5 =
 
@@ -155,8 +186,8 @@ Thanks in advance.
     
       * Added Magic encoding comment to hexdump.rb to avoid encoding error.
       * Add workaround for JRuby issue on Windows (JRUBY-6136)
-	On Windows, calling File#size fails with an Unknown error (20047).
-	This workaround uses File#lstat instead.
+        On Windows, calling File#size fails with an Unknown error (20047).
+        This workaround uses File#lstat instead.
       * Require open-uri only on ruby 1.9, since it is not needed on 1.8.
 
     * Features
@@ -165,11 +196,11 @@ Thanks in advance.
       * Dump more SSL certificate information under $DEBUG.
       * Add HTTPClient::SSLConfig#ssl_version property.
       * Add 'Accept: */*' header to request by default. Rails requies it.
-	It doesn't override given Accept header from API.
+        It doesn't override given Accept header from API.
       * Add HTTPClient::SSLConfig#set_default_paths. This method makes
-	HTTPClient instance to use OpenSSL's default trusted CA certificates.
+        HTTPClient instance to use OpenSSL's default trusted CA certificates.
       * Allow to set Date header manually.
-	ex. clent.get(uri, :header => {'Date' => Time.now.httpdate})
+        ex. clent.get(uri, :header => {'Date' => Time.now.httpdate})
 
 = Changes in 2.2.4 =
 
@@ -677,7 +708,7 @@ Thanks in advance.
       [,:] separated. ("ruby-lang.org:rubyist.net")
       No regexp. (give "ruby-lang.org", not "*.ruby-lang.org")
       If you want specify hot by IP address, give full address.
-	("192.168.1.1, 192.168.1.2")
+        ("192.168.1.1, 192.168.1.2")
 
   September 10, 2003 - version 2.0
     CamelCase to non_camel_case.
