@@ -23,6 +23,10 @@ class HTTPClient
     require 'uri'
     begin
       require 'addressable/uri'
+      # Older versions doesn't have #default_port
+      unless Addressable::URI.instance_methods.include?(:default_port) # 1.9 only
+        raise LoadError
+      end
       class AddressableURI < Addressable::URI
         # Overwrites the original definition just for one line...
         def authority
