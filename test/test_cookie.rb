@@ -69,6 +69,11 @@ class TestCookie < Test::Unit::TestCase
 #    @c.port = [80,8080]
     assert_equal(true, @c.match?(url))
 
+    url_nopath = URI.parse('http://www.rubycolor.org')
+    @c.domain = 'www.rubycolor.org'
+    @c.path = '/'
+    assert_equal(true, @c.match?(url_nopath))
+
   end
 
   def test_head_match?()

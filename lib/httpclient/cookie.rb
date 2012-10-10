@@ -133,7 +133,7 @@ class WebAgent
       domainname = url.host
       if (!domainname ||
 	  !domain_match(domainname, @domain) ||
-	  (@path && !head_match?(@path, url.path)) ||
+	  (@path && !head_match?(@path, url.path.empty? ? '/' : url.path)) ||
 	  (@secure && (url.scheme != 'https')) )
 	return false
       else
