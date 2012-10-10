@@ -562,9 +562,18 @@ module HTTP
       end
 
       def dump_file(io, dev)
+        return dump_file_length(io, @size, dev) if @size
         buf = ''
         while !io.read(@chunk_size, buf).nil?
           dev << buf
+        end
+      end
+
+      def dump_file_length(io, size, dev)
+        buf = ''
+        while size > 0 && !(read = io.read(size > @chunk_size ? @chunk_size : size, buf)).nil?
+          dev << buf
+          size -= read.bytesize
         end
       end
 
@@ -600,18 +609,8 @@ module HTTP
           if Message.file?(part)
             @as_stream = true
             @body << part
-            if part.respond_to?(:lstat)
-              @size += part.lstat.size
-            elsif part.respond_to?(:size)
-              if sz = part.size
-                @size += sz
-              else
-                @size = nil
-              end
-            else
-              # use chunked upload
-              @size = nil
-            end
+            # use chunked upload
+            @size = nil
           elsif @body[-1].is_a?(String)
             @body[-1] += part.to_s
             @size += part.to_s.bytesize if @size
