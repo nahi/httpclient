@@ -794,16 +794,6 @@ EOS
     assert_match(/\r\nTransfer-Encoding: chunked\r\n/m, str.string)
   end
 
-  def test_post_with_io_size_mismatch
-    myio = StringIO.new("45")
-    def myio.size
-      1
-    end
-    @client.debug_dev = str = StringIO.new
-    res = @client.post(serverurl + 'servlet', myio)
-    assert_match(/\r\n4\n/, str.string, 'should send "4" not "45"')
-  end
-
   def test_post_async
     param = {'1'=>'2', '3'=>'4'}
     conn = @client.post_async(serverurl + 'servlet', param)
