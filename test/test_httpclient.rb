@@ -1557,6 +1557,30 @@ EOS
     end
   end
 
+  def test_ipv6literaladdress_in_uri
+    server = TCPServer.open('::1', 0) rescue return # Skip if IPv6 is unavailable.
+    server_thread = Thread.new {
+      Thread.abort_on_exception = true
+      sock = server.accept
+      while line = sock.gets
+        break if line.chomp.empty?
+      end
+      sock.write("HTTP/1.1 200 OK\r\n")
+      sock.write("Content-Length: 5\r\n")
+      sock.write("\r\n")
+      sock.write("12345")
+      sock.close
+    }
+    uri = "http://[::1]:#{server.addr[1]}/"
+    begin
+      assert_equal('12345', @client.get(uri).body)
+    ensure
+      server.close
+      server_thread.kill
+      server_thread.join
+    end
+  end
+
 private
 
   def check_query_get(query)

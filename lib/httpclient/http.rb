@@ -393,9 +393,9 @@ module HTTP
         if @http_version >= '1.1' and get('Host').empty?
           if @request_uri.port == @request_uri.default_port
             # GFE/1.3 dislikes default port number (returns 404)
-            set('Host', "#{@request_uri.host}")
+            set('Host', "#{@request_uri.hostname}")
           else
-            set('Host', "#{@request_uri.host}:#{@request_uri.port}")
+            set('Host', "#{@request_uri.hostname}:#{@request_uri.port}")
           end
         end
       end

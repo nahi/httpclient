@@ -31,6 +31,7 @@ class HTTPClient
     attr_accessor :scheme
     # Host String.
     attr_accessor :host
+    alias hostname host
     # Port number.
     attr_accessor :port
 
@@ -38,7 +39,7 @@ class HTTPClient
     def initialize(uri = nil)
       if uri
         @scheme = uri.scheme
-        @host = uri.host
+        @host = uri.hostname
         @port = uri.port.to_i
       else
         @scheme = 'tcp'

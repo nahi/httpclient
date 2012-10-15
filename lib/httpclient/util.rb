@@ -47,6 +47,12 @@ class HTTPClient
         def port
           super || default_port
         end
+
+        # Captured from uri/generic.rb
+        def hostname
+          v = self.host
+          /\A\[(.*)\]\z/ =~ v ? $1 : v
+        end
       end
       AddressableEnabled = true
     rescue LoadError
