@@ -12,6 +12,17 @@ unless ''.respond_to?(:bytesize)
   end
 end
 
+if RUBY_VERSION < "1.9.0"
+  require 'uri'
+  module URI
+    class Generic
+      def hostname
+        v = self.host
+        /\A\[(.*)\]\z/ =~ v ? $1 : v
+      end
+    end
+  end
+end
 
 class HTTPClient
 
