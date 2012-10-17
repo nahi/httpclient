@@ -46,11 +46,6 @@ class WebAgent
 	return (hostname == domainname)
       end
     end
-
-    def total_dot_num(string)
-      string.scan(/\./).length
-    end
-
   end
 
   class Cookie
@@ -203,6 +198,8 @@ class WebAgent
       }
     end
 
+  private
+
     def normalize_cookie_value(value)
       if value
         value = value.strip.sub(/\A"(.*)"\z/) { $1 }
@@ -210,7 +207,6 @@ class WebAgent
       end
       value
     end
-    private :normalize_cookie_value
   end
 
   class CookieManager
@@ -224,10 +220,6 @@ class WebAgent
     attr_reader :cookies
     attr_accessor :cookies_file
     attr_accessor :accept_domains, :reject_domains
-
-    # for conformance to http://wp.netscape.com/newsref/std/cookie_spec.html
-    attr_accessor :netscape_rule
-    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
 
     def initialize(file=nil)
       @cookies = Array.new
@@ -288,21 +280,6 @@ class WebAgent
       add(cookie)
     end
 
-    def make_cookie_str(cookie_list)
-      if cookie_list.empty?
-	return nil
-      end
-
-      ret = ''
-      c = cookie_list.shift
-      ret += "#{c.name}=#{c.value}"
-      cookie_list.each{|cookie|
-	ret += "; #{cookie.name}=#{cookie.value}"
-      }
-      return ret
-    end
-    private :make_cookie_str
-
     def find(url)
       return nil if @cookies.empty?
 
@@ -356,47 +333,6 @@ class WebAgent
       end
     end
 
-    def check_domain(domain, hostname, override)
-      return unless domain
-
-      # [DRAFT 12] s. 4.2.2 (does not apply in the case that
-      # host name is the same as domain attribute for version 0
-      # cookie)
-      # I think that this rule has almost the same effect as the
-      # tail match of [NETSCAPE].
-      if domain !~ /^\./ && hostname != domain
-        domain = '.'+domain
-      end
-      # [NETSCAPE] rule
-      if @netscape_rule
-        n = total_dot_num(domain)
-        if n < 2
-          cookie_error(SpecialError.new, override)
-        elsif n == 2
-          ## [NETSCAPE] rule
-          ok = SPECIAL_DOMAIN.select{|sdomain|
-            sdomain == domain[-(sdomain.length)..-1]
-          }
-          if ok.empty?
-            cookie_error(SpecialError.new, override)
-          end
-        end
-      end
-      # this implementation does not check RFC2109 4.3.2 case 2;
-      # the portion of host not in domain does not contain a dot.
-      # according to nsCookieService.cpp in Firefox 3.0.4, Firefox 3.0.4
-      # and IE does not check, too.
-    end
-
-    # not tested well; used only netscape_rule = true.
-    def cookie_error(err, override)
-      if !err.kind_of?(ErrorOverrideOK) || !override
-	raise err
-      end
-    end
-    private :cookie_error
-
-
     def load_cookies
       return if !File.readable?(@cookies_file)
       @cookies.synchronize do
@@ -422,6 +358,7 @@ class WebAgent
       end
     end
 
+    # Who use it?
     def check_cookie_accept_domain(domain)
       unless domain
 	return false
@@ -437,6 +374,65 @@ class WebAgent
 	end
       }
       return true
+    end
+
+  private
+
+    def make_cookie_str(cookie_list)
+      if cookie_list.empty?
+	return nil
+      end
+
+      ret = ''
+      c = cookie_list.shift
+      ret += "#{c.name}=#{c.value}"
+      cookie_list.each{|cookie|
+	ret += "; #{cookie.name}=#{cookie.value}"
+      }
+      return ret
+    end
+
+    # for conformance to http://wp.netscape.com/newsref/std/cookie_spec.html
+    attr_accessor :netscape_rule
+    SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
+
+    def check_domain(domain, hostname, override)
+      return unless domain
+
+      # [DRAFT 12] s. 4.2.2 (does not apply in the case that
+      # host name is the same as domain attribute for version 0
+      # cookie)
+      # I think that this rule has almost the same effect as the
+      # tail match of [NETSCAPE].
+      if domain !~ /^\./ && hostname != domain
+        domain = '.'+domain
+      end
+      # [NETSCAPE] rule
+      if @netscape_rule
+        n = domain.scan(/\./).length
+        if n < 2
+          cookie_error(SpecialError.new, override)
+        elsif n == 2
+          ## [NETSCAPE] rule
+          ok = SPECIAL_DOMAIN.select{|sdomain|
+            sdomain == domain[-(sdomain.length)..-1]
+          }
+          if ok.empty?
+            cookie_error(SpecialError.new, override)
+          end
+        end
+      end
+      # this implementation does not check RFC2109 4.3.2 case 2;
+      # the portion of host not in domain does not contain a dot.
+      # according to nsCookieService.cpp in Firefox 3.0.4, Firefox 3.0.4
+      # and IE does not check, too.
+    end
+
+    # not tested well; used only netscape_rule = true.
+    def cookie_error(err, override)
+      if !err.kind_of?(ErrorOverrideOK) || !override
+	raise err
+      end
     end
   end
 end

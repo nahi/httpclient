@@ -137,20 +137,6 @@ class TestCookieManager < Test::Unit::TestCase
 
   def teardown()
   end
-
-  def test_total_dot_num()
-    assert_equal(0, @cm.total_dot_num(""))
-    assert_equal(0, @cm.total_dot_num("abcde"))
-    assert_equal(1, @cm.total_dot_num("ab.cde"))
-    assert_equal(1, @cm.total_dot_num(".abcde"))
-    assert_equal(1, @cm.total_dot_num("abcde."))
-    assert_equal(2, @cm.total_dot_num("abc.de."))
-    assert_equal(2, @cm.total_dot_num("a.bc.de"))
-    assert_equal(2, @cm.total_dot_num(".abcde."))
-    assert_equal(3, @cm.total_dot_num(".a.bcde."))
-    assert_equal(3, @cm.total_dot_num("a.b.cde."))
-    assert_equal(3, @cm.total_dot_num("a.b.c.de"))
-  end
   
   def test_parse()
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=Wed, 01-Dec-2010 00:00:00 GMT; path=/"
