@@ -48,7 +48,7 @@ class WebAgent
     end
 
     def total_dot_num(string)
-      string.scan(/\./).length()
+      string.scan(/\./).length
     end
 
   end
@@ -71,7 +71,7 @@ class WebAgent
     OVERRIDE_OK = 32
     HTTP_ONLY = 64
 
-    def initialize()
+    def initialize
       @name = @value = @domain = @path = nil
       @expires = nil
       @url = nil
@@ -142,7 +142,7 @@ class WebAgent
     end
 
     def join_quotedstr(array, sep)
-      ret = Array.new()
+      ret = Array.new
       old_elem = nil
       array.each{|elem|
 	if (elem.scan(/"/).length % 2) == 0
@@ -188,7 +188,7 @@ class WebAgent
 	when 'expires'
           @expires = nil
 	  begin
-	    @expires = Time.parse(value).gmtime() if value
+	    @expires = Time.parse(value).gmtime if value
 	  rescue ArgumentError
 	  end
 	when 'path'
@@ -230,12 +230,12 @@ class WebAgent
     SPECIAL_DOMAIN = [".com",".edu",".gov",".mil",".net",".org",".int"]
 
     def initialize(file=nil)
-      @cookies = Array.new()
+      @cookies = Array.new
       @cookies.extend(MonitorMixin)
       @cookies_file = file
       @is_saved = true
-      @reject_domains = Array.new()
-      @accept_domains = Array.new()
+      @reject_domains = Array.new
+      @accept_domains = Array.new
       @netscape_rule = false
     end
 
@@ -246,7 +246,7 @@ class WebAgent
 
     def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
       @cookies.synchronize do
-        check_expired_cookies()
+        check_expired_cookies
         if @is_saved and !force
           return
         end
@@ -272,7 +272,7 @@ class WebAgent
       save_all_cookies(force, false, false)
     end
 
-    def check_expired_cookies()
+    def check_expired_cookies
       @cookies.reject!{|cookie|
         is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
         if is_expired && !cookie.discard?
@@ -283,7 +283,7 @@ class WebAgent
     end
 
     def parse(str, url)
-      cookie = WebAgent::Cookie.new()
+      cookie = WebAgent::Cookie.new
       cookie.parse(str, url)
       add(cookie)
     end
@@ -303,11 +303,10 @@ class WebAgent
     end
     private :make_cookie_str
 
-
     def find(url)
       return nil if @cookies.empty?
 
-      cookie_list = Array.new()
+      cookie_list = Array.new
       @cookies.each{|cookie|
         is_expired = (cookie.expires && (cookie.expires < Time.now.gmtime))
         if cookie.use? && !is_expired && cookie.match?(url)
@@ -319,12 +318,75 @@ class WebAgent
       return make_cookie_str(cookie_list)
     end
 
-    def find_cookie_info(domain, path, name)
-      @cookies.find{|c|
-	c.domain == domain && c.path == path && c.name == name
-      }
+    def add(given)
+      check_domain(given.domain, given.url.host, given.override?)
+
+      domain = given.domain || given.url.host
+      path = given.path || given.url.path.sub(%r|/[^/]*\z|, '')
+
+      cookie = nil
+      @cookies.synchronize do
+        cookie = @cookies.find { |c|
+          c.domain == domain && c.path == path && c.name == given.name
+        }
+        if !cookie
+          cookie = WebAgent::Cookie.new
+          cookie.use = true
+          @cookies << cookie
+        end
+        check_expired_cookies
+      end
+
+      cookie.domain = domain
+      cookie.path = path
+      cookie.url = given.url
+      cookie.name = given.name
+      cookie.value = given.value
+      cookie.expires = given.expires
+      cookie.secure = given.secure?
+      cookie.http_only = given.http_only?
+      cookie.domain_orig = given.domain
+      cookie.path_orig = given.path
+
+      if cookie.discard? || cookie.expires == nil
+	cookie.discard = true
+      else
+	cookie.discard = false
+	@is_saved = false
+      end
     end
-    private :find_cookie_info
+
+    def check_domain(domain, hostname, override)
+      return unless domain
+
+      # [DRAFT 12] s. 4.2.2 (does not apply in the case that
+      # host name is the same as domain attribute for version 0
+      # cookie)
+      # I think that this rule has almost the same effect as the
+      # tail match of [NETSCAPE].
+      if domain !~ /^\./ && hostname != domain
+        domain = '.'+domain
+      end
+      # [NETSCAPE] rule
+      if @netscape_rule
+        n = total_dot_num(domain)
+        if n < 2
+          cookie_error(SpecialError.new, override)
+        elsif n == 2
+          ## [NETSCAPE] rule
+          ok = SPECIAL_DOMAIN.select{|sdomain|
+            sdomain == domain[-(sdomain.length)..-1]
+          }
+          if ok.empty?
+            cookie_error(SpecialError.new, override)
+          end
+        end
+      end
+      # this implementation does not check RFC2109 4.3.2 case 2;
+      # the portion of host not in domain does not contain a dot.
+      # according to nsCookieService.cpp in Firefox 3.0.4, Firefox 3.0.4
+      # and IE does not check, too.
+    end
 
     # not tested well; used only netscape_rule = true.
     def cookie_error(err, override)
@@ -334,91 +396,14 @@ class WebAgent
     end
     private :cookie_error
 
-    def add(cookie)
-      url = cookie.url
-      name, value = cookie.name, cookie.value
-      expires, domain, path = 
-	cookie.expires, cookie.domain, cookie.path
-      secure, http_only, domain_orig, path_orig = 
-	cookie.secure?, cookie.http_only?, cookie.domain_orig?, cookie.path_orig?
-      discard, override = 
-	cookie.discard?, cookie.override?
 
-      domainname = url.host
-      domain_orig, path_orig = domain, path
-
-      if domain
-
-	# [DRAFT 12] s. 4.2.2 (does not apply in the case that
-	# host name is the same as domain attribute for version 0
-	# cookie)
-	# I think that this rule has almost the same effect as the
-	# tail match of [NETSCAPE].
-	if domain !~ /^\./ && domainname != domain
-	  domain = '.'+domain
-	end
-
-        # [NETSCAPE] rule
-        if @netscape_rule
-          n = total_dot_num(domain)
-          if n < 2
-            cookie_error(SpecialError.new(), override)
-          elsif n == 2
-            ## [NETSCAPE] rule
-            ok = SPECIAL_DOMAIN.select{|sdomain|
-              sdomain == domain[-(sdomain.length)..-1]
-            }
-            if ok.empty?
-              cookie_error(SpecialError.new(), override)
-            end
-          end
-        end
-
-        # this implementation does not check RFC2109 4.3.2 case 2;
-        # the portion of host not in domain does not contain a dot.
-        # according to nsCookieService.cpp in Firefox 3.0.4, Firefox 3.0.4
-        # and IE does not check, too.
-      end
-
-      path ||= url.path.sub(%r|/[^/]*\z|, '')
-      domain ||= domainname
-      @cookies.synchronize do
-        cookie = find_cookie_info(domain, path, name)
-        if !cookie
-          cookie = WebAgent::Cookie.new()
-          cookie.use = true
-          @cookies << cookie
-        end
-        check_expired_cookies()
-      end
-
-      cookie.url = url
-      cookie.name = name
-      cookie.value = value
-      cookie.expires = expires
-      cookie.domain = domain
-      cookie.path = path
-
-      ## for flag
-      cookie.secure = secure
-      cookie.http_only = http_only
-      cookie.domain_orig = domain_orig
-      cookie.path_orig = path_orig
-      if discard || cookie.expires == nil
-	cookie.discard = true
-      else
-	cookie.discard = false
-	@is_saved = false
-      end
-    end
-
-    def load_cookies()
+    def load_cookies
       return if !File.readable?(@cookies_file)
       @cookies.synchronize do
         @cookies.clear
         File.open(@cookies_file,'r'){|f|
           while line = f.gets
-            cookie = WebAgent::Cookie.new()
+            cookie = WebAgent::Cookie.new
             @cookies << cookie
             col = line.chomp.split(/\t/)
             cookie.url = HTTPClient::Util.urify(col[0])
@@ -455,119 +440,3 @@ class WebAgent
     end
   end
 end
-
-__END__
-
-=begin
-
-== WebAgent::CookieManager Class
-
-Load, save, parse and send cookies.
-
-=== Usage
-
-  ## initialize
-  cm = WebAgent::CookieManager.new("/home/foo/bar/cookie")
-
-  ## load cookie data
-  cm.load_cookies()
-
-  ## parse cookie from string (maybe "Set-Cookie:" header)
-  cm.parse(str)
-
-  ## send cookie data to url
-  f.write(cm.find(url))
-
-  ## save cookie to cookiefile
-  cm.save_cookies()
-
-
-=== Class Methods
-
- -- CookieManager::new(file=nil)
-
-     create new CookieManager. If a file is provided,
-     use it as cookies' file.
-
-=== Methods
-
- -- CookieManager#save_cookies(force = nil)
-
-     save cookies' data into file. if argument is true,
-     save data although data is not modified.
-
- -- CookieManager#parse(str, url)
-
-     parse string and store cookie (to parse HTTP response header).
-
- -- CookieManager#find(url)
-
-     get cookies and make into string (to send as HTTP request header).
-
- -- CookieManager#add(cookie)
-
-     add new cookie.
-
- -- CookieManager#load_cookies()
-
-     load cookies' data from file.
-
-
-== WebAgent::CookieUtils Module
-
- -- CookieUtils::head_match?(str1, str2)
- -- CookieUtils::tail_match?(str1, str2)
- -- CookieUtils::domain_match(host, domain)
- -- CookieUtils::total_dot_num(str)
-
-
-== WebAgent::Cookie Class
-
-=== Class Methods
-
- -- Cookie::new()
-
-      create new cookie.
-
-=== Methods
-
- -- Cookie#match?(url)
-
-       match cookie by url. if match, return true. otherwise,
-       return false.
-
- -- Cookie#name
- -- Cookie#name=(name)
- -- Cookie#value
- -- Cookie#value=(value)
- -- Cookie#domain
- -- Cookie#domain=(domain)
- -- Cookie#path
- -- Cookie#path=(path)
- -- Cookie#expires
- -- Cookie#expires=(expires)
- -- Cookie#url
- -- Cookie#url=(url)
-
-      accessor methods for cookie's items.
-
- -- Cookie#discard?
- -- Cookie#discard=(discard)
- -- Cookie#use?
- -- Cookie#use=(use)
- -- Cookie#secure?
- -- Cookie#secure=(secure)
- -- Cookie#http_only?
- -- Cookie#http_only=(http_only)
- -- Cookie#domain_orig?
- -- Cookie#domain_orig=(domain_orig)
- -- Cookie#path_orig?
- -- Cookie#path_orig=(path_orig)
- -- Cookie#override?
- -- Cookie#override=(override)
- -- Cookie#flag
- -- Cookie#set_flag(flag_num)
-
-      accessor methods for flags.
-
-=end
