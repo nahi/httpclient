@@ -12,7 +12,7 @@ unless ''.respond_to?(:bytesize)
   end
 end
 
-if RUBY_VERSION < "1.9.0"
+if RUBY_VERSION < "1.9.3"
   require 'uri'
   module URI
     class Generic
