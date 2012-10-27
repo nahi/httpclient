@@ -958,8 +958,8 @@ class HTTPClient
             buf = nil
           end
         end
-        if buf && buf.bytesize > 0
-          @content_length -= buf.bytesize
+        if buf && (size = buf.bytesize) > 0
+          @content_length -= size
           yield buf
         else
           @content_length = 0
