@@ -90,6 +90,8 @@ class HTTPClient
     attr_accessor :agent_name
     # Owner of this client.  Used for 'From' header in HTTP request.
     attr_accessor :from
+    # Used for 'Referer' header in HTTP request.
+    attr_accessor :referer
 
     # Requested protocol version
     attr_accessor :protocol_version
@@ -124,6 +126,7 @@ class HTTPClient
 
       @agent_name = nil
       @from = nil
+      @referer = nil
 
       @protocol_version = nil
       @debug_dev = client.debug_dev
@@ -201,7 +204,7 @@ class HTTPClient
       if cached = get_cached_session(site)
         sess = cached
       else
-        sess = Session.new(@client, site, @agent_name, @from)
+        sess = Session.new(@client, site, @agent_name, @from, @referer)
         sess.proxy = via_proxy ? @proxy : nil
         sess.socket_sync = @socket_sync
         sess.requested_version = @protocol_version if @protocol_version
@@ -564,7 +567,7 @@ class HTTPClient
     attr_accessor :transparent_gzip_decompression
     attr_reader :last_used
 
-    def initialize(client, dest, agent_name, from)
+    def initialize(client, dest, agent_name, from, referer)
       @client = client
       @dest = dest
       @invalidated = false
@@ -589,6 +592,7 @@ class HTTPClient
 
       @agent_name = agent_name
       @from = from
+      @referer = referer
       @state = :INIT
 
       @requests = []
@@ -731,6 +735,9 @@ class HTTPClient
       end
       if @from
         req.header.set('From', @from)
+      end
+      if @referer
+        req.header.set('Referer', @referer)
       end
       if req.header.get('Accept').empty?
         req.header.set('Accept', '*/*')
