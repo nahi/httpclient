@@ -1062,10 +1062,8 @@ private
     @debug_dev << "\n\n= Response\n\n" if @debug_dev
     do_get_header(req, res, sess)
     conn.push(res)
-    set_encoding(content, res.body_encoding)
-    content_encoding = content.respond_to?(:encoding) ? content.encoding : nil
     sess.get_body do |part|
-      set_encoding(part, content_encoding)
+      set_encoding(part, res.body_encoding)
       if block
         block.call(res, part)
       else
