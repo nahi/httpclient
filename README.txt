@@ -107,6 +107,25 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.3.1 =
+
+  January 1, 2013 - version 2.3.1
+
+  * Changes
+
+    * #137 Signing key is expiring for cacert_sha1.p7s.
+      Deleted p7s signature check for default cacerts.  Sorry for many troubles
+      in the past. This feature is not useful without having online/real-time
+      CA certs update but I don't think I can implement it in near future.
+      Users depend on this signature check (who puts cacert.p7s in R/W
+      filesystem and ssl_config.rb in R/O filesystem) should take care the
+      tampering by themself.
+
+  * Bug fixes
+
+    * #122 Support IPv6 address in URI
+
+
 = Changes in 2.3.0 =
 
   October 10, 2012 - version 2.3.0
