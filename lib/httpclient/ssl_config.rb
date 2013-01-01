@@ -26,7 +26,8 @@ class HTTPClient
   # like Web browsers.  'httpclient/cacert.p7s' is created by the author and
   # included in released package.
   #
-  # 'cacert.p7s' is automatically generated from JDK 1.6.
+  # 'cacert.p7s' is automatically generated from JDK 1.6.  Regardless its
+  # filename extension (p7s), HTTPClient doesn't verify the signature in it.
   #
   # You may want to change trust anchor by yourself.  Call clear_cert_store
   # then add_trust_ca for that purpose.
@@ -393,78 +394,9 @@ class HTTPClient
     end
 
     def load_cacerts(cert_store)
-      [
-        [DIST_CERT, 'cacert.p7s'],
-        [DIST_CERT_SHA1, 'cacert_sha1.p7s']
-      ].each do |cert_str, ca_file|
-        file = File.join(File.dirname(__FILE__), ca_file)
-        if File.exist?(file)
-          p7 = PKCS7.read_smime(File.open(file) { |f| f.read })
-          selfcert = X509::Certificate.new(cert_str)
-          store = X509::Store.new
-          store.add_cert(selfcert)
-          if (p7.verify(nil, store, p7.data, 0))
-            add_trust_ca_to_store(cert_store, file)
-            return
-          end
-        end
-      end
-      warn("cacerts loading failed")
+      file = File.join(File.dirname(__FILE__), 'cacert.p7s')
+      add_trust_ca_to_store(cert_store, file)
     end
-
-    DIST_CERT =<<__DIST_CERT__
------BEGIN CERTIFICATE-----
-MIID/TCCAuWgAwIBAgIBATANBgkqhkiG9w0BAQ0FADBLMQswCQYDVQQGEwJKUDER
-MA8GA1UECgwIY3Rvci5vcmcxFDASBgNVBAsMC0RldmVsb3BtZW50MRMwEQYDVQQD
-DApodHRwY2xpZW50MB4XDTA5MDUyMTEyMzkwNVoXDTM3MTIzMTIzNTk1OVowSzEL
-MAkGA1UEBhMCSlAxETAPBgNVBAoMCGN0b3Iub3JnMRQwEgYDVQQLDAtEZXZlbG9w
-bWVudDETMBEGA1UEAwwKaHR0cGNsaWVudDCCASIwDQYJKoZIhvcNAQEBBQADggEP
-ADCCAQoCggEBAM2PlkdTH97zvIHoPIMj87wnNvpqIQUD7L/hlysO0XBsmR/XZUeU
-ZKB10JQqMXviWpTnU9KU6xGTx3EI4wfd2dpLwH/d4d7K4LngW1kY7kJlZeJhakno
-GzQ40RSI9WkQ0R9KOE888f7OkTBafcL8UyWFVIMhQBw2d9iNl4Jc69QojayCDoSX
-XbbEP0n8yi7HwIU3RFuX6DtMpOx4/1K7Z002ccOGJ3J9kHgeDQSQtF42cQYC7qj2
-67I/OQgnB7ycxTCP0E7bdXQg+zqsngrhaoNn/+I+CoO7nD4t4uQ+B4agALh4PPxs
-bQD9MCL+VurNGLYv0HVd+ZlLblpddC9PLTsCAwEAAaOB6zCB6DAPBgNVHRMBAf8E
-BTADAQH/MDEGCWCGSAGG+EIBDQQkFiJSdWJ5L09wZW5TU0wgR2VuZXJhdGVkIENl
-cnRpZmljYXRlMB0GA1UdDgQWBBRAnB6XlMoOcm7HVAw+JWxY205PHTAOBgNVHQ8B
-Af8EBAMCAQYwcwYDVR0jBGwwaoAUQJwel5TKDnJux1QMPiVsWNtOTx2hT6RNMEsx
-CzAJBgNVBAYTAkpQMREwDwYDVQQKDAhjdG9yLm9yZzEUMBIGA1UECwwLRGV2ZWxv
-cG1lbnQxEzARBgNVBAMMCmh0dHBjbGllbnSCAQEwDQYJKoZIhvcNAQENBQADggEB
-ABVFepybD5XqsBnOn/oDHvK0xAPMF4Ap4Ht1yMQLObg8paVhANSdqIevPlCr/mPL
-DRjcy+J1fCnE6lCfsfLdTgAjirqt8pm92NccxmJ8hTmMd3LWC1n+eYWaolqTCVRM
-Bpe8UY9enyXrFoudHlr9epr18E6As6VrCSfpXFZkD9WHVSWpzkB3qATu5qcDCzCH
-bI0755Mdm/1hKJCD4l69h3J3OhRIEUPJfHnPvM5wtiyC2dcE9itwE/wdVzBJeIBX
-JQm+Qj+K8qXcRTzZZGIBjw2n46xJgW6YncNCHU/WWfNCYwdkngHS/aN8IbEjhCwf
-viXFisVrDN/+pZZGMf67ZaY=
------END CERTIFICATE-----
-__DIST_CERT__
-
-    DIST_CERT_SHA1 =<<__DIST_CERT__
------BEGIN CERTIFICATE-----
-MIID/TCCAuWgAwIBAgIBAjANBgkqhkiG9w0BAQUFADBLMQswCQYDVQQGEwJKUDER
-MA8GA1UECgwIY3Rvci5vcmcxFDASBgNVBAsMC0RldmVsb3BtZW50MRMwEQYDVQQD
-DApodHRwY2xpZW50MB4XDTEwMTIxMzEzNTYyOVoXDTEzMDExNDIzNTk1OVowSzEL
-MAkGA1UEBhMCSlAxETAPBgNVBAoMCGN0b3Iub3JnMRQwEgYDVQQLDAtEZXZlbG9w
-bWVudDETMBEGA1UEAwwKaHR0cGNsaWVudDCCASIwDQYJKoZIhvcNAQEBBQADggEP
-ADCCAQoCggEBAM2PlkdTH97zvIHoPIMj87wnNvpqIQUD7L/hlysO0XBsmR/XZUeU
-ZKB10JQqMXviWpTnU9KU6xGTx3EI4wfd2dpLwH/d4d7K4LngW1kY7kJlZeJhakno
-GzQ40RSI9WkQ0R9KOE888f7OkTBafcL8UyWFVIMhQBw2d9iNl4Jc69QojayCDoSX
-XbbEP0n8yi7HwIU3RFuX6DtMpOx4/1K7Z002ccOGJ3J9kHgeDQSQtF42cQYC7qj2
-67I/OQgnB7ycxTCP0E7bdXQg+zqsngrhaoNn/+I+CoO7nD4t4uQ+B4agALh4PPxs
-bQD9MCL+VurNGLYv0HVd+ZlLblpddC9PLTsCAwEAAaOB6zCB6DAPBgNVHRMBAf8E
-BTADAQH/MDEGCWCGSAGG+EIBDQQkFiJSdWJ5L09wZW5TU0wgR2VuZXJhdGVkIENl
-cnRpZmljYXRlMB0GA1UdDgQWBBRAnB6XlMoOcm7HVAw+JWxY205PHTAOBgNVHQ8B
-Af8EBAMCAQYwcwYDVR0jBGwwaoAUQJwel5TKDnJux1QMPiVsWNtOTx2hT6RNMEsx
-CzAJBgNVBAYTAkpQMREwDwYDVQQKDAhjdG9yLm9yZzEUMBIGA1UECwwLRGV2ZWxv
-cG1lbnQxEzARBgNVBAMMCmh0dHBjbGllbnSCAQIwDQYJKoZIhvcNAQEFBQADggEB
-AA0kgOPnEDE+Zi/8GmZGmLthazdmigsuMN0pyYd4AJY6RkVeCRUSF4avqBj+lodg
-VPC5hgL1k6sMfE3OPTlUMjqaNecWcm9N46VQT2QLYeC6bwpEAgN1KVQ0n6lcUrG+
-8umYZJ+MsdwmBkwSIzIu3ZGwO8IILpNL5fwSMjg7K1T76Po4kPlqmWlcdDUYz5ZY
-42jx3BCFf/w3fuk3mOacZjLu3+AmpHWb+mpXg+jQHfrmVRFCsEkiA2DBLYjE92nB
-QmRI2pgn1yHHy7uia+3WHOm72ai3fLSpChctNXTkhFyIB7Q7LYR277fb+GWcvACZ
-WHLqjiy2yLPZy9JZwnCi4yE=
------END CERTIFICATE-----
-__DIST_CERT__
   end
 
 
