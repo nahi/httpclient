@@ -107,6 +107,16 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.3.2 =
+
+  January 5, 2013 - version 2.3.2
+
+  * Changes 
+
+    * #138 Revert Timeout change unintentionally included in v2.3.1.  It's
+      reported that the change causes background processes not terminated
+      properly.
+
 = Changes in 2.3.1 =
 
   January 1, 2013 - version 2.3.1
