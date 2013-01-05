@@ -23,7 +23,7 @@ class HTTPClient
   #   timeout scheduler.
   # * Do not wakeup the scheduler thread so often.  Let scheduler thread sleep
   #   until the nearest period.
-if !defined?(JRUBY_VERSION)
+if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'
   class TimeoutScheduler
 
     # Represents timeout period.
@@ -121,7 +121,7 @@ if !defined?(JRUBY_VERSION)
 end
 
   module Timeout
-    if !defined?(JRUBY_VERSION)
+    if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'
       def timeout(sec, ex = nil, &block)
         return yield if sec == nil or sec.zero?
         scheduler = nil
