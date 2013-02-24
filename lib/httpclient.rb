@@ -229,7 +229,7 @@ require 'httpclient/cookie'
 #   ruby -rhttpclient -e 'p HTTPClient.head(ARGV.shift).header["last-modified"]' http://dev.ctor.org/
 #
 class HTTPClient
-  RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE}) [#{RUBY_PLATFORM}]"
+  RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE})"
   LIB_NAME = "(#{VERSION}, #{RUBY_VERSION_STRING})"
 
   include Util
@@ -357,6 +357,9 @@ class HTTPClient
   # Default header for PROPFIND request.
   PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }
 
+  # Default User-Agent header
+  DEFAULT_AGENT_NAME = 'HTTPClient/1.0'
+
   # Creates a HTTPClient instance which manages sessions, cookies, etc.
   #
   # HTTPClient.new takes 3 optional arguments for proxy url string,
@@ -385,7 +388,7 @@ class HTTPClient
     @redirect_uri_callback = method(:default_redirect_uri_callback)
     @test_loopback_response = []
     @session_manager = SessionManager.new(self)
-    @session_manager.agent_name = agent_name
+    @session_manager.agent_name = agent_name || DEFAULT_AGENT_NAME
     @session_manager.from = from
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
     @cookie_manager = WebAgent::CookieManager.new

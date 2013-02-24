@@ -47,7 +47,7 @@ class TestClient < Test::Unit::TestCase
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
-    assert_match(/^From: from_bar/, lines[4])
+    assert_match(/^From: from_bar/, lines[5])
   end
 
   def test_debug_dev
@@ -81,8 +81,8 @@ class TestClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET /hello HTTP/1.0", lines[3])
-    assert_equal("Connection: close", lines[6])
-    assert_equal("= Response", lines[7])
+    assert_equal("Connection: close", lines[7])
+    assert_equal("= Response", lines[8])
   end
 
   def test_protocol_version_http11
@@ -93,7 +93,7 @@ class TestClient < Test::Unit::TestCase
     assert_equal("= Request", lines[0])
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
-    assert_equal("Host: localhost:#{serverport}", lines[6])
+    assert_equal("Host: localhost:#{serverport}", lines[7])
     @client.protocol_version = 'HTTP/1.1'
     str = ""
     @client.debug_dev = str
