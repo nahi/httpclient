@@ -107,6 +107,15 @@ Thanks in advance.
 
 == Changes
 
+= Changes in 2.3.3 =
+
+  February 24, 2013 - version 2.3.3
+
+  * Changes
+
+    * #144 Add User-Agent field by default. You can remove the header by
+      setting nil to HTTPClient#agent_name.
+
 = Changes in 2.3.2 =
 
   January 5, 2013 - version 2.3.2
