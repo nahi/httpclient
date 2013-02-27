@@ -483,7 +483,7 @@ class HTTPClient
     @no_proxy = no_proxy
     @no_proxy_regexps.clear
     if @no_proxy
-      @no_proxy.scan(/([^:,]+)(?::(\d+))?/) do |host, port|
+      @no_proxy.scan(/([^\s:,]+)(?::(\d+))?/) do |host, port|
         if host[0] == ?.
           regexp = /#{Regexp.quote(host)}\z/i
         else
