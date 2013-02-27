@@ -608,7 +608,7 @@ class HTTPClient
     def query(req)
       connect if @state == :INIT
       # Use absolute URI (not absolute path) iif via proxy AND not HTTPS.
-      req.header.request_absolute_uri = !@proxy.nil? and !https?(@dest)
+      req.header.request_absolute_uri = (!@proxy.nil? and !https?(@dest))
       begin
         timeout(@send_timeout, SendTimeoutError) do
           set_header(req)
