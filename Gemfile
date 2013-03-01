@@ -16,8 +16,7 @@ group :development do
   gem 'rack'
   gem 'rubysspi'
   gem 'rubyntlm'
-  gem 'rack-ntlm-test-service', :git => "https://git@github.com/johncant/rack-ntlm-test-service"
-  gem 'rack-ntlm-test-service', :path => "~/reevoo/rack-ntlm-test-service"
+  gem 'rack-ntlm-test-service'
 end
 
 gemspec
