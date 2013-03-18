@@ -324,6 +324,8 @@ class HTTPClient
   # How many times get_content and post_content follows HTTP redirect.
   # 10 by default.
   attr_accessor :follow_redirect_count
+  # History of requests/responses from the current client instance
+  attr_accessor :history
 
   # Set HTTP version as a String:: 'HTTP/1.0' or 'HTTP/1.1'
   attr_proxy(:protocol_version, true)
@@ -393,6 +395,7 @@ class HTTPClient
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
     @cookie_manager = WebAgent::CookieManager.new
     @follow_redirect_count = 10
+    @history = []
     load_environment
     self.proxy = proxy if proxy
     keep_webmock_compat
@@ -882,14 +885,17 @@ private
     while retry_count > 0
       body.pos = pos if pos
       req = create_request(method, uri, query, body, header)
+      @history << req
       begin
         protect_keep_alive_disconnected do
           do_get_block(req, proxy, conn, &block)
         end
         res = conn.pop
+        @history << res
         break
       rescue RetryableResponse
         res = conn.pop
+        @history << res
         retry_count -= 1
       end
     end
