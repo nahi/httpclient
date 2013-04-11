@@ -303,6 +303,7 @@ class WebAgent
 
       cookie = nil
       @cookies.synchronize do
+        check_expired_cookies
         cookie = @cookies.find { |c|
           c.domain == domain && c.path == path && c.name == given.name
         }
@@ -311,7 +312,6 @@ class WebAgent
           cookie.use = true
           @cookies << cookie
         end
-        check_expired_cookies
       end
 
       cookie.domain = domain
