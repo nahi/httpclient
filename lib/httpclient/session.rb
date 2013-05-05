@@ -948,6 +948,9 @@ class HTTPClient
       return nil if @content_length == 0
       while true
         buf = ''
+        if RUBY_VERSION >= '1.9'
+          buf.force_encoding(::Encoding::ASCII_8BIT)
+        end
         maxbytes = @read_block_size
         maxbytes = @content_length if maxbytes > @content_length
         timeout(@receive_timeout, ReceiveTimeoutError) do
@@ -971,6 +974,9 @@ class HTTPClient
     RS = "\r\n"
     def read_body_chunked(&block)
       buf = ''
+      if RUBY_VERSION >= '1.9'
+        buf.force_encoding(::Encoding::ASCII_8BIT)
+      end
       while true
         len = @socket.gets(RS)
         if len.nil? # EOF
@@ -999,6 +1005,9 @@ class HTTPClient
       end
       while true
         buf = ''
+        if RUBY_VERSION >= '1.9'
+          buf.force_encoding(::Encoding::ASCII_8BIT)
+        end
         timeout(@receive_timeout, ReceiveTimeoutError) do
           begin
             @socket.readpartial(@read_block_size, buf)
