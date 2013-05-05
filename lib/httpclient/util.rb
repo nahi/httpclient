@@ -164,6 +164,14 @@ class HTTPClient
     end
     module_function :hash_find_value
 
+    # Gets a string to be used as a binary buffer
+    def get_buf
+      buf = ''
+      defined?(Encoding::ASCII_8BIT) && buf.force_encoding(Encoding::ASCII_8BIT)
+      buf
+    end
+    module_function :get_buf
+
     # Checks if the given URI is https.
     def https?(uri)
       uri.scheme && uri.scheme.downcase == 'https'
