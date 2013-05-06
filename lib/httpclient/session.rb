@@ -693,12 +693,24 @@ class HTTPClient
           # > or add 16 to decode only the gzip format
           inflate_stream = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
           original_block = block
-          block = Proc.new { |buf|
-            original_block.call(inflate_stream.inflate(buf))
-          }
+          if @chunked
+            buffer = ''
+            block = Proc.new { |buf|
+              # we need to strip last \r\n from string for proper gzip decompression
+              buffer += buf[0..-3]
+            }
+          else
+            block = Proc.new { |buf|
+              original_block.call(inflate_stream.inflate(buf))
+            }
+          end
         end
         if @chunked
           read_body_chunked(&block)
+          if @gzipped
+            # puts buffer
+            original_block.call(inflate_stream.inflate(buffer))
+          end
         elsif @content_length
           read_body_length(&block)
         else
