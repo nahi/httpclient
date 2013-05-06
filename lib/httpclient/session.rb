@@ -708,7 +708,6 @@ class HTTPClient
         if @chunked
           read_body_chunked(&block)
           if @gzipped
-            # puts buffer
             original_block.call(inflate_stream.inflate(buffer))
           end
         elsif @content_length
