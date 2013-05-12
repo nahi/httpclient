@@ -1041,6 +1041,10 @@ module HTTP
     def see_other?
       status == HTTP::Status::SEE_OTHER
     end
+
+    def found?
+      status == HTTP::Status::FOUND
+    end
   end
 
 end
