@@ -235,6 +235,27 @@ class TestCookieManager < Test::Unit::TestCase
     assert_equal("/", cookie.path)
   end
 
+  def test_parse_after_expiration
+    str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=Wed, 01-Dec-2010 00:00:00 GMT; path=/"
+    @cm.parse(str, urify('http://www.test.jp'))
+    cookie = @cm.cookies[0]
+    assert_instance_of(WebAgent::Cookie, cookie)
+    assert_equal("inkid", cookie.name)
+    assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
+    assert_equal(Time.gm(2010, 12, 1, 0,0,0), cookie.expires)
+    assert_equal("/", cookie.path)
+
+    time = Time.now.utc.round + 60
+    expires = time.strftime("%a, %d-%b-%Y %H:%M:%S GMT")
+    str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=#{expires}; path=/"
+    @cm.parse(str, urify('http://www.test.jp'))
+    cookie = @cm.cookies[0]
+    assert_equal("inkid", cookie.name)
+    assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
+    assert_equal(time, cookie.expires)
+    assert_equal("/", cookie.path)
+  end
+
   def test_find_cookie()
     str = "xmen=off,0,0,1; path=/; domain=.excite2.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str, urify("http://www.excite2.co.jp/"))
