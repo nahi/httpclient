@@ -11,4 +11,5 @@ Gem::Specification.new { |s|
   s.summary = 'Fork of httpclient with some fixes and patches I needed. Please use original gem instead'
   s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.md']
   s.require_path = 'lib'
+  s.license = 'ruby'
 }
