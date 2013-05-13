@@ -9,6 +9,6 @@ Gem::Specification.new { |s|
   s.homepage = 'http://github.com/glebtv/httpclient'
   s.platform = Gem::Platform::RUBY
   s.summary = 'Fork of httpclient with some fixes and patches I needed. Please use original gem instead'
-  s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.txt']
+  s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.md']
   s.require_path = 'lib'
 }

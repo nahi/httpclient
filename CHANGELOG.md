@@ -1,109 +1,3 @@
-httpclient - HTTP accessing library.
-Copyright (C) 2000-2012  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
-
-'httpclient' gives something like the functionality of libwww-perl (LWP) in
-Ruby.  'httpclient' formerly known as 'http-access2'.
-
-See HTTPClient for documentation.
-
-
-== Features
-
-* methods like GET/HEAD/POST/* via HTTP/1.1.
-* HTTPS(SSL), Cookies, proxy, authentication(Digest, NTLM, Basic), etc.
-* asynchronous HTTP request, streaming HTTP request.
-* debug mode CLI.
-
-* by contrast with net/http in standard distribution;
-  * Cookies support
-  * MT-safe
-  * streaming POST (POST with File/IO)
-  * Digest auth
-  * Negotiate/NTLM auth for WWW-Authenticate (requires net/ntlm module; rubyntlm gem)
-  * NTLM auth for Proxy-Authenticate (requires 'win32/sspi' module; rubysspi gem)
-  * extensible with filter interface
-  * you don't have to care HTTP/1.1 persistent connection
-    (httpclient cares instead of you)
-
-* Not supported now
-  * Cache
-  * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.
-    (of course you can set it in header by yourself)
-
-== httpclient command
-
-Usage: 1) % httpclient get https://www.google.co.jp/ q=ruby
-Usage: 2) % httpclient
-
-For 1) it issues a GET request to the given URI and shows the wiredump and
-the parsed result.  For 2) it invokes irb shell with the binding that has a
-HTTPClient as 'self'.  You can call HTTPClient instance methods like;
-
-  > get "https://www.google.co.jp/", :q => :ruby
-
-== Author
-
-Name:: Hiroshi Nakamura
-E-mail:: nahi@ruby-lang.org
-Project web site:: http://github.com/nahi/httpclient
-
-
-== License
-
-This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
-redistribute it and/or modify it under the same terms of Ruby's license;
-either the dual license version in 2003, or any later version.
-
-httpclient/session.rb is based on http-access.rb in http-access/0.0.4.  Some
-part of it is copyrighted by Maebashi-san who made and published
-http-access/0.0.4.  http-access/0.0.4 did not include license notice but when
-I asked Maebashi-san he agreed that I can redistribute it under the same terms
-of Ruby.  Many thanks to Maebashi-san.
-
-
-== Install
-
-=== Gem
-
-You can install httpclient with rubygems.
-
-  % gem install httpclient
-
-=== Package
-
-You can install httpclient with the bundled installer script.
-
-  $ ruby install.rb
-
-It will install lib/* to your site_ruby directory such as
-/usr/local/lib/ruby/site_ruby/1.8/.
-
-For uninstall, delete installed files from your site_ruby directory.
-
-
-== Usage
-
-See HTTPClient for documentation.
-You can also check sample/howto.rb how to use APIs.
-
-
-== Download
-
-* Gem repository
-  * https://rubygems.org/gems/httpclient
-
-* git: git://github.com/nahi/httpclient.git
-
-== Bug report or Feature request
-
-Please file a ticket at the project web site.
-
-1. find a similar ticket from https://github.com/nahi/httpclient/issues
-2. create a new ticket by clicking 'Create Issue' button.
-3. you can use github features such as pull-request if you like.
-
-Thanks in advance. 
-
 
 == Changes
 
@@ -120,7 +14,7 @@ Thanks in advance.
 
   January 5, 2013 - version 2.3.2
 
-  * Changes 
+  * Changes
 
     * #138 Revert Timeout change unintentionally included in v2.3.1.  It's
       reported that the change causes background processes not terminated
@@ -221,7 +115,7 @@ Thanks in advance.
   May 06, 2012 - version 2.2.5
 
     * Bug fixes
-    
+
       * Added Magic encoding comment to hexdump.rb to avoid encoding error.
       * Add workaround for JRuby issue on Windows (JRUBY-6136)
         On Windows, calling File#size fails with an Unknown error (20047).
@@ -253,7 +147,7 @@ Thanks in advance.
       * Set VERSION string in User-Agent header.  $Id$ didn't work long time...
 
       Bugs are reported by Seamus Abshere. Thanks!
-  
+
 = Changes in 2.2.3 =
 
   Oct 28, 2011 - version 2.2.3
@@ -261,7 +155,7 @@ Thanks in advance.
     * Bug fixes
 
       * Ruby 1.8.6 support.  It's broken from 2.2.0.
-  
+
 = Changes in 2.2.2 =
 
   Oct 17, 2011 - version 2.2.2
@@ -282,7 +176,7 @@ Thanks in advance.
         not in LRU.  MRU is more server friendly than LRU because it reduces
         number of cached sessions when a number of requests drops after an
         usaage spike.
-    
+
         With reusing sessions in LRU order, all sessions are equally checked if
         it's closed or not, as far as there's a request to the same site.  With
         reusing sessions in MRU order, old cold sessions are kept in cache long
@@ -290,7 +184,7 @@ Thanks in advance.
         this version adds keep_alive_timeout property and let SessionManager
         scrub all sessions with checking the timeout for each session.  When the
         session expires against the last used time, it's closed and collected.
-    
+
         keep_alive_timeout is 15[sec] by default. The value is from the default
         value for KeepAliveTimeout of Apache httpd 2.  #68 #69
 
@@ -302,18 +196,18 @@ Thanks in advance.
 
       * For Lighttpd + PUT/POST support, do not send a request using chunked
         encoding when IO respond to :size, File for example.
-    
+
         - There is no need to send query with Transfer-Encoding: chuncked when
           IO respond to :size.
         - Lighttpd does not support PUT, POST with Transfer-Encoding: chuncked.
           You will see that the lighty respond with 200 OK, but there is a file
           whose size is zero.
-    
+
         LIMITATION:
           timeout occurs certainly when you send very large file and
           @send_timeout is default since HTTPClient::Session#query() assumes
           that *all* write are finished in @send_timeout sec not each write.
-    
+
         WORKAROUND:
           increment @send_timeout and @receive_timeout or set @send_timeout and
           @receive_timeout to 0 not to be timeout.
@@ -331,7 +225,7 @@ Thanks in advance.
 
       * Updated trusted CA certificates file (cacert.p7s and cacert_sha1.p7s).
         CA certs are imported from
-        'Java(TM) SE Runtime Environment (build 1.6.0_25-b06)'. 
+        'Java(TM) SE Runtime Environment (build 1.6.0_25-b06)'.
 
       * Changed default chunk size from 4K to 16K. It's used for reading size
         at a time.
@@ -399,7 +293,7 @@ Thanks in advance.
         you're on such an environment.
       * Updated trusted CA certificates file (cacert.p7s and cacert_sha1.p7s).
         CA certs are imported from
-        'Java(TM) SE Runtime Environment (build 1.6.0_22-b04)'. 
+        'Java(TM) SE Runtime Environment (build 1.6.0_22-b04)'.
 
     * IMPORTANT bug fix for persistent connection
       * #29 Resource Leak: If httpclient establishes two connections to the
@@ -462,7 +356,7 @@ Thanks in advance.
         Nov 2009. Please update to 2.1.5 by Oct 2009 if your application
         depends on trusted CA bundle file.
       * Updated trusted CA certificates file (cacert.p7s). CA certs are
-        imported from 'Java(TM) SE Runtime Environment (build 1.6.0_13-b03)'. 
+        imported from 'Java(TM) SE Runtime Environment (build 1.6.0_13-b03)'.
       * Updated a cacert distribution certificate.
         RSA 2048 bit + SHA512 + notAfter:2037/12/31. (#215)
 
@@ -508,7 +402,7 @@ Thanks in advance.
         this bug. (#197)
       * httpclient/2.1.3 cannot handle Cookie header with 'expires=' and
         'expires=""'.  Empty String for Time.parse returns Time.now unlike
-        ParseDate.parsedate. Thanks to Mark for the patch. (#200) 
+        ParseDate.parsedate. Thanks to Mark for the patch. (#200)
 
   Jan 8, 2009 - version 2.1.3.1
 
@@ -530,7 +424,7 @@ Thanks in advance.
       * Full RDoc. Please tell me any English problem. Thanks in advance.
       * Do multipart file upload when a given body includes a File. You don't
         need to set 'Content-Type' and boundary String any more.
-      * Added propfind and proppatch methods. 
+      * Added propfind and proppatch methods.
 
     * Changes
       * Avoid unnecessary memory consuming for get_content/post_content with
@@ -543,7 +437,7 @@ Thanks in advance.
           (trying to do SSL without openssl installed for example)
         * Raises HTTPClient::BadResponse? for HTTP response problem.  You can
           get the response HTTPMessage returned via $!.res.
-        * Raises SocketError? for connection problem (as same as before). 
+        * Raises SocketError? for connection problem (as same as before).
 
     * Bug fixes
       * Avoid unnecessary negotiation cycle for Negotiate(NTLM) authentication.
@@ -555,7 +449,7 @@ Thanks in advance.
       * Avoid unnecessary timeout waiting when no message body returned such as
         '204 No Content' for DAV.
       * Avoid blocking on socket closing when the socket is already closed by
-        foreign host and the client runs under MT-condition. 
+        foreign host and the client runs under MT-condition.
 
   Sep 22, 2007 - version 2.1.2
 
@@ -589,7 +483,7 @@ Thanks in advance.
 
     * misc
       * added HTTPClient#test_loopback_http_response which accepts test
-        loopback response which contains HTTP header. 
+        loopback response which contains HTTP header.
 
   Jul 14, 2007 - version 2.1.0
 
