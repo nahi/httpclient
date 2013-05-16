@@ -693,12 +693,20 @@ class HTTPClient
           # > or add 16 to decode only the gzip format
           inflate_stream = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
           original_block = block
-          block = Proc.new { |buf|
-            original_block.call(inflate_stream.inflate(buf))
-          }
+          if @chunked
+            buffer = ''
+            block = Proc.new { |buf| buffer += buf }
+          else
+            block = Proc.new { |buf|
+              original_block.call(inflate_stream.inflate(buf))
+            }
+          end
         end
         if @chunked
           read_body_chunked(&block)
+          if @gzipped and @transparent_gzip_decompression
+            original_block.call(inflate_stream.inflate(buffer))
+          end
         elsif @content_length
           read_body_length(&block)
         else
@@ -984,7 +992,8 @@ class HTTPClient
           return
         end
         timeout(@receive_timeout, ReceiveTimeoutError) do
-          @socket.read(@chunk_length + 2, buf)
+          @socket.read(@chunk_length, buf)
+          @socket.read(2) # CRLF
         end
         unless buf.empty?
           yield buf.slice(0, @chunk_length)
