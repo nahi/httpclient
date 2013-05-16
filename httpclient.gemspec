@@ -1,8 +1,12 @@
-require 'rubygems'
-Gem::Specification.new { |s|
+# encoding: utf-8
+lib = File.expand_path('../lib/', __FILE__)
+$:.unshift lib unless $:.include?(lib)
+
+require 'httpclient/version'
+
+Gem::Specification.new do |s|
   s.name = 'glebtv-httpclient'
-  s.version = '3.0.0'
-  s.date = '2013-05-13'
+  s.version = HTTPClient::VERSION
   s.author = 'glebtv'
   s.email = 'glebtv@gmail.com'
   s.executables = ['httpclient']
@@ -12,4 +16,4 @@ Gem::Specification.new { |s|
   s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.rdoc']
   s.require_path = 'lib'
   s.license = 'ruby'
-}
+end
