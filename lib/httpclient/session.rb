@@ -707,7 +707,7 @@ class HTTPClient
         end
         if @chunked
           read_body_chunked(&block)
-          if @gzipped
+          if @gzipped and @transparent_gzip_decompression
             original_block.call(inflate_stream.inflate(buffer))
           end
         elsif @content_length
