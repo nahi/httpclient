@@ -695,10 +695,7 @@ class HTTPClient
           original_block = block
           if @chunked
             buffer = ''
-            block = Proc.new { |buf|
-              # we need to strip last \r\n from string for proper gzip decompression
-              buffer += buf[0..-3]
-            }
+            block = Proc.new { |buf| buffer += buf }
           else
             block = Proc.new { |buf|
               original_block.call(inflate_stream.inflate(buf))
@@ -995,7 +992,8 @@ class HTTPClient
           return
         end
         timeout(@receive_timeout, ReceiveTimeoutError) do
-          @socket.read(@chunk_length + 2, buf)
+          @socket.read(@chunk_length, buf)
+          @socket.read(2) # CRLF
         end
         unless buf.empty?
           yield buf.slice(0, @chunk_length)
