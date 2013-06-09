@@ -74,7 +74,7 @@ require 'httpclient/cookie'
 #
 # === Invoking other HTTP methods
 #
-# See head, get, post, put, delete, options, propfind, proppatch and trace.  
+# See head, get, post, put, delete, options, propfind, proppatch and trace.
 # It returns a HTTP::Message instance as a response.
 #
 # 1. Do HEAD request.
@@ -703,12 +703,12 @@ class HTTPClient
   def propfind(uri, *args, &block)
     request(:propfind, uri, argument_to_hash(args, :header), &block)
   end
-  
+
   # Sends PROPPATCH request to the specified URL.  See request for arguments.
   def proppatch(uri, *args, &block)
     request(:proppatch, uri, argument_to_hash(args, :body, :header), &block)
   end
-  
+
   # Sends TRACE request to the specified URL.  See request for arguments.
   def trace(uri, *args, &block)
     request('TRACE', uri, argument_to_hash(args, :query, :header), &block)
@@ -823,14 +823,14 @@ class HTTPClient
     header = keyword_argument(args, :header)
     request_async(:propfind, uri, nil, nil, header || PROPFIND_DEFAULT_EXTHEADER)
   end
-  
+
   # Sends PROPPATCH request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def proppatch_async(uri, *args)
     body, header = keyword_argument(args, :body, :header)
     request_async(:proppatch, uri, nil, body, header || {})
   end
-  
+
   # Sends TRACE request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def trace_async(uri, *args)
@@ -973,7 +973,7 @@ private
     if res.ok?
       return res.content
     else
-      raise BadResponseError.new("unexpected response: #{res.header.inspect}", res)
+      raise BadResponseError.new("unexpected response:\n#{res.header.dump}\n#{res.content}", res)
     end
   end
 

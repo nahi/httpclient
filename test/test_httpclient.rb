@@ -604,9 +604,13 @@ EOS
   def test_post_content_io
     post_body = StringIO.new("1234567890")
     assert_equal('post,1234567890', @client.post_content(serverurl + 'servlet', post_body))
-    post_body = StringIO.new("1234567890")
+
     # all browsers use GET for 302
-    assert_equal('get', @client.post_content(serverurl + 'servlet_redirect', post_body))
+    post_body = StringIO.new("1234567890")
+    assert_equal('', @client.get_content(serverurl + 'servlet_redirect_413'))
+    assert_equal('', @client.post_content(serverurl + 'servlet_redirect_413', post_body))
+
+
     post_body = StringIO.new("1234567890")
     assert_equal('post,1234567890', @client.post_content(serverurl + 'servlet_temporary_redirect', post_body))
     post_body = StringIO.new("1234567890")
@@ -1614,7 +1618,8 @@ private
       :hello, :sleep, :servlet_redirect, :servlet_temporary_redirect, :servlet_see_other,
       :redirect1, :redirect2, :redirect3,
       :redirect_self, :relative_redirect, :redirect_see_other, :chunked,
-      :largebody, :status, :compressed, :charset, :continue
+      :largebody, :status, :compressed, :charset, :continue,
+      :servlet_redirect_413, :servlet_413
     ].each do |sym|
       @server.mount(
         "/#{sym}",
@@ -1648,9 +1653,19 @@ private
   def do_servlet_redirect(req, res)
     res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "servlet")
   end
+
+  def do_servlet_redirect_413(req, res)
+    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "servlet_413")
+  end
+
+  def do_servlet_413(req, res)
+    res.body = req.body.to_s
+  end
+
   def do_servlet_temporary_redirect(req, res)
     res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, serverurl + "servlet")
   end
+
   def do_servlet_see_other(req, res)
     res.set_redirect(WEBrick::HTTPStatus::SeeOther, serverurl + "servlet")
   end

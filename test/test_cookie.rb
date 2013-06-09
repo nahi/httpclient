@@ -137,7 +137,7 @@ class TestCookieManager < Test::Unit::TestCase
 
   def teardown()
   end
-  
+
   def test_parse()
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=Wed, 01-Dec-2010 00:00:00 GMT; path=/"
     @cm.parse(str, urify('http://www.test.jp'))
@@ -174,7 +174,7 @@ class TestCookieManager < Test::Unit::TestCase
     assert_equal(true, cookie.secure?)
     assert_equal(true, cookie.http_only?)
   end
-  
+
   def test_parse_double_semicolon()
     str = "xmen=off,0,0,1;; path=\"/;;\"; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str, urify('http://www.excite.co.jp'))
@@ -275,10 +275,10 @@ class TestCookieManager < Test::Unit::TestCase
     begin
       File.open("tmp_test.tmp","w") {|f|
 	f.write <<EOF
-http://www.zdnet.co.jp/news/0106/08/e_gibson.html	NGUserID	d29b8f49-10875-992421294-1	2145801600	www.zdnet.co.jp	/	9	0			
-http://www.zdnet.co.jp/news/0106/08/e_gibson.html	PACK	zd3-992421294-7436	1293839999	.zdnet.co.jp	/	13	0			
-http://example.org/	key	value	0	.example.org	/	13	0			
-http://example.org/	key	value		.example.org	/	13	0			
+http://www.zdnet.co.jp/news/0106/08/e_gibson.html	NGUserID	d29b8f49-10875-992421294-1	2145801600	www.zdnet.co.jp	/	9	0
+http://www.zdnet.co.jp/news/0106/08/e_gibson.html	PACK	zd3-992421294-7436	1293839999	.zdnet.co.jp	/	13	0
+http://example.org/	key	value	0	.example.org	/	13	0
+http://example.org/	key	value		.example.org	/	13	0
 EOF
       }
 
