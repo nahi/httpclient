@@ -982,22 +982,22 @@ class HTTPClient
       buf = HTTPClient::Util.get_buf
       while true
         len = @socket.gets(RS)
-        if len.nil? # EOF
+         if len.nil? # EOF
           close
           return
         end
         @chunk_length = len.hex
-        if @chunk_length == 0
+         if @chunk_length == 0
           @content_length = 0
           @socket.gets(RS)
           return
         end
-        timeout(@receive_timeout, ReceiveTimeoutError) do
+         timeout(@receive_timeout, ReceiveTimeoutError) do
           @socket.read(@chunk_length, buf)
           @socket.read(2) # CRLF
         end
-        unless buf.empty?
-          yield buf.slice(0, @chunk_length)
+         unless buf.empty?
+          yield buf
         end
       end
     end
