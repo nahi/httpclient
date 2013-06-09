@@ -1662,9 +1662,6 @@ private
   end
 
   def do_servlet_413(req, res)
-    # $stdout.puts req.inspect
-    p req.raw_header
-
     res.body = req.body.to_s
   end
 
