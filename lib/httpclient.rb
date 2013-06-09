@@ -958,8 +958,13 @@ private
       body.pos = pos if pos
       res = do_request(method, uri, query, body, header, &filtered_block)
       if res.redirect?
-        method = :get if res.see_other? # See RFC2616 10.3.4
-        method = :get if res.found? # All browsers convert POST to GET on 302 redirects for historical reasons
+        # See RFC2616 10.3.4
+        # All browsers convert POST to GET on 302 redirects for historical reasons
+        if res.see_other? || res.found?
+          method = :get
+          body = ''
+          pos = nil
+        end
         uri = urify(@redirect_uri_callback.call(uri, res))
         retry_number += 1
       else
