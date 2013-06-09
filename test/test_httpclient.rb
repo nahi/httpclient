@@ -607,7 +607,10 @@ EOS
 
     # all browsers use GET for 302
     post_body = StringIO.new("1234567890")
+    assert_equal('1234567890', @client.post_content(serverurl + 'servlet_413', post_body))
+
     assert_equal('', @client.get_content(serverurl + 'servlet_redirect_413'))
+    post_body = StringIO.new("1234567890")
     assert_equal('', @client.post_content(serverurl + 'servlet_redirect_413', post_body))
 
 
@@ -1659,6 +1662,9 @@ private
   end
 
   def do_servlet_413(req, res)
+    # $stdout.puts req.inspect
+    p req.raw_header
+
     res.body = req.body.to_s
   end
 

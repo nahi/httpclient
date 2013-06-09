@@ -962,7 +962,7 @@ private
         # All browsers convert POST to GET on 302 redirects for historical reasons
         if res.see_other? || res.found?
           method = :get
-          body = ''
+          body = nil
           pos = nil
         end
         uri = urify(@redirect_uri_callback.call(uri, res))
