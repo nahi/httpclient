@@ -4,11 +4,11 @@ I don't care for any standarts etc, and will try to make it work like browsers w
 
 ## Install
 
-  gem install glebtv-httpclient
+    gem install glebtv-httpclient
 
 or  
 
-  gem 'httpclient'
+    gem 'httpclient'
 
 
 ## Original gem readme
@@ -51,15 +51,15 @@ Usage:
 
 Issues a GET request to the given URI and shows the wiredump and the parsed result: 
   
-  % httpclient get https://www.google.co.jp/ q=ruby
+    % httpclient get https://www.google.co.jp/ q=ruby
 
 Invokes irb shell with the binding that has a HTTPClient as 'self':
 
-  % httpclient
+    % httpclient
 
 You can call HTTPClient instance methods like:
 
-  > get "https://www.google.co.jp/", :q => :ruby
+    > get "https://www.google.co.jp/", :q => :ruby
 
 ## Author
 
@@ -84,3 +84,88 @@ of Ruby.  Many thanks to Maebashi-san.
 
 See HTTPClient for documentation.
 You can also check sample/howto.rb how to use APIs.
+
+## Usage example:
+
+To serve as a starting point (cannot be used as-is, you will need to adjust settings, paths, etc)
+
+```ruby
+class Ht
+  attr_accessor :user_agent, :clnt, :cookie_jar, :referer
+
+  def initialize()
+    @user_agent = 'test_app'
+    
+    @cookie_jar = ROOT_PATH + '/cookies.txt'
+    @referer = nil
+    @clnt = HTTPClient.new
+
+    @clnt.set_cookie_store(@cookie_jar)
+    # @clnt.socket_local.host = 'ip here'
+    @clnt.transparent_gzip_decompression = true
+    # @clnt.debug_dev = STDERR
+  end
+
+  def flush_cookies
+    @clnt.save_cookie_store
+  end
+
+  def urify(uri)
+    HTTPClient::Util.urify(uri)
+  end
+
+  def request(method, uri, params = nil)
+    if method.to_s == 'get'
+      query = params
+      body = nil
+    else
+      query = nil
+      body = URI.encode_www_form(params)
+    end
+
+    process(method, uri, query: query, body: body)
+  end
+
+  def process(method, uri, options)
+    retry_number = 0
+    while retry_number < 10
+      options = options.merge(header: headers, follow_redirect: false)
+      res = @clnt.request(method, uri.to_s, options)
+      if res.redirect?
+        if res.see_other? || res.found?
+          method = :get
+          options.delete(:body)
+        end
+        @referer = uri.to_s
+        uri = @clnt.default_redirect_uri_callback(urify(uri), res)
+        $logger.info "redirect to #{uri}"
+        retry_number += 1
+      else
+        @referer = uri.to_s
+        if res.ok?
+          return res
+        else
+          puts "BAD RESPONSE FOR #{uri}"
+          p options
+          puts "HEADER:"
+          puts res.header.dump
+          puts "CONTENT:"
+          puts res.content
+          raise HTTPClient::BadResponseError.new("unexpected response", res)
+        end
+      end
+    end
+    raise 'redirect loop detected'
+  end
+
+  def headers
+    ret = {
+        'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language' => 'ru,en;q=0.5',
+        'User-Agent' => @user_agent,
+    }
+    ret['Referer'] = @referer unless @referer.nil?
+    ret
+  end
+end
+```
