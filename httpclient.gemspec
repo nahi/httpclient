@@ -1,8 +1,8 @@
 require 'rubygems'
 Gem::Specification.new { |s|
   s.name = 'httpclient'
-  s.version = '2.3.3'
-  s.date = '2013-02-24'
+  s.version = '2.3.4'
+  s.date = '2013-07-27'
   s.author = 'Hiroshi Nakamura'
   s.email = 'nahi@ruby-lang.org'
   s.executables = ['httpclient']
