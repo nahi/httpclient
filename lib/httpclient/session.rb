@@ -947,7 +947,7 @@ class HTTPClient
     def read_body_length(&block)
       return nil if @content_length == 0
       while true
-        buf = ''.force_encoding('BINARY')
+        buf = empty_bin_str
         maxbytes = @read_block_size
         maxbytes = @content_length if maxbytes > @content_length
         timeout(@receive_timeout, ReceiveTimeoutError) do
@@ -970,7 +970,7 @@ class HTTPClient
 
     RS = "\r\n"
     def read_body_chunked(&block)
-      buf = ''.force_encoding('BINARY')
+      buf = empty_bin_str
       while true
         len = @socket.gets(RS)
         if len.nil? # EOF
@@ -998,7 +998,7 @@ class HTTPClient
         @readbuf = nil
       end
       while true
-        buf = ''.force_encoding('BINARY')
+        buf = empty_bin_str
         timeout(@receive_timeout, ReceiveTimeoutError) do
           begin
             @socket.readpartial(@read_block_size, buf)
@@ -1012,6 +1012,12 @@ class HTTPClient
           return
         end
       end
+    end
+
+    def empty_bin_str
+      str = ''
+      str.force_encoding('BINARY') if str.respond_to?(:force_encoding)
+      str
     end
   end
 
