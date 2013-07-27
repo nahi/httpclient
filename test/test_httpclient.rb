@@ -951,6 +951,7 @@ EOS
 
   def test_chunked
     assert_equal('chunked', @client.get_content(serverurl + 'chunked', { 'msg' => 'chunked' }))
+    assert_equal('あいうえお', @client.get_content(serverurl + 'chunked', { 'msg' => 'あいうえお' }))
   end
 
   def test_chunked_empty
@@ -1672,6 +1673,7 @@ private
 
   def do_chunked(req, res)
     res.chunked = true
+    res['content-type'] = 'text/plain; charset=UTF-8'
     piper, pipew = IO.pipe
     res.body = piper
     pipew << req.query['msg']
