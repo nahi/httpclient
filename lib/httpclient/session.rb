@@ -797,12 +797,14 @@ class HTTPClient
       socket = nil
       begin
         @debug_dev << "! CONNECT TO #{site.host}:#{site.port}\n" if @debug_dev
+				clean_host = site.host.delete("[]")
+				clean_local = @socket_local.host.delete("[]")
         if str = @test_loopback_http_response.shift
-          socket = LoopBackSocket.new(site.host, site.port, str)
+          socket = LoopBackSocket.new(clean_host, site.port, str)
         elsif @socket_local == Site::EMPTY
-          socket = TCPSocket.new(site.host, site.port)
+          socket = TCPSocket.new(clean_host, site.port)
         else
-          socket = TCPSocket.new(site.host, site.port, @socket_local.host, @socket_local.port)
+          socket = TCPSocket.new(clean_host, site.port, clean_local, @socket_local.port)
         end
         if @debug_dev
           @debug_dev << "! CONNECTION ESTABLISHED\n"
