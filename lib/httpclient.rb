@@ -74,7 +74,7 @@ require 'httpclient/cookie'
 #
 # === Invoking other HTTP methods
 #
-# See head, get, post, put, delete, options, propfind, proppatch and trace.  
+# See head, get, post, put, patch, delete, options, propfind, proppatch and trace.
 # It returns a HTTP::Message instance as a response.
 #
 # 1. Do HEAD request.
@@ -689,6 +689,11 @@ class HTTPClient
     request(:put, uri, argument_to_hash(args, :body, :header), &block)
   end
 
+  # Sends PATCH request to the specified URL.  See request for arguments.
+  def patch(uri, *args, &block)
+    request(:patch, uri, argument_to_hash(args, :body, :header), &block)
+  end
+
   # Sends DELETE request to the specified URL.  See request for arguments.
   def delete(uri, *args, &block)
     request(:delete, uri, argument_to_hash(args, :body, :header), &block)
@@ -754,7 +759,7 @@ class HTTPClient
   # chunked request.  At least cgi.rb does not support it.
   def request(method, uri, *args, &block)
     query, body, header, follow_redirect = keyword_argument(args, :query, :body, :header, :follow_redirect)
-    if [:post, :put].include?(method)
+    if [:post, :put, :patch].include?(method)
       body ||= ''
     end
     if method == :propfind
@@ -801,6 +806,13 @@ class HTTPClient
   def put_async(uri, *args)
     body, header = keyword_argument(args, :body, :header)
     request_async(:put, uri, nil, body || '', header || {})
+  end
+
+  # Sends PATCH request in async style.  See request_async for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
+  def patch_async(uri, *args)
+    body, header = keyword_argument(args, :body, :header)
+    request_async(:patch, uri, nil, body || '', header || {})
   end
 
   # Sends DELETE request in async style.  See request_async for arguments.
