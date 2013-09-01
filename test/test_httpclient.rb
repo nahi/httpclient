@@ -876,7 +876,24 @@ EOS
     assert_equal(param, params(res.header["x-query"][0]))
   end
 
-  def test_delete
+  def test_patch
+    assert_equal("patch", @client.patch(serverurl + 'servlet').content)
+    param = {'1'=>'2', '3'=>'4'}
+    @client.debug_dev = str = ''
+    res = @client.patch(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
+    assert_equal('Content-Type: application/x-www-form-urlencoded', str.split(/\r?\n/)[5])
+  end
+
+  def test_patch_async
+    param = {'1'=>'2', '3'=>'4'}
+    conn = @client.patch_async(serverurl + 'servlet', param)
+    Thread.pass while !conn.finished?
+    res = conn.pop
+    assert_equal(param, params(res.header["x-query"][0]))
+  end
+
+ def test_delete
     assert_equal("delete", @client.delete(serverurl + 'servlet').content)
   end
 
