@@ -839,22 +839,29 @@ module HTTP
 
       def escape_query(query) # :nodoc:
         pairs = []
-        query.each { |attr, value|
-          left = escape(attr.to_s) << '='
+        
+        query.each do |attr, value|
           if values = Array.try_convert(value)
-            values.each { |value|
+            left = escape(attr.to_s) << '[]='
+            
+            values.each do |value|
               if value.respond_to?(:read)
                 value = value.read
               end
+            
               pairs.push(left + escape(value.to_s))
-            }
+            end
           else
+            left = escape(attr.to_s) << '='
+            
             if value.respond_to?(:read)
               value = value.read
             end
+            
             pairs.push(left << escape(value.to_s))
           end
-        }
+        end
+        
         pairs.join('&')
       end
 
