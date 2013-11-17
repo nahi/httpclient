@@ -16,8 +16,8 @@ require 'socket'
 require 'thread'
 require 'stringio'
 require 'zlib'
+require 'timeout'
 
-require 'httpclient/timeout'
 require 'httpclient/ssl_config'
 require 'httpclient/http'
 require 'httpclient/util'
@@ -156,6 +156,13 @@ class HTTPClient
       else
         @proxy = Site.new(proxy)
       end
+    end
+    
+    def timeout(time, exn = nil, &block)
+      return yield if time.nil? || time.zero?
+      Timeout.timeout(time, exn) do
+        yield
+       end
     end
 
     def query(req, via_proxy)
@@ -535,7 +542,6 @@ class HTTPClient
 
   # Manages a HTTP session with a Site.
   class Session
-    include HTTPClient::Timeout
     include Util
 
     # Destination site
