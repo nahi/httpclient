@@ -22,13 +22,8 @@ Rake::RDocTask.new("doc") do |rdoc|
   load 'lib/httpclient/version.rb'
   rdoc.rdoc_dir = 'doc'
   rdoc.title = "HTTPClient Library Document: Version #{HTTPClient::VERSION}"
-  rdoc.rdoc_files.include('README.rdoc')
+  rdoc.rdoc_files.include('README.md')
   rdoc.rdoc_files.include('CHANGELOG.rdoc')
   rdoc.rdoc_files.include('lib/httpclient/*.rb')
   rdoc.rdoc_files.include('lib/httpclient.rb')
-end
-
-task 'tags' do
-  #sh 'rtags --vi lib/httpclient.rb lib/oauthclient.rb lib/hexdump.rb lib/httpclient/*.rb'
-  sh 'ctags lib/httpclient.rb lib/oauthclient.rb lib/hexdump.rb lib/httpclient/*.rb'
 end
