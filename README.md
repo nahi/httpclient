@@ -2,6 +2,10 @@
 
 I just try to make it work properly (as a browser would) for my use cases.
 
+[![Build Status](https://travis-ci.org/glebtv/httpclient.png?branch=master)](https://travis-ci.org/glebtv/httpclient)
+[![Gem Version](https://badge.fury.io/rb/glebtv-httpclient.png)](http://badge.fury.io/rb/glebtv-httpclient)
+[![Dependency Status](https://gemnasium.com/glebtv/httpclient.png)](https://gemnasium.com/glebtv/httpclient)
+
 ## Install
 
     gem install glebtv-httpclient
