@@ -11,7 +11,7 @@
 # > get "https://www.google.co.jp/", :q => :ruby
 require 'httpclient'
 
-METHODS = ['head', 'get', 'post', 'put', 'delete', 'options', 'propfind', 'proppatch', 'trace']
+METHODS = ['head', 'get', 'post', 'put', 'patch', 'delete', 'options', 'propfind', 'proppatch', 'trace']
 if ARGV.size >= 2 && METHODS.include?(ARGV[0])
   client = HTTPClient.new
   client.debug_dev = STDERR
