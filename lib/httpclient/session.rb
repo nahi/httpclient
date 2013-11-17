@@ -965,7 +965,7 @@ class HTTPClient
         buf = HTTPClient::Util.get_buf
 
         maxbytes = @read_block_size
-        maxbytes = @content_length if maxbytes > @content_length
+        maxbytes = @content_length if maxbytes > @content_length && @content_length > 0
         timeout(@receive_timeout, ReceiveTimeoutError) do
           begin
             @socket.readpartial(maxbytes, buf)
