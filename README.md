@@ -16,8 +16,13 @@ or
 
     gem 'glebtv-httpclient'
 
+## Basic usage
 
-## Usage example:
+    clnt = HTTPClient.new()
+    clnt.get_content('http://google.com')
+    clnt.post_content('http://google.com', body: {...})
+
+## A more complete usage example with a wrapper class:
 
 To serve as a starting point (cannot be used as-is, you will need to adjust settings, paths, etc)
 
