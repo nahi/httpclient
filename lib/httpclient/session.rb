@@ -22,10 +22,7 @@ require 'httpclient/ssl_config'
 require 'httpclient/http'
 require 'httpclient/util'
 
-
 class HTTPClient
-
-
   # Represents a Site: protocol scheme, host String and port Number.
   class Site
     # Protocol scheme.
