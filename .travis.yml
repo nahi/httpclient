@@ -2,11 +2,10 @@ rvm:
   - 1.9.2
   - 1.9.3
   - 2.0.0
-  - ruby-head
   - jruby-19mode
-  - jruby-head
-  - rbx-18mode
+  - jruby-20mode
   - rbx-19mode
+  - rbx-20mode
 
 script: "bundle exec rake --trace"
 
