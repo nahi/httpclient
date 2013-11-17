@@ -14,7 +14,7 @@ If you don't like how something works, please send a PR or use original gem: htt
 
 or  
 
-    gem 'httpclient'
+    gem 'glebtv-httpclient'
 
 
 ## Usage example:
