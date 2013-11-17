@@ -6,7 +6,7 @@ require 'httpclient/version'
 Gem::Specification.new do |s|
   s.name = 'glebtv-httpclient'
   s.version = HTTPClient::VERSION
-  s.author = 'glebtv'
+  s.authors = ['glebtv', 'Hiroshi Nakamura']
   s.email = 'glebtv@gmail.com'
   s.executables = ['httpclient']
   s.homepage = 'http://github.com/glebtv/httpclient'

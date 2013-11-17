@@ -888,7 +888,24 @@ EOS
     assert_equal(param, params(res.header["x-query"][0]))
   end
 
-  def test_delete
+  def test_patch
+    assert_equal("patch", @client.patch(serverurl + 'servlet').content)
+    param = {'1'=>'2', '3'=>'4'}
+    @client.debug_dev = str = ''
+    res = @client.patch(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
+    assert_equal('Content-Type: application/x-www-form-urlencoded', str.split(/\r?\n/)[5])
+  end
+
+  def test_patch_async
+    param = {'1'=>'2', '3'=>'4'}
+    conn = @client.patch_async(serverurl + 'servlet', param)
+    Thread.pass while !conn.finished?
+    res = conn.pop
+    assert_equal(param, params(res.header["x-query"][0]))
+  end
+
+ def test_delete
     assert_equal("delete", @client.delete(serverurl + 'servlet').content)
   end
 
@@ -963,6 +980,7 @@ EOS
 
   def test_chunked
     assert_equal('chunked', @client.get_content(serverurl + 'chunked', { 'msg' => 'chunked' }))
+    assert_equal('あいうえお', @client.get_content(serverurl + 'chunked', { 'msg' => 'あいうえお' }))
   end
 
   def test_chunked_empty
@@ -1085,14 +1103,6 @@ EOS
     @client.receive_timeout = 3
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 2).content)
   end
-
-  # disable for now -- does not work
-  #def test_async_error
-  #  assert_raise( SocketError ) do
-  #    conn = @client.get_async("http://non-existing-host/")
-  #    conn.pop
-  #  end
-  #end
 
   def test_reset
     url = serverurl + 'servlet'
@@ -1703,6 +1713,7 @@ private
 
   def do_chunked(req, res)
     res.chunked = true
+    res['content-type'] = 'text/plain; charset=UTF-8'
     piper, pipew = IO.pipe
     res.body = piper
     pipew << req.query['msg']
