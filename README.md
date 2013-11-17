@@ -1,6 +1,6 @@
 ## About this fork
 
-I don't care for any standarts etc, and will try to make it work like browsers work
+I just try to make it work properly (as a browser would) for my use cases.
 
 ## Install
 
