@@ -3,16 +3,26 @@ lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'httpclient/version'
 
-Gem::Specification.new do |s|
-  s.name = 'glebtv-httpclient'
-  s.version = HTTPClient::VERSION
-  s.authors = ['glebtv', 'Hiroshi Nakamura']
-  s.email = 'glebtv@gmail.com'
-  s.executables = ['httpclient']
-  s.homepage = 'http://github.com/glebtv/httpclient'
-  s.platform = Gem::Platform::RUBY
-  s.summary = 'Fork of httpclient with some fixes and patches I needed. Please use original gem instead'
-  s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.md']
-  s.require_path = 'lib'
-  s.license = 'ruby'
+Gem::Specification.new do |spec|
+  spec.name = 'glebtv-httpclient'
+  spec.version = HTTPClient::VERSION
+  spec.authors = ['glebtv', 'Hiroshi Nakamura']
+  spec.email = 'glebtv@gmail.com'
+  spec.executables = ['httpclient']
+  spec.homepage = 'http://github.com/glebtv/httpclient'
+  spec.platform = Gem::Platform::RUBY
+  spec.summary = 'Fork of httpclient with some fixes and patches I needed. Please use original gem instead'
+  
+  spec.license = 'ruby'
+
+  spec.files         = `git ls-files`.split($/)
+  spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
+  spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
+  spec.require_paths = ["lib"]
+
+  spec.add_development_dependency "bundler", "~> 1.3"
+  spec.add_development_dependency "rake"
+  spec.add_development_dependency "test-unit"
+  spec.add_development_dependency "rspec"
+  spec.add_development_dependency "coveralls"
 end

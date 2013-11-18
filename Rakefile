@@ -1,22 +1,4 @@
-require 'rake'
-require 'rake/testtask'
 require 'rdoc/task'
-require 'rubygems/package_task'
-require 'ci/reporter/rake/test_unit'
-
-task :default => :test
-
-require 'bundler'
-Bundler::GemHelper.install_tasks
-
-ENV['CI_REPORTS'] = File.expand_path('./reports', File.dirname(__FILE__))
-task :test => ['ci:setup:testunit', 'test-run']
-
-Rake::TestTask.new('test-run') do |test|
-  test.libs << 'lib'
-  test.verbose = true
-  test.test_files = Dir.glob('test/test_*.rb')
-end
 
 Rake::RDocTask.new("doc") do |rdoc|
   load 'lib/httpclient/version.rb'
@@ -27,3 +9,12 @@ Rake::RDocTask.new("doc") do |rdoc|
   rdoc.rdoc_files.include('lib/httpclient/*.rb')
   rdoc.rdoc_files.include('lib/httpclient.rb')
 end
+
+require "bundler/gem_tasks"
+
+require 'rspec/core/rake_task'
+
+desc "Run specs"
+RSpec::Core::RakeTask.new
+
+task :default => 'spec'

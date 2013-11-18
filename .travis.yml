@@ -6,6 +6,3 @@ rvm:
   - jruby-20mode
   - rbx-19mode
   - rbx-20mode
-
-script: "bundle exec rake --trace"
-

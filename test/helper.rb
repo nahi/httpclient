@@ -1,9 +1,10 @@
 # -*- encoding: utf-8 -*-
-require 'test/unit'
+require "test/unit"
+
 begin
   require 'simplecov'
-  require 'simplecov-rcov'
-  SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
+  # require 'simplecov-rcov'
+  # SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
   SimpleCov.start
 rescue LoadError
 end
