@@ -1,3 +1,5 @@
+require 'rake'
+
 require 'rdoc/task'
 
 Rake::RDocTask.new("doc") do |rdoc|
