@@ -2,7 +2,7 @@
 require 'spec_helper'
 
 describe HTTPClient do
-  before :all do
+  before :each do
     @client = HTTPClient.new
   end
 
@@ -39,8 +39,6 @@ describe HTTPClient do
         cnt = file.read
         cnt.length.should eq 5
         cnt.should eq 'hello'
-
-        @client.transparent_gzip_decompression = false
       end
 
       it 'compressed large' do
@@ -52,8 +50,6 @@ describe HTTPClient do
 
         content = @client.download_file(@srv.u('compressed_large?enc=deflate'), file.path)
         file.read.should eq LARGE_STR
-
-        @client.transparent_gzip_decompression = false
       end
     end
 
@@ -71,8 +67,6 @@ describe HTTPClient do
 
         content = @client.get_content(@srv.u 'compressed?enc=deflate')
         content.should eq 'hello'
-
-        @client.transparent_gzip_decompression = false
       end
 
       it 'compressed large' do
@@ -83,8 +77,6 @@ describe HTTPClient do
 
         content = @client.get_content(@srv.u 'compressed_large?enc=deflate')
         content.should eq LARGE_STR
-
-        @client.transparent_gzip_decompression = false
       end
     end
   end
@@ -97,7 +89,6 @@ describe HTTPClient do
       lines = str.split(/(?:\r?\n)+/)
       lines[0].should eq '= Request'
       lines[4].should eq "User-Agent: HTTPClient #{HTTPClient::VERSION}"
-      @client.debug_dev = false
     end
 
     it 'custom' do
@@ -108,6 +99,42 @@ describe HTTPClient do
       lines = str.split(/(?:\r?\n)+/)
       lines[0].should eq '= Request'
       lines[4].should eq 'User-Agent: agent_name_foo'
+    end
+  end
+
+  describe 'protocol versions' do
+    it '0.9' do
+      @client.protocol_version = 'HTTP/0.9'
+      @client.debug_dev = str = ''
+      @client.test_loopback_http_response << "hello\nworld\n"
+      res = @client.get(@srv.u 'hello')
+      res.http_version.should eq '0.9' 
+      res.status.should eq nil 
+      res.reason.should eq nil 
+      res.content.should eq "hello\nworld\n" 
+      lines = str.split(/(?:\r?\n)+/)
+      lines[0].should eq "= Request" 
+      lines[2].should eq "! CONNECTION ESTABLISHED" 
+      lines[3].should eq "GET /hello HTTP/0.9" 
+      lines[7].should eq "Connection: close" 
+      lines[8].should eq "= Response" 
+      lines[9].should match /^hello$/ 
+      lines[10].should match /^world$/ 
+    end
+
+    it '1.0' do
+      @client.protocol_version.should eq nil 
+      @client.protocol_version = 'HTTP/1.0'
+      @client.protocol_version.should eq 'HTTP/1.0' 
+      str = ""
+      @client.debug_dev = str
+      @client.get(@srv.u 'hello')
+      lines = str.split(/(?:\r?\n)+/)
+      lines[0].should eq "= Request"
+      lines[2].should eq "! CONNECTION ESTABLISHED"
+      lines[3].should eq "GET /hello HTTP/1.0"
+      lines[7].should eq "Connection: close"
+      lines[8].should eq "= Response"
     end
   end
 end
