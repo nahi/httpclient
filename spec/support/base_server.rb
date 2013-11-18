@@ -1,3 +1,5 @@
+# coding: utf-8
+
 class BaseServer
   attr_accessor :server, :port, :logger
   

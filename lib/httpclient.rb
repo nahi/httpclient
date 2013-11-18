@@ -718,7 +718,16 @@ class HTTPClient
   def trace(uri, *args, &block)
     request('TRACE', uri, argument_to_hash(args, :query, :header), &block)
   end
-
+  
+  def download_file(uri, file, *args)
+    io = File.open(file, 'a+b')
+    request(:get, uri, argument_to_hash(args, :query, :header, :follow_redirect)) do |s|
+      io.write(s)
+    end
+    io.flush
+    io
+  end
+  
   # Sends a request to the specified URL.
   #
   # method:: HTTP method to be sent.  method.to_s.upcase is used.
