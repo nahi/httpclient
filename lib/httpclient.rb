@@ -358,7 +358,7 @@ class HTTPClient
   PROPFIND_DEFAULT_EXTHEADER = { 'Depth' => '0' }
 
   # Default User-Agent header
-  DEFAULT_AGENT_NAME = 'HTTPClient/1.0'
+  DEFAULT_AGENT_NAME = "HTTPClient #{VERSION}"
 
   # Creates a HTTPClient instance which manages sessions, cookies, etc.
   #

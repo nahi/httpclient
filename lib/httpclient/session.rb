@@ -739,7 +739,7 @@ class HTTPClient
         end
       end
       if @agent_name && req.header.get('User-Agent').empty?
-        req.header.set('User-Agent', "#{@agent_name} #{LIB_NAME}")
+        req.header.set('User-Agent', "#{@agent_name}")
       end
       if @from && req.header.get('From').empty?
         req.header.set('From', @from)

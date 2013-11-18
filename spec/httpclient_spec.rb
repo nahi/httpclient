@@ -88,4 +88,26 @@ describe HTTPClient do
       end
     end
   end
+
+  describe 'agent name' do
+    it 'default' do
+      str = ""
+      @client.debug_dev = str
+      @client.get(@srv.u)
+      lines = str.split(/(?:\r?\n)+/)
+      lines[0].should eq '= Request'
+      lines[4].should eq "User-Agent: HTTPClient #{HTTPClient::VERSION}"
+      @client.debug_dev = false
+    end
+
+    it 'custom' do
+      client = HTTPClient.new(nil, "agent_name_foo")
+      str = ""
+      client.debug_dev = str
+      client.get(@srv.u)
+      lines = str.split(/(?:\r?\n)+/)
+      lines[0].should eq '= Request'
+      lines[4].should eq 'User-Agent: agent_name_foo'
+    end
+  end
 end

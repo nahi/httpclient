@@ -3,7 +3,7 @@
 class BaseServer
   attr_accessor :server, :port, :logger
   
-  def u(str)
+  def u(str = '')
     "http://localhost:#{@port}/#{str}"
   end
   
