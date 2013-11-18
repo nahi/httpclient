@@ -229,6 +229,10 @@ require 'httpclient/cookie'
 #   ruby -rhttpclient -e 'p HTTPClient.head(ARGV.shift).header["last-modified"]' http://dev.ctor.org/
 #
 class HTTPClient
+  def own_methods
+    (methods - (self.class.ancestors - [self.class]).collect { |k| k.instance_methods }.flatten).sort
+  end
+  
   RUBY_VERSION_STRING = "ruby #{RUBY_VERSION} (#{RUBY_RELEASE_DATE})"
   LIB_NAME = "(#{VERSION}, #{RUBY_VERSION_STRING})"
 
