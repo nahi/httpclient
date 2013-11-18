@@ -47,11 +47,11 @@ class MainServer < BaseServer
   end
 
   def do_servlet_redirect(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "servlet")
+    res.set_redirect(WEBrick::HTTPStatus::Found, u("servlet"))
   end
 
   def do_servlet_redirect_413(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "servlet_413")
+    res.set_redirect(WEBrick::HTTPStatus::Found, u("servlet_413"))
   end
 
   def do_servlet_413(req, res)
@@ -59,27 +59,27 @@ class MainServer < BaseServer
   end
 
   def do_servlet_temporary_redirect(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, serverurl + "servlet")
+    res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, u("servlet"))
   end
 
   def do_servlet_see_other(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::SeeOther, serverurl + "servlet")
+    res.set_redirect(WEBrick::HTTPStatus::SeeOther, u("servlet"))
   end
 
   def do_redirect1(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, serverurl + "hello")
+    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, u("hello"))
   end
 
   def do_redirect2(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, serverurl + "redirect3")
+    res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, u("redirect3"))
   end
 
   def do_redirect3(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "hello")
+    res.set_redirect(WEBrick::HTTPStatus::Found, u("hello"))
   end
 
   def do_redirect_self(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "redirect_self")
+    res.set_redirect(WEBrick::HTTPStatus::Found, u("redirect_self"))
   end
 
   def do_relative_redirect(req, res)
@@ -88,7 +88,7 @@ class MainServer < BaseServer
 
   def do_redirect_see_other(req, res)
     if req.request_method == 'POST'
-      res.set_redirect(WEBrick::HTTPStatus::SeeOther, serverurl + "redirect_see_other") # self
+      res.set_redirect(WEBrick::HTTPStatus::SeeOther, u("redirect_see_other")) # self
     else
       res.body = 'hello'
     end

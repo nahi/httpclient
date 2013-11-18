@@ -54,6 +54,53 @@ describe HTTPClient do
     end
 
     describe '#get_content' do
+      it 'normal' do
+        @client.get_content(@srv.u('hello')).should eq 'hello'
+        @client.get_content(@srv.u('redirect1')).should eq 'hello'
+        @client.get_content(@srv.u('redirect2')).should eq 'hello'
+      end
+
+      it '127.0.0.1' do
+        url = @srv.u.sub(/localhost/, '127.0.0.1')
+        @client.get_content(url + 'hello').should eq 'hello'
+        @client.get_content(url + 'redirect1').should eq 'hello'
+        @client.get_content(url + 'redirect2').should eq 'hello'
+      end
+
+      it 'redirect callback' do
+        called = false
+        @client.redirect_uri_callback = lambda { |uri, res|
+          newuri = res.header['location'][0]
+          called = true
+          newuri
+        }
+
+        @client.get_content(@srv.u('relative_redirect')).should eq 'hello'
+        called.should be_true
+      end
+
+      it 'errors' do
+        expect {
+          @client.get_content(@srv.u 'notfound')
+        }.to raise_error(HTTPClient::BadResponseError)
+
+        expect {
+          @client.get_content(@srv.u 'redirect_self')
+        }.to raise_error(HTTPClient::BadResponseError)
+      end
+
+      it 'with block' do
+        @client.get_content(@srv.u 'hello') do |str|
+          str.should eq 'hello' 
+        end
+        @client.get_content(@srv.u + 'redirect1') do |str|
+          str.should eq 'hello' 
+        end
+        @client.get_content(@srv.u + 'redirect2') do |str|
+          str.should eq 'hello' 
+        end
+      end
+
       it 'compressed' do
         @client.transparent_gzip_decompression = false
 
@@ -184,6 +231,66 @@ describe HTTPClient do
       lines[4].should eq "Accept: text/html" 
       lines.each do |line|
         line.should_not eq "Accept: */*" 
+      end
+    end
+  end
+
+  describe 'POST' do
+    describe '#post_content' do
+      it 'works' do
+        @client.post_content(@srv.u('hello')).should eq 'hello'
+        @client.post_content(@srv.u("redirect1")).should eq 'hello'
+        @client.post_content(@srv.u("redirect2")).should eq 'hello'
+      end
+    end
+
+    it 'redirect callback' do
+      called = false
+      @client.redirect_uri_callback = lambda { |uri, res|
+        newuri = res.header['location'][0]
+        called = true
+        newuri
+      }
+      @client.post_content(@srv.u("relative_redirect")).should eq 'hello'
+      called.should be_true
+    end
+
+    it 'errors' do
+      expect {
+        @client.post_content(@srv.u 'notfound')
+      }.to raise_error(HTTPClient::BadResponseError)
+
+      expect {
+        @client.post_content(@srv.u 'redirect_self')
+      }.to raise_error(HTTPClient::BadResponseError)
+    end
+
+
+    describe 'string io' do
+      it do
+        post_body = StringIO.new("1234567890")
+        @client.post_content(@srv.u("servlet"), post_body).should eq 'post,1234567890'
+
+        # all browsers use GET for 302
+        post_body = StringIO.new("1234567890")
+        @client.post_content(@srv.u("servlet_413"), post_body).should eq '1234567890' 
+
+        @client.get_content(@srv.u("servlet_redirect_413")).should eq ''
+
+        post_body = StringIO.new("1234567890")
+        @client.post_content(@srv.u("servlet_redirect_413"), post_body).should eq ''
+
+        post_body = StringIO.new("1234567890")
+        @client.post_content(@srv.u("servlet_temporary_redirect"), post_body).should eq 'post,1234567890'
+
+        post_body = StringIO.new("1234567890")
+        @client.post_content(@srv.u("servlet_see_other"), post_body).should eq 'get'
+      end
+
+      it 'doesnt rewind' do
+        post_body = StringIO.new("1234567890")
+        post_body.read(5)
+        @client.post_content(@srv.u("servlet_temporary_redirect"), post_body).should eq 'post,67890' 
       end
     end
   end
