@@ -821,19 +821,24 @@ class HTTPClient
         if str = @test_loopback_http_response.shift
           socket = LoopBackSocket.new(clean_host, site.port, str)
         else
-          begin
-            ip = IPAddr.new(site.host)
-            #puts "! #{site.host} IS AN IP!\n"
-            @debug_dev <<  "! #{site.host} IS AN IP!\n" if @debug_dev
-          rescue
-            ip = HTTPClient.dns_cache.fetch clean_host do
-              results = Resolv::DNS.new.getaddresses(clean_host)
-              ip = results.first.to_s
-              # puts "! RESOLVED #{clean_host} TO #{ip}\n"
-              @debug_dev << "! RESOLVED #{clean_host} TO #{ip}\n" if @debug_dev
-              ip
+          if clean_host == 'localhost'
+            ip = clean_host
+          else
+            begin
+              ip = IPAddr.new(clean_host).to_s
+              #puts "! #{site.host} IS AN IP!\n"
+              @debug_dev <<  "! #{site.host} IS AN IP!\n" if @debug_dev
+            rescue
+              ip = HTTPClient.dns_cache.fetch clean_host do
+                results = Resolv::DNS.new.getaddresses(clean_host)
+                ip = results.first.to_s
+                # puts "! RESOLVED #{clean_host} TO #{ip}\n"
+                @debug_dev << "! RESOLVED #{clean_host} TO #{ip}\n" if @debug_dev
+                ip
+              end
             end
           end
+
           if @socket_local == Site::EMPTY
             socket = TCPSocket.new(ip, site.port)
           else
