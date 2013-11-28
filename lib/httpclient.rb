@@ -18,6 +18,12 @@ require 'httpclient/session'
 require 'httpclient/http'
 require 'httpclient/auth'
 require 'httpclient/cookie'
+require 'httpclient/cookie'
+
+require 'httpclient/lru_cache'
+require 'httpclient/lru_threadsafe'
+
+require 'active_support/core_ext'
 
 # :main:HTTPClient
 # The HTTPClient class provides several methods for accessing Web resources
@@ -229,6 +235,9 @@ require 'httpclient/cookie'
 #   ruby -rhttpclient -e 'p HTTPClient.head(ARGV.shift).header["last-modified"]' http://dev.ctor.org/
 #
 class HTTPClient
+  @@dns_cache = HTTPClient::ThreadSafeCache.new(ttl: 20.minutes, soft_ttl: 10.minute, retry_delay: 5.minutes)
+  cattr_accessor :dns_cache
+
   def own_methods
     (methods - (self.class.ancestors - [self.class]).collect { |k| k.instance_methods }.flatten).sort
   end

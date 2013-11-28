@@ -11,12 +11,13 @@
 # I asked Maebashi-san he agreed that I can redistribute it under the same terms
 # of Ruby.  Many thanks to Maebashi-san.
 
-
+require 'ipaddr'
 require 'socket'
 require 'thread'
 require 'stringio'
 require 'zlib'
 require 'timeout'
+require 'resolv'
 
 require 'httpclient/ssl_config'
 require 'httpclient/http'
@@ -514,7 +515,13 @@ class HTTPClient
           str.force_encoding('BINARY') if str.respond_to?(:force_encoding)
           @debug_dev << HexDump.encode(str).join("\n")
         else
-          @debug_dev << str
+          begin
+            @debug_dev << str
+          rescue
+            require 'hexdump'
+            str.force_encoding('BINARY') if str.respond_to?(:force_encoding)
+            @debug_dev << HexDump.encode(str).join("\n")
+          end
         end
       end
     end
@@ -809,14 +816,29 @@ class HTTPClient
       socket = nil
       begin
         @debug_dev << "! CONNECT TO #{site.host}:#{site.port}\n" if @debug_dev
-				clean_host = site.host.delete("[]")
-				clean_local = @socket_local.host.delete("[]")
+        clean_host = site.host.delete("[]")
+        clean_local = @socket_local.host.delete("[]")
         if str = @test_loopback_http_response.shift
           socket = LoopBackSocket.new(clean_host, site.port, str)
-        elsif @socket_local == Site::EMPTY
-          socket = TCPSocket.new(clean_host, site.port)
         else
-          socket = TCPSocket.new(clean_host, site.port, clean_local, @socket_local.port)
+          begin
+            ip = IPAddr.new(site.host)
+            #puts "! #{site.host} IS AN IP!\n"
+            @debug_dev <<  "! #{site.host} IS AN IP!\n" if @debug_dev
+          rescue
+            ip = HTTPClient.dns_cache.fetch clean_host do
+              results = Resolv::DNS.new.getaddresses(clean_host)
+              ip = results.first.to_s
+              # puts "! RESOLVED #{clean_host} TO #{ip}\n"
+              @debug_dev << "! RESOLVED #{clean_host} TO #{ip}\n" if @debug_dev
+              ip
+            end
+          end
+          if @socket_local == Site::EMPTY
+            socket = TCPSocket.new(ip, site.port)
+          else
+            socket = TCPSocket.new(ip, site.port, clean_local, @socket_local.port)
+          end
         end
         if @debug_dev
           @debug_dev << "! CONNECTION ESTABLISHED\n"
