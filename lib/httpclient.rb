@@ -674,7 +674,9 @@ class HTTPClient
       warn("'The field value consists of a single absolute URI' in HTTP spec")
     end
     if https?(uri) && !https?(newuri)
-      raise BadResponseError.new("redirecting to non-https resource")
+      #raise BadResponseError.new("redirecting to non-https resource")
+      # allow redirect to non-https but warn
+      warn("redirecting to non-https resource")
     end
     puts "redirect to: #{newuri}" if $DEBUG
     newuri
