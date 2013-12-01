@@ -782,7 +782,7 @@ class HTTPClient
   # respond to :read. Bear in mind that some server application does not support
   # chunked request.  At least cgi.rb does not support it.
   def request(method, uri, *args, &block)
-    query, body, header, follow_redirect = keyword_argument(args, :query, :body, :header, :follow_redirect)
+    query, body, header, is_follow_redirect, filter_block = keyword_argument(args, :query, :body, :header, :follow_redirect, :filter_block)
     if [:post, :put, :patch].include?(method)
       body ||= ''
     end
@@ -793,12 +793,16 @@ class HTTPClient
     end
     uri = urify(uri)
     if block
-      filtered_block = proc { |res, str|
-        block.call(str)
-      }
+      if filter_block === false
+        filtered_block = block
+      else
+        filtered_block = proc { |res, str|
+          block.call(str)
+        }
+      end
     end
-    if follow_redirect
-      follow_redirect(method, uri, query, body, header, &block)
+    if is_follow_redirect
+      follow_redirect(method, uri, query, body, header, filter_block, &block)
     else
       do_request(method, uri, query, body, header, &filtered_block)
     end
@@ -979,12 +983,16 @@ private
     ENV[name.downcase] || ENV[name.upcase]
   end
 
-  def follow_redirect(method, uri, query, body, header, &block)
+  def follow_redirect(method, uri, query, body, header, filter_block = true, &block)
     uri = urify(uri)
     if block
-      filtered_block = proc { |r, str|
-        block.call(str) if r.ok?
-      }
+      if filter_block
+        filtered_block = proc { |r, str|
+          block.call(str) if r.ok?
+        }
+      else
+        filtered_block = block
+      end
     end
     if HTTP::Message.file?(body)
       pos = body.pos rescue nil

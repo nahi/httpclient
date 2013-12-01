@@ -2,40 +2,48 @@
 require 'spec_helper'
 
 describe HTTP::Message do
-
-  it 'mime type' do
-    HTTP::Message.mime_type('foo.txt').should eq 'text/plain'
-    HTTP::Message.mime_type('foo.html').should eq 'text/html'
-    HTTP::Message.mime_type('foo.htm').should eq 'text/html'
-    HTTP::Message.mime_type('foo.doc').should eq 'application/msword'
-    HTTP::Message.mime_type('foo.png').should eq 'image/png'
-    HTTP::Message.mime_type('foo.gif').should eq 'image/gif'
-    HTTP::Message.mime_type('foo.jpg').should eq 'image/jpeg'
-    HTTP::Message.mime_type('foo.jpeg').should eq 'image/jpeg'
-    HTTP::Message.mime_type('foo.unknown').should eq 'application/octet-stream'
-  end
-
-  it 'mime handler' do
+  it 'has sane defaults for mime handlers' do
     HTTP::Message.get_mime_type_func.should be_nil
     HTTP::Message.mime_type_handler.should be_nil
-
-    handler = lambda { |path| 'hello/world' }
-    HTTP::Message.mime_type_handler = handler
-    HTTP::Message.mime_type_handler.should_not be_nil
-
-    HTTP::Message.get_mime_type_func.should_not be_nil
-
-    HTTP::Message.mime_type('foo.txt').should eq 'hello/world'
-
-    HTTP::Message.mime_type_handler = nil
-    HTTP::Message.mime_type('foo.txt').should eq 'text/plain'
-    HTTP::Message.set_mime_type_func(nil)
-    HTTP::Message.mime_type('foo.txt').should eq 'text/plain'
-
-    handler = lambda { |path| nil }
-    HTTP::Message.mime_type_handler = handler
-    HTTP::Message.mime_type('foo.txt').should eq 'application/octet-stream'
   end
+
+  context 'reset' do
+    before :each do
+      HTTP::Message.set_mime_type_func(nil)
+      HTTP::Message.mime_type_handler = nil
+    end
+    it 'mime type' do
+      HTTP::Message.mime_type('foo.txt').should eq 'text/plain'
+      HTTP::Message.mime_type('foo.html').should eq 'text/html'
+      HTTP::Message.mime_type('foo.htm').should eq 'text/html'
+      HTTP::Message.mime_type('foo.doc').should eq 'application/msword'
+      HTTP::Message.mime_type('foo.png').should eq 'image/png'
+      HTTP::Message.mime_type('foo.gif').should eq 'image/gif'
+      HTTP::Message.mime_type('foo.jpg').should eq 'image/jpeg'
+      HTTP::Message.mime_type('foo.jpeg').should eq 'image/jpeg'
+      HTTP::Message.mime_type('foo.unknown').should eq 'application/octet-stream'
+    end
+
+    it 'mime handler' do
+      handler = lambda { |path| 'hello/world' }
+      HTTP::Message.mime_type_handler = handler
+      HTTP::Message.mime_type_handler.should_not be_nil
+
+      HTTP::Message.get_mime_type_func.should_not be_nil
+
+      HTTP::Message.mime_type('foo.txt').should eq 'hello/world'
+
+      HTTP::Message.mime_type_handler = nil
+      HTTP::Message.mime_type('foo.txt').should eq 'text/plain'
+      HTTP::Message.set_mime_type_func(nil)
+      HTTP::Message.mime_type('foo.txt').should eq 'text/plain'
+
+      handler = lambda { |path| nil }
+      HTTP::Message.mime_type_handler = handler
+      HTTP::Message.mime_type('foo.txt').should eq 'application/octet-stream'
+    end
+  end
+
 
   it 'connect request' do
     req = HTTP::Message.new_connect_request(urify('https://foo/bar'))

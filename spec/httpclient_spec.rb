@@ -127,7 +127,21 @@ describe HTTPClient do
       end
     end
   end
-
+  describe 'request' do
+    describe 'get with block' do
+      it 'works with filter_block: true' do
+        @client.request(:get, @srv.u('hello')) do |str|
+          str.should eq 'hello' 
+        end
+      end
+      it 'works with filter_block: false' do
+        @client.request(:get, @srv.u('hello'), filter_block: false) do |req, str|
+          req.class.name.should eq 'HTTP::Message' 
+          str.should eq 'hello' 
+        end
+      end
+    end
+  end
   describe 'agent name' do
     it 'default' do
       str = ""
