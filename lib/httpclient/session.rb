@@ -986,10 +986,11 @@ class HTTPClient
           return
         end
         timeout(@receive_timeout, ReceiveTimeoutError) do
-          @socket.read(@chunk_length + 2, buf)
+          @socket.read(@chunk_length, buf)
+          @socket.read(2)
         end
         unless buf.empty?
-          yield buf.slice(0, @chunk_length)
+          yield buf
         end
       end
     end
