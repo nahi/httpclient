@@ -1,5 +1,9 @@
 require File.expand_path('helper', File.dirname(__FILE__))
 require 'digest/md5'
+require 'rack'
+require 'rack/lint'
+require 'rack/showexceptions'
+require 'rack-ntlm'
 
 class TestAuth < Test::Unit::TestCase
   include Helper
@@ -34,6 +38,22 @@ class TestAuth < Test::Unit::TestCase
       '/digest_sess_auth',
       WEBrick::HTTPServlet::ProcHandler.new(method(:do_digest_sess_auth).to_proc)
     )
+    # NTLM endpoint
+    ntlm_handler = Rack::Handler::WEBrick.new(@server,
+      Rack::Builder.app do
+        use Rack::ShowExceptions
+        use Rack::ContentLength
+        use Rack::Ntlm, {:uri_pattern => /.*/, :auth => {:username => "admin", :password => "admin"}}
+        run lambda { |env| [200, { 'Content-Type' => 'text/html' }, ['ntlm_auth OK']] }
+      end
+    )
+    @server.mount(
+      '/ntlm_auth',
+      WEBrick::HTTPServlet::ProcHandler.new(Proc.new do |req, res|
+        ntlm_handler.service(req, res)
+      end)
+    )
+    # Htpasswd
     htpasswd = File.join(File.dirname(__FILE__), 'htpasswd')
     htpasswd_userdb = WEBrick::HTTPAuth::Htpasswd.new(htpasswd)
     htdigest = File.join(File.dirname(__FILE__), 'htdigest')
@@ -93,6 +113,13 @@ class TestAuth < Test::Unit::TestCase
     res['content-type'] = 'text/plain'
     res['x-query'] = req.body
     res.body = 'digest_sess_auth OK' + req.query_string.to_s
+  end
+
+  def test_ntlm_auth
+    c = HTTPClient.new
+    c.set_auth("http://localhost:#{serverport}/ntlm_auth", 'admin', 'admin')
+    assert_equal('ntlm_auth OK', c.get_content("http://localhost:#{serverport}/ntlm_auth"))
+    puts c.inspect
   end
 
   def test_basic_auth
