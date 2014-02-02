@@ -826,15 +826,17 @@ class HTTPClient
           else
             begin
               ip = IPAddr.new(clean_host).to_s
-              #puts "! #{site.host} IS AN IP!\n"
+              # puts "! #{site.host} IS AN IP!\n"
               @debug_dev <<  "! #{site.host} IS AN IP!\n" if @debug_dev
             rescue
               ip = HTTPClient.dns_cache.fetch clean_host do
-                results = Resolv::DNS.new.getaddresses(clean_host)
-                ip = results.first.to_s
-                # puts "! RESOLVED #{clean_host} TO #{ip}\n"
-                @debug_dev << "! RESOLVED #{clean_host} TO #{ip}\n" if @debug_dev
-                ip
+                Timeout.timeout(10) do
+                  @debug_dev << "! RESOLVING #{clean_host}" if @debug_dev
+                  ip = Resolv.getaddress(clean_host)
+                  # puts "! RESOLVED #{clean_host} TO #{ip}\n"
+                  @debug_dev << "! RESOLVED #{clean_host} TO #{ip}\n" if @debug_dev
+                  ip
+                end
               end
             end
           end
