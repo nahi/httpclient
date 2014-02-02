@@ -21,7 +21,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "activesupport"
-  spec.add_dependency "PriorityQueue"
+  spec.add_dependency "lru_redux"
   spec.add_dependency "addressable"
 
   spec.add_development_dependency "bundler"

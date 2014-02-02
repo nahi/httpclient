@@ -21,7 +21,6 @@ require 'httpclient/cookie'
 require 'httpclient/cookie'
 
 require 'httpclient/lru_cache'
-require 'httpclient/lru_threadsafe'
 
 require 'active_support/core_ext'
 
@@ -235,7 +234,7 @@ require 'active_support/core_ext'
 #   ruby -rhttpclient -e 'p HTTPClient.head(ARGV.shift).header["last-modified"]' http://dev.ctor.org/
 #
 class HTTPClient
-  @@dns_cache = HTTPClient::ThreadSafeCache.new(ttl: 20.minutes, soft_ttl: 10.minute, retry_delay: 5.minutes)
+  @@dns_cache = HTTPClient::LRUCache.new(ttl: 20.minutes, soft_ttl: 10.minute, retry_delay: 5.minutes)
   cattr_accessor :dns_cache
 
   def own_methods
