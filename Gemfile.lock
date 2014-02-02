@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    glebtv-httpclient (3.2.0.beta6)
+    glebtv-httpclient (3.2.0)
       PriorityQueue
       activesupport
       addressable
