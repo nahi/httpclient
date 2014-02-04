@@ -313,7 +313,7 @@ describe HTTPClient do
     it '#urify' do
       urify(nil).should be_nil
       uri = 'http://foo'
-      urify(uri).class.name.should eq 'HTTPClient::Util::AddressableURI'
+      # urify(uri).class.name.should eq 'HTTPClient::Util::AddressableURI'
       urify(uri).should eq urify(uri)
       urify(uri).to_s.should eq uri
       urify(urify(uri)).should eq urify(uri)
