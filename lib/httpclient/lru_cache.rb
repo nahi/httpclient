@@ -38,7 +38,7 @@ class HTTPClient
       if datum.nil?
         store(key, value = yield)
       elsif datum.expired?
-        delete(key)
+        @data.delete(key)
         store(key, value = yield)
       elsif datum.soft_expired?
         begin
