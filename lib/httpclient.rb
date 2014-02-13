@@ -764,9 +764,13 @@ class HTTPClient
     end
     uri = urify(uri)
     if block
-      filtered_block = proc { |res, str|
-        block.call(str)
-      }
+      if block.arity == 1
+        filtered_block = proc { |res, str|
+          block.call(str)
+        }
+      else
+        filtered_block = block
+      end
     end
     if follow_redirect
       follow_redirect(method, uri, query, body, header, &block)
