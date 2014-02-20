@@ -7,7 +7,7 @@ Ruby.  'httpclient' formerly known as 'http-access2'.
 See HTTPClient for documentation.
 
 
-== Features
+## Features
 
 * methods like GET/HEAD/POST/* via HTTP/1.1.
 * HTTPS(SSL), Cookies, proxy, authentication(Digest, NTLM, Basic), etc.
@@ -30,25 +30,27 @@ See HTTPClient for documentation.
   * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.
     (of course you can set it in header by yourself)
 
-== httpclient command
+## httpclient command
 
-Usage: 1) % httpclient get https://www.google.co.jp/ q=ruby
-Usage: 2) % httpclient
+Usage: 1) `httpclient get https://www.google.co.jp/ q=ruby`  
+Usage: 2) `httpclient`
 
 For 1) it issues a GET request to the given URI and shows the wiredump and
 the parsed result.  For 2) it invokes irb shell with the binding that has a
 HTTPClient as 'self'.  You can call HTTPClient instance methods like;
 
-  > get "https://www.google.co.jp/", :q => :ruby
+```ruby
+get "https://www.google.co.jp/", :q => :ruby
+```
 
-== Author
+## Author
 
 Name:: Hiroshi Nakamura
 E-mail:: nahi@ruby-lang.org
 Project web site:: http://github.com/nahi/httpclient
 
 
-== License
+## License
 
 This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 redistribute it and/or modify it under the same terms of Ruby's license;
@@ -61,40 +63,44 @@ I asked Maebashi-san he agreed that I can redistribute it under the same terms
 of Ruby.  Many thanks to Maebashi-san.
 
 
-== Install
+## Install
 
-=== Gem
+### Gem
 
 You can install httpclient with rubygems.
 
-  % gem install httpclient
+```
+gem install httpclient
+```
 
-=== Package
+### Package
 
 You can install httpclient with the bundled installer script.
 
-  $ ruby install.rb
+```
+ruby install.rb
+```
 
 It will install lib/* to your site_ruby directory such as
-/usr/local/lib/ruby/site_ruby/1.8/.
+`/usr/local/lib/ruby/site_ruby/1.8/`.
 
 For uninstall, delete installed files from your site_ruby directory.
 
 
-== Usage
+## Usage
 
 See HTTPClient for documentation.
 You can also check sample/howto.rb how to use APIs.
 
 
-== Download
+## Download
 
 * Gem repository
   * https://rubygems.org/gems/httpclient
 
 * git: git://github.com/nahi/httpclient.git
 
-== Bug report or Feature request
+## Bug report or Feature request
 
 Please file a ticket at the project web site.
 
@@ -105,9 +111,9 @@ Please file a ticket at the project web site.
 Thanks in advance. 
 
 
-== Changes
+## Changes
 
-= Changes in 2.3.3 =
+### Changes in 2.3.3
 
   February 24, 2013 - version 2.3.3
 
@@ -116,7 +122,7 @@ Thanks in advance.
     * #144 Add User-Agent field by default. You can remove the header by
       setting nil to HTTPClient#agent_name.
 
-= Changes in 2.3.2 =
+### Changes in 2.3.2
 
   January 5, 2013 - version 2.3.2
 
@@ -126,7 +132,7 @@ Thanks in advance.
       reported that the change causes background processes not terminated
       properly.
 
-= Changes in 2.3.1 =
+### Changes in 2.3.1
 
   January 1, 2013 - version 2.3.1
 
@@ -145,7 +151,7 @@ Thanks in advance.
     * #122 Support IPv6 address in URI
 
 
-= Changes in 2.3.0 =
+### Changes in 2.3.0
 
   October 10, 2012 - version 2.3.0
 
@@ -176,7 +182,7 @@ Thanks in advance.
         multiipart/form Content-Type.
       * #110 Allows leading dots in no_proxy hostname suffixes.
 
-= Changes in 2.2.7 =
+### Changes in 2.2.7
 
   August 14, 2012 - version 2.2.7
 
@@ -185,7 +191,7 @@ Thanks in advance.
       * Fix arity incompatibility introduced in 2.2.6.  It broke Webmock.
         Thanks Andrew France for the report!
 
-= Changes in 2.2.6 =
+### Changes in 2.2.6
 
   August 14, 2012 - version 2.2.6
 
@@ -216,7 +222,7 @@ Thanks in advance.
       * Fill request parameters request_method, request_uri and request_query
         as part of response Message::Header.
 
-= Changes in 2.2.5 =
+### Changes in 2.2.5
 
   May 06, 2012 - version 2.2.5
 
@@ -240,7 +246,7 @@ Thanks in advance.
       * Allow to set Date header manually.
         ex. clent.get(uri, :header => {'Date' => Time.now.httpdate})
 
-= Changes in 2.2.4 =
+### Changes in 2.2.4
 
   Dec 08, 2011 - version 2.2.4
 
@@ -254,7 +260,7 @@ Thanks in advance.
 
       Bugs are reported by Seamus Abshere. Thanks!
   
-= Changes in 2.2.3 =
+### Changes in 2.2.3
 
   Oct 28, 2011 - version 2.2.3
 
@@ -262,7 +268,7 @@ Thanks in advance.
 
       * Ruby 1.8.6 support.  It's broken from 2.2.0.
   
-= Changes in 2.2.2 =
+### Changes in 2.2.2
 
   Oct 17, 2011 - version 2.2.2
 
@@ -294,7 +300,7 @@ Thanks in advance.
         keep_alive_timeout is 15[sec] by default. The value is from the default
         value for KeepAliveTimeout of Apache httpd 2.  #68 #69
 
-= Changes in 2.2.1 =
+### Changes in 2.2.1
 
   Jun 2, 2011 - version 2.2.1
 
@@ -336,7 +342,7 @@ Thanks in advance.
       * Changed default chunk size from 4K to 16K. It's used for reading size
         at a time.
 
-= Changes in 2.2.0 =
+### Changes in 2.2.0
 
   Apr 8, 2011 - version 2.2.0
 
@@ -376,7 +382,7 @@ Thanks in advance.
         2008-12-09. I should have written a test for keep-alive. Now I added it.
         Thanks Takahiro Nishimura(@dr_taka_n) for finding this bug.
 
-= Changes in 2.1.7 =
+### Changes in 2.1.7
 
   Mar 22, 2011 - version 2.1.7
 
@@ -388,7 +394,7 @@ Thanks in advance.
       * Add HTTPOnly cookie support. Thanks to nbrosnahan. (#55)
       * Add HTTPClient#socket_local for specifying local binding hostname and port of TCP socket. Thanks to icblenke.
 
-= Changes in 2.1.6 =
+### Changes in 2.1.6 =
 
   Dec 20, 2010 - version 2.1.6
 
@@ -440,7 +446,7 @@ Thanks in advance.
       * #38 DigestAuth + posting IO fails, patch by chetan.
       * #41 https-over-proxy fails with IIS, patch by tai.
 
-= Changes in 2.1.5 =
+### Changes in 2.1.5
 
   Jun 25, 2009 - version 2.1.5.2
 
