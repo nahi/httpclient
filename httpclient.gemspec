@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.executables = ['httpclient']
   spec.homepage = 'http://github.com/glebtv/httpclient'
   spec.platform = Gem::Platform::RUBY
-  spec.summary = 'Fork of httpclient with some fixes and patches I needed. Please use original gem instead'
+  spec.summary = 'Fork of httpclient with some fixes and patches I needed.'
   
   spec.license = 'ruby'
 
@@ -20,12 +20,12 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "lru_redux"
+  spec.add_dependency 'lru_redux'
 
-  spec.add_development_dependency "bundler"
-  spec.add_development_dependency "rake"
-  spec.add_development_dependency "test-unit"
-  spec.add_development_dependency "rspec"
-  spec.add_development_dependency "rdoc"
-  spec.add_development_dependency "coveralls"
+  spec.add_development_dependency 'bundler'
+  spec.add_development_dependency 'rake'
+  spec.add_development_dependency 'test-unit'
+  spec.add_development_dependency 'rspec'
+  spec.add_development_dependency 'rdoc'
+  spec.add_development_dependency 'coveralls'
 end

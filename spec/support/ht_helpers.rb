@@ -8,3 +8,4 @@ RSpec.configure do |config|
   config.extend HtHelpers
   config.include HTTPClient::Util
 end
+
