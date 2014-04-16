@@ -818,29 +818,31 @@ class HTTPClient
         @debug_dev << "! CONNECT TO #{site.host}:#{site.port}\n" if @debug_dev
         raise HTTPClient::BadURIError.new('Unable to get hostname from URI') if site.host.nil?
         clean_host = site.host.delete("[]")
-        clean_local = @socket_local.host.delete("[]")
         if str = @test_loopback_http_response.shift
           socket = LoopBackSocket.new(clean_host, site.port, str)
         else
           begin
-            ip = IPAddr.new(clean_host).to_s
-            # puts "! #{site.host} IS AN IP!\n"
-            # @debug_dev <<  "! #{site.host} IS AN IP!\n" if @debug_dev
+            ips = [ IPAddr.new(clean_host) ]
           rescue
-            ip = HTTPClient.dns_cache.fetch clean_host do
+            ips = HTTPClient.dns_cache.fetch clean_host do
               Timeout.timeout(10) do
-                # @debug_dev << "! RESOLVING #{clean_host}" if @debug_dev
-                ip = Resolv.getaddress(clean_host)
-                # puts "! RESOLVED #{clean_host} TO #{ip}\n"
-                # @debug_dev << "! RESOLVED #{clean_host} TO #{ip}\n" if @debug_dev
-                ip
+                Resolv.getaddresses(clean_host)
               end
             end
           end
 
           if @socket_local == Site::EMPTY
-            socket = TCPSocket.new(ip, site.port)
+            socket = TCPSocket.new(ips.first.to_s, site.port)
           else
+            clean_local = @socket_local.host.delete("[]").to_s
+            if IPAddr.new(clean_local).ipv6?
+              ip = ips.select { |i| IPAddr.new(i).ipv6? }.first
+            else
+              ip = ips.select { |i| IPAddr.new(i).ipv4? }.first
+            end
+            if ip.nil?
+              raise HTTPClient::BadIPProtoError.new("Unable to select matching source and destination ip addresses (v4/v6) for connecting to #{ips.join(',')} from #{clean_local}")
+            end
             socket = TCPSocket.new(ip, site.port, clean_local, @socket_local.port)
           end
         end

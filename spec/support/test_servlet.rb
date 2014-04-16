@@ -26,6 +26,11 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
     res.body = param['txt'] || 'put'
   end
 
+  def do_PATCH(req, res)
+    res.body = 'patch'
+    res["x-query"] = body_response(req)
+  end
+
   def do_DELETE(req, res)
     res.body = 'delete'
   end

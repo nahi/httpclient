@@ -265,6 +265,10 @@ class HTTPClient
   class BadURIError < RuntimeError
   end
 
+  # Raised when trying to request with bad proto
+  class BadIPProtoError < RuntimeError
+  end
+
   # Raised for indicating a timeout error.
   class TimeoutError < RuntimeError
   end

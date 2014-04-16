@@ -1,8 +1,4 @@
-# -*- encoding: utf-8 -*-
-require File.expand_path('helper', File.dirname(__FILE__))
-
-
-class TestHTTPClient < Test::Unit::TestCase
+class TestHTTPClient < ActiveSupport::TestCase
   include Helper
   include HTTPClient::Util
 

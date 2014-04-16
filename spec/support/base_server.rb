@@ -1,7 +1,7 @@
 # coding: utf-8
 
 class BaseServer
-  attr_accessor :server, :port, :logger
+  attr_accessor :server, :port, :logger, :io
   
   def u(str = '')
     "http://localhost:#{@port}/#{str}"
@@ -9,7 +9,7 @@ class BaseServer
   
   def set_logger
     @io = StringIO.new
-    @logger = Logger.new(@proxyio)
+    @logger = Logger.new(@io)
     @logger.level = Logger::Severity::DEBUG
   end
   

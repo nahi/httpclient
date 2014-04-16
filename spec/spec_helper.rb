@@ -17,6 +17,7 @@ require 'webrick/httpproxy.rb'
 require 'webrick/httputils'
 require 'tempfile'
 require 'zlib'
+require 'climate_control'
 require 'httpclient'
 
 require File.join(File.dirname(__FILE__), "support", "base_server.rb")
