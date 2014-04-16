@@ -1,3 +1,3 @@
 class HTTPClient
-  VERSION = '3.2.4' unless defined?(VERSION)
+  VERSION = '3.2.5' unless defined?(VERSION)
 end

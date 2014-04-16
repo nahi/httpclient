@@ -816,6 +816,7 @@ class HTTPClient
       socket = nil
       begin
         @debug_dev << "! CONNECT TO #{site.host}:#{site.port}\n" if @debug_dev
+        raise HTTPClient::BadURIError.new('Unable to get hostname from URI') if site.host.nil?
         clean_host = site.host.delete("[]")
         clean_local = @socket_local.host.delete("[]")
         if str = @test_loopback_http_response.shift

@@ -260,6 +260,10 @@ class HTTPClient
       @res = res
     end
   end
+  
+  # Raised for indicating bad URIs
+  class BadURIError < RuntimeError
+  end
 
   # Raised for indicating a timeout error.
   class TimeoutError < RuntimeError

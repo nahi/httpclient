@@ -13,6 +13,10 @@ describe HTTPClient do
       end
     end
     
+    it 'raises if bad URI' do
+      expect { HTTPClient.get_content '/z/' }.to raise_error(HTTPClient::BadURIError)
+    end
+    
     describe '#download_file' do
       it 'writes to file' do
         file = Tempfile.new('httpcl')
