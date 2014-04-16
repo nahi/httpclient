@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    glebtv-httpclient (3.2.5)
+    glebtv-httpclient (3.2.6)
       lru_redux
 
 GEM
