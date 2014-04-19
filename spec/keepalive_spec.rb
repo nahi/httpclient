@@ -109,13 +109,13 @@ describe 'KeepAlive' do
 
   it 'works' do
     client = HTTPClient.new
-    server = TCPServer.open('localhost', 0)
+    server = TCPServer.open('127.0.0.1', 0)
     server_thread = Thread.new {
       Thread.abort_on_exception = true
       sock = server.accept
       create_keepalive_thread(10, sock)
     }
-    url = "http://localhost:#{server.addr[1]}/"
+    url = "http://127.0.0.1:#{server.addr[1]}/"
     # content-length
     5.times do
       client.get(url).body.should eq '12345'

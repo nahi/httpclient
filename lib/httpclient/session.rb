@@ -822,7 +822,7 @@ class HTTPClient
           socket = LoopBackSocket.new(clean_host, site.port, str)
         else
           begin
-            ips = [ IPAddr.new(clean_host) ]
+            ips = [ IPAddr.new(clean_host).to_s ]
           rescue
             ips = HTTPClient.dns_cache.fetch clean_host do
               Timeout.timeout(10) do
@@ -832,7 +832,11 @@ class HTTPClient
           end
 
           if @socket_local == Site::EMPTY
-            socket = TCPSocket.new(ips.first.to_s, site.port)
+            ip = ips.select { |i| IPAddr.new(i).ipv4? }.first
+            if ip.nil?
+              ip = ips.first
+            end
+            socket = TCPSocket.new(ip, site.port)
           else
             clean_local = @socket_local.host.delete("[]").to_s
             if IPAddr.new(clean_local).ipv6?
