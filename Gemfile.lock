@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    glebtv-httpclient (3.2.6)
+    glebtv-httpclient (3.2.7)
       lru_redux
 
 GEM
@@ -25,8 +25,8 @@ GEM
     json (1.8.1)
     lru_redux (0.8.1)
     mime-types (2.2)
-    multi_json (1.9.2)
-    rake (10.3.0)
+    multi_json (1.9.3)
+    rake (10.3.1)
     rdoc (4.1.1)
       json (~> 1.4)
     rest-client (1.6.7)
