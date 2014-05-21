@@ -5,9 +5,9 @@ consumer_key = 'EDIT HERE'
 consumer_secret = 'EDIT HERE'
 
 callback = ARGV.shift # can be nil for OAuth 1.0. (not 1.0a)
-request_token_url = 'http://twitter.com/oauth/request_token'
-oob_authorize_url = 'http://twitter.com/oauth/authorize'
-access_token_url = 'http://twitter.com/oauth/access_token'
+request_token_url = 'https://api.twitter.com/oauth/request_token'
+oob_authorize_url = 'https://api.twitter.com/oauth/authorize'
+access_token_url  = 'https://api.twitter.com/oauth/access_token'
 
 STDOUT.sync = true
 
@@ -58,4 +58,4 @@ puts "Hit [enter] to go"
 gets
 
 # Access to a protected resource. (DM)
-puts client.get("http://twitter.com/direct_messages.json")
+puts client.get("https://api.twitter.com/1.1/direct_messages.json")
