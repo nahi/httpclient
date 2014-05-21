@@ -134,7 +134,7 @@ end
 
   def test_ciphers
     cfg = @client.ssl_config
-    cfg.set_client_cert_file(path('client.cert'), path('client.key'))
+    cfg.set_client_cert_file(path('client.cert'), path('client-pass.key'), 'pass4key')
     cfg.add_trust_ca(path('ca.cert'))
     cfg.add_trust_ca(path('subca.cert'))
     cfg.timeout = 123

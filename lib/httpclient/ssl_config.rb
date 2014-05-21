@@ -123,9 +123,9 @@ class HTTPClient
     #            use client_key=.
     #
     # Calling this method resets all existing sessions.
-    def set_client_cert_file(cert_file, key_file)
+    def set_client_cert_file(cert_file, key_file, pass = nil)
       @client_cert = X509::Certificate.new(File.open(cert_file) { |f| f.read })
-      @client_key = PKey::RSA.new(File.open(key_file) { |f| f.read })
+      @client_key = PKey::RSA.new(File.open(key_file) { |f| f.read }, pass)
       change_notify
     end
 
