@@ -113,6 +113,21 @@ Thanks in advance.
 
 ## Changes
 
+### Changes in 2.3.4
+
+  July 27, 2013 - version 2.3.4
+
+  * Bug fixes
+
+    * #154 A new cookie never be accepted if an HTTPClient has the same
+      expired cookie.
+
+    * #167 Handle UTF characters in chunked bodies.
+
+    * #168 Fix incorrect use of absolute URL for HTTPS proxy requests.
+
+    * #171 Make sure to read socket in BINARY buffer.
+
 ### Changes in 2.3.3
 
   February 24, 2013 - version 2.3.3
