@@ -678,7 +678,7 @@ EOS
     assert_nil(res.content)
   end
 
-  def test_get_with_block_chunk_string_recycle
+  def test_get_with_block_string_recycle
     @client.read_block_size = 2
     body = []
     res = @client.get(serverurl + 'servlet') { |str|
@@ -686,6 +686,26 @@ EOS
     }
     assert_equal(2, body.size)
     assert_equal("get", body.join) # Was "tt" by String object recycle...
+  end
+
+  def test_get_with_block_chunked_string_recycle
+    server = TCPServer.open('localhost', 0)
+    server_thread = Thread.new {
+      Thread.abort_on_exception = true
+      sock = server.accept
+      create_keepalive_thread(1, sock)
+    }
+    url = "http://localhost:#{server.addr[1]}/"
+    body = []
+    begin
+      res = @client.get(url + 'chunked') { |str|
+        body << str
+      }
+    ensure
+      server.close
+      server_thread.join
+    end
+    assert_equal('abcdefghijklmnopqrstuvwxyz1234567890abcdef', body.join)
   end
 
   def test_post

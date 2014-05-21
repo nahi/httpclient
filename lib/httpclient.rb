@@ -1088,7 +1088,7 @@ private
     sess.get_body do |part|
       set_encoding(part, res.body_encoding)
       if block
-        block.call(res, part)
+        block.call(res, part.dup)
       else
         content << part
       end
