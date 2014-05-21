@@ -678,6 +678,18 @@ EOS
     assert_nil(res.content)
   end
 
+  def test_get_with_block_arity_2
+    called = false
+    res = @client.get(serverurl + 'servlet') { |res, str|
+      assert_equal(200, res.status)
+      assert_equal('get', str)
+      called = true
+    }
+    assert(called)
+    # res does not have a content
+    assert_nil(res.content)
+  end
+
   def test_get_with_block_string_recycle
     @client.read_block_size = 2
     body = []
