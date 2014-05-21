@@ -119,14 +119,13 @@ Thanks in advance.
 
   * Bug fixes
 
-    * #154 A new cookie never be accepted if an HTTPClient has the same
-      expired cookie.
+    * A new cookie never be accepted if an HTTPClient has the same expired cookie. #154
 
-    * #167 Handle UTF characters in chunked bodies.
+    * Handle UTF characters in chunked bodies. #167
 
-    * #168 Fix incorrect use of absolute URL for HTTPS proxy requests.
+    * Fix incorrect use of absolute URL for HTTPS proxy requests. #168
 
-    * #171 Make sure to read socket in BINARY buffer.
+    * Make sure to read socket in BINARY buffer. #171
 
 ### Changes in 2.3.3
 
