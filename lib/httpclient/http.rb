@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 # HTTPClient - HTTP client library.
 # Copyright (C) 2000-2009  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 #
