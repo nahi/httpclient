@@ -815,10 +815,10 @@ class HTTPClient
     def calc_cred(req, config)
       header = {}
       header['oauth_consumer_key'] = config.consumer_key
-      header['oauth_token'] = config.token
       header['oauth_signature_method'] = config.signature_method
       header['oauth_timestamp'] = config.debug_timestamp || Time.now.to_i.to_s
       header['oauth_nonce'] = config.debug_nonce || generate_nonce()
+      header['oauth_token'] = config.token if config.token
       header['oauth_version'] = config.version if config.version
       header['oauth_callback'] = config.callback if config.callback
       header['oauth_verifier'] = config.verifier if config.verifier
