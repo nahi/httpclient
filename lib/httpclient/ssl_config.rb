@@ -392,6 +392,7 @@ class HTTPClient
 
     def change_notify
       @client.reset_all
+      nil
     end
 
     def load_cacerts(cert_store)
