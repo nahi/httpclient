@@ -116,7 +116,7 @@ require 'httpclient/cookie'
 #       res = clnt.post(uri, body)
 #     end
 #
-# 3. Do multipart wth custom body.
+# 3. Do multipart with custom body.
 #
 #     File.open('/tmp/post_data') do |file|
 #       body = [{ 'Content-Type' => 'application/atom+xml; charset=UTF-8',
@@ -750,7 +750,7 @@ class HTTPClient
   #
   # When you pass an IO as a body, HTTPClient sends it as a HTTP request with
   # chunked encoding (Transfer-Encoding: chunked in HTTP header) if IO does not
-  # respond to :read. Bear in mind that some server application does not support
+  # respond to :size. Bear in mind that some server application does not support
   # chunked request.  At least cgi.rb does not support it.
   def request(method, uri, *args, &block)
     query, body, header, follow_redirect = keyword_argument(args, :query, :body, :header, :follow_redirect)
