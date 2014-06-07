@@ -866,6 +866,12 @@ class HTTPClient
     end
 
     # Challenge handler: remember URL for response.
+    #
+    # challenge() in OAuth handler always returns false to avoid connection
+    # retry which should not work in OAuth authentication context.  This
+    # method just remember URL (nil means 'any') for the next connection.
+    # Normally OAuthClient handles this correctly but see how it uses when
+    # you need to use this class directly.
     def challenge(uri, param_str = nil)
       synchronize {
         if uri.nil?
@@ -873,7 +879,7 @@ class HTTPClient
         else
           @challenge[urify(uri)] = true
         end
-        true
+        false
       }
     end
 
