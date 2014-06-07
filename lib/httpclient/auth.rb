@@ -293,10 +293,10 @@ class HTTPClient
 
     # Challenge handler: remember URL for response.
     def challenge(uri, param_str = nil)
-      #synchronize {
+      synchronize {
         @challenge[urify(uri)] = true
         true
-      #}
+      }
     end
   end
 
