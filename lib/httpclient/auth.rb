@@ -8,6 +8,7 @@
 
 require 'digest/md5'
 require 'httpclient/session'
+require 'mutex_m'
 
 
 class HTTPClient
@@ -229,40 +230,48 @@ class HTTPClient
   # Used in WWWAuth and ProxyAuth.
   class BasicAuth
     include HTTPClient::Util
+    include Mutex_m
 
     # Authentication scheme.
     attr_reader :scheme
 
     # Creates new BasicAuth filter.
     def initialize
+      super
       @cred = nil
       @set = false
       @auth = {}
-      @challengeable = {}
+      @challenge = {}
       @scheme = "Basic"
     end
 
     # Resets challenge state.  Do not send '*Authorization' header until the
     # server sends '*Authentication' again.
     def reset_challenge
-      @challengeable.clear
+      synchronize {
+        @challenge.clear
+      }
     end
 
     # Set authentication credential.
     # uri == nil for generic purpose (allow to use user/password for any URL).
     def set(uri, user, passwd)
-      @set = true
-      if uri.nil?
-        @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
-      else
-        uri = Util.uri_dirname(uri)
-        @auth[uri] = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
+      synchronize do
+        if uri.nil?
+          @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
+        else
+          uri = Util.uri_dirname(uri)
+          @auth[uri] = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
+        end
+        @set = true
       end
     end
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      @set == true
+      synchronize {
+        @set == true
+      }
     end
 
     # Response handler: returns credential.
@@ -271,50 +280,63 @@ class HTTPClient
     # * child page of defined credential
     def get(req)
       target_uri = req.header.request_uri
-      return nil unless @challengeable.find { |uri, ok|
-        Util.uri_part_of(target_uri, uri) and ok
-      }
-      return @cred if @cred
-      Util.hash_find_value(@auth) { |uri, cred|
-        Util.uri_part_of(target_uri, uri)
+      synchronize {
+        return nil unless @challenge.find { |uri, ok|
+          Util.uri_part_of(target_uri, uri) and ok
+        }
+        return @cred if @cred
+        Util.hash_find_value(@auth) { |uri, cred|
+          Util.uri_part_of(target_uri, uri)
+        }
       }
     end
 
     # Challenge handler: remember URL for response.
     def challenge(uri, param_str = nil)
-      @challengeable[urify(uri)] = true
-      true
+      #synchronize {
+        @challenge[urify(uri)] = true
+        true
+      #}
     end
   end
 
   class ProxyBasicAuth < BasicAuth
 
     def set(uri, user, passwd)
-      @set = true
-      @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
+      synchronize do
+        @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
+        @set = true
+      end
     end
 
     def get(req)
       target_uri = req.header.request_uri
-      return nil unless @challengeable['challenged']
-      @cred
+      synchronize {
+        return nil unless @challenge['challenged']
+        @cred
+      }
     end
 
     # Challenge handler: remember URL for response.
     def challenge(uri, param_str = nil)
-      @challengeable['challenged'] = true
-      true
+      synchronize {
+        @challenge['challenged'] = true
+        true
+      }
     end
   end
 
   # Authentication filter for handling DigestAuth negotiation.
   # Used in WWWAuth.
   class DigestAuth
+    include Mutex_m
+
     # Authentication scheme.
     attr_reader :scheme
 
     # Creates new DigestAuth filter.
     def initialize
+      super
       @auth = {}
       @challenge = {}
       @set = false
@@ -325,22 +347,28 @@ class HTTPClient
     # Resets challenge state.  Do not send '*Authorization' header until the
     # server sends '*Authentication' again.
     def reset_challenge
-      @challenge.clear
+      synchronize do
+        @challenge.clear
+      end
     end
 
     # Set authentication credential.
     # uri == nil is ignored.
     def set(uri, user, passwd)
-      @set = true
-      if uri
-        uri = Util.uri_dirname(uri)
-        @auth[uri] = [user, passwd]
+      synchronize do
+        if uri
+          uri = Util.uri_dirname(uri)
+          @auth[uri] = [user, passwd]
+        end
+        @set = true
       end
     end
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      @set == true
+      synchronize {
+        @set == true
+      }
     end
 
     # Response handler: returns credential.
@@ -349,21 +377,25 @@ class HTTPClient
     # * child page of defined credential
     def get(req)
       target_uri = req.header.request_uri
-      param = Util.hash_find_value(@challenge) { |uri, v|
-        Util.uri_part_of(target_uri, uri)
+      synchronize {
+        param = Util.hash_find_value(@challenge) { |uri, v|
+          Util.uri_part_of(target_uri, uri)
+        }
+        return nil unless param
+        user, passwd = Util.hash_find_value(@auth) { |uri, auth_data|
+          Util.uri_part_of(target_uri, uri)
+        }
+        return nil unless user
+        calc_cred(req, user, passwd, param)
       }
-      return nil unless param
-      user, passwd = Util.hash_find_value(@auth) { |uri, auth_data|
-        Util.uri_part_of(target_uri, uri)
-      }
-      return nil unless user
-      calc_cred(req, user, passwd, param)
     end
 
     # Challenge handler: remember URL and challenge token for response.
     def challenge(uri, param_str)
-      @challenge[uri] = parse_challenge_param(param_str)
-      true
+      synchronize {
+        @challenge[uri] = parse_challenge_param(param_str)
+        true
+      }
     end
 
   private
@@ -445,8 +477,10 @@ class HTTPClient
 
     # overrides DigestAuth#set. sets default user name and password. uri is not used.
     def set(uri, user, passwd)
-      @set = true
-      @auth = [user, passwd]
+      synchronize do
+        @set = true
+        @auth = [user, passwd]
+      end
     end
 
     # overrides DigestAuth#get. Uses default user name and password
@@ -454,20 +488,26 @@ class HTTPClient
     # before
     def get(req)
       target_uri = req.header.request_uri
-      param = @challenge
-      return nil unless param
-      user, passwd = @auth
-      return nil unless user
-      calc_cred(req, user, passwd, param)
+      synchronize {
+        param = @challenge
+        return nil unless param
+        user, passwd = @auth
+        return nil unless user
+        calc_cred(req, user, passwd, param)
+      }
     end
 
     def reset_challenge
-      @challenge = nil
+      synchronize do
+        @challenge = nil
+      end
     end
 
     def challenge(uri, param_str)
-      @challenge = parse_challenge_param(param_str)
-      true
+      synchronize {
+        @challenge = parse_challenge_param(param_str)
+        true
+      }
     end
 
   end
@@ -477,6 +517,8 @@ class HTTPClient
   #
   # NegotiateAuth depends on 'ruby/ntlm' module.
   class NegotiateAuth
+    include Mutex_m
+
     # Authentication scheme.
     attr_reader :scheme
     # NTLM opt for ruby/ntlm.  {:ntlmv2 => true} by default.
@@ -484,6 +526,7 @@ class HTTPClient
 
     # Creates new NegotiateAuth filter.
     def initialize(scheme = "Negotiate")
+      super()
       @auth = {}
       @auth_default = nil
       @challenge = {}
@@ -497,24 +540,30 @@ class HTTPClient
     # Resets challenge state.  Do not send '*Authorization' header until the
     # server sends '*Authentication' again.
     def reset_challenge
-      @challenge.clear
+      synchronize do
+        @challenge.clear
+      end
     end
 
     # Set authentication credential.
     # uri == nil for generic purpose (allow to use user/password for any URL).
     def set(uri, user, passwd)
-      @set = true
-      if uri
-        uri = Util.uri_dirname(uri)
-        @auth[uri] = [user, passwd]
-      else
-        @auth_default = [user, passwd]
+      synchronize do
+        if uri
+          uri = Util.uri_dirname(uri)
+          @auth[uri] = [user, passwd]
+        else
+          @auth_default = [user, passwd]
+        end
+        @set = true
       end
     end
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      @set == true
+      synchronize {
+        @set == true
+      }
     end
 
     # Response handler: returns credential.
@@ -522,50 +571,54 @@ class HTTPClient
     def get(req)
       return nil unless NTLMEnabled
       target_uri = req.header.request_uri
-      domain_uri, param = @challenge.find { |uri, v|
-        Util.uri_part_of(target_uri, uri)
+      synchronize {
+        domain_uri, param = @challenge.find { |uri, v|
+          Util.uri_part_of(target_uri, uri)
+        }
+        return nil unless param
+        user, passwd = Util.hash_find_value(@auth) { |uri, auth_data|
+          Util.uri_part_of(target_uri, uri)
+        }
+        unless user
+          user, passwd = @auth_default
+        end
+        return nil unless user
+        domain = nil
+        domain, user = user.split("\\") if user.index("\\")
+        state = param[:state]
+        authphrase = param[:authphrase]
+        case state
+        when :init
+          t1 = Net::NTLM::Message::Type1.new
+          t1.domain = domain if domain
+          return t1.encode64
+        when :response
+          t2 = Net::NTLM::Message.decode64(authphrase)
+          param = {:user => user, :password => passwd}
+          param[:domain] = domain if domain
+          t3 = t2.response(param, @ntlm_opt.dup)
+          @challenge.delete(domain_uri)
+          return t3.encode64
+        end
+        nil
       }
-      return nil unless param
-      user, passwd = Util.hash_find_value(@auth) { |uri, auth_data|
-        Util.uri_part_of(target_uri, uri)
-      }
-      unless user
-        user, passwd = @auth_default
-      end
-      return nil unless user
-      domain = nil
-      domain, user = user.split("\\") if user.index("\\")
-      state = param[:state]
-      authphrase = param[:authphrase]
-      case state
-      when :init
-        t1 = Net::NTLM::Message::Type1.new
-        t1.domain = domain if domain
-        return t1.encode64
-      when :response
-        t2 = Net::NTLM::Message.decode64(authphrase)
-        param = {:user => user, :password => passwd}
-        param[:domain] = domain if domain
-        t3 = t2.response(param, @ntlm_opt.dup)
-        @challenge.delete(domain_uri)
-        return t3.encode64
-      end
-      nil
     end
 
     # Challenge handler: remember URL and challenge token for response.
     def challenge(uri, param_str)
       return false unless NTLMEnabled
-      if param_str.nil? or @challenge[uri].nil?
-        c = @challenge[uri] = {}
-        c[:state] = :init
-        c[:authphrase] = ""
-      else
-        c = @challenge[uri]
-        c[:state] = :response
-        c[:authphrase] = param_str
-      end
-      true
+      synchronize {
+        if param_str.nil? or @challenge[uri].nil?
+          c = @challenge[uri] = {}
+          c[:state] = :init
+          c[:authphrase] = ""
+        else
+          c = @challenge[uri]
+          c[:state] = :response
+          c[:authphrase] = param_str
+        end
+        true
+      }
     end
   end
 
@@ -575,11 +628,14 @@ class HTTPClient
   #
   # SSPINegotiateAuth depends on 'win32/sspi' module.
   class SSPINegotiateAuth
+    include Mutex_m
+
     # Authentication scheme.
     attr_reader :scheme
 
     # Creates new SSPINegotiateAuth filter.
     def initialize
+      super
       @challenge = {}
       @scheme = "Negotiate"
     end
@@ -587,7 +643,9 @@ class HTTPClient
     # Resets challenge state.  Do not send '*Authorization' header until the
     # server sends '*Authentication' again.
     def reset_challenge
-      @challenge.clear
+      synchronize do
+        @challenge.clear
+      end
     end
 
     # Set authentication credential.
@@ -607,48 +665,52 @@ class HTTPClient
     def get(req)
       return nil unless SSPIEnabled || GSSAPIEnabled
       target_uri = req.header.request_uri
-      domain_uri, param = @challenge.find { |uri, v|
-        Util.uri_part_of(target_uri, uri)
+      synchronize {
+        domain_uri, param = @challenge.find { |uri, v|
+          Util.uri_part_of(target_uri, uri)
+        }
+        return nil unless param
+        state = param[:state]
+        authenticator = param[:authenticator]
+        authphrase = param[:authphrase]
+        case state
+        when :init
+          if SSPIEnabled
+            authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
+            return authenticator.get_initial_token(@scheme)
+          else # use GSSAPI
+            authenticator = param[:authenticator] = GSSAPI::Simple.new(domain_uri.host, 'HTTP')
+            # Base64 encode the context token
+            return [authenticator.init_context].pack('m').gsub(/\n/,'')
+          end
+        when :response
+          @challenge.delete(domain_uri)
+          if SSPIEnabled
+            return authenticator.complete_authentication(authphrase)
+          else # use GSSAPI
+            return authenticator.init_context(authphrase.unpack('m').pop)
+          end
+        end
+        nil
       }
-      return nil unless param
-      state = param[:state]
-      authenticator = param[:authenticator]
-      authphrase = param[:authphrase]
-      case state
-      when :init
-        if SSPIEnabled
-          authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
-          return authenticator.get_initial_token(@scheme)
-        else # use GSSAPI
-          authenticator = param[:authenticator] = GSSAPI::Simple.new(domain_uri.host, 'HTTP')
-          # Base64 encode the context token
-          return [authenticator.init_context].pack('m').gsub(/\n/,'')
-        end
-      when :response
-        @challenge.delete(domain_uri)
-        if SSPIEnabled
-          return authenticator.complete_authentication(authphrase)
-        else # use GSSAPI
-          return authenticator.init_context(authphrase.unpack('m').pop)
-        end
-      end
-      nil
     end
 
     # Challenge handler: remember URL and challenge token for response.
     def challenge(uri, param_str)
       return false unless SSPIEnabled || GSSAPIEnabled
-      if param_str.nil? or @challenge[uri].nil?
-        c = @challenge[uri] = {}
-        c[:state] = :init
-        c[:authenticator] = nil
-        c[:authphrase] = ""
-      else
-        c = @challenge[uri]
-        c[:state] = :response
-        c[:authphrase] = param_str
-      end
-      true
+      synchronize {
+        if param_str.nil? or @challenge[uri].nil?
+          c = @challenge[uri] = {}
+          c[:state] = :init
+          c[:authenticator] = nil
+          c[:authphrase] = ""
+        else
+          c = @challenge[uri]
+          c[:state] = :response
+          c[:authphrase] = param_str
+        end
+        true
+      }
     end
   end
 
@@ -664,6 +726,7 @@ class HTTPClient
   #
   class OAuth
     include HTTPClient::Util
+    include Mutex_m
 
     # Authentication scheme.
     attr_reader :scheme
@@ -737,9 +800,10 @@ class HTTPClient
 
     # Creates new DigestAuth filter.
     def initialize
+      super
       @config = nil # common config
       @auth = {} # configs for each site
-      @challengeable = {}
+      @challenge = {}
       @nonce_count = 0
       @signature_handler = {
         'HMAC-SHA1' => method(:sign_hmac_sha1)
@@ -750,7 +814,9 @@ class HTTPClient
     # Resets challenge state.  Do not send '*Authorization' header until the
     # server sends '*Authentication' again.
     def reset_challenge
-      @challengeable.clear
+      synchronize do
+        @challenge.clear
+      end
     end
 
     # Set authentication credential.
@@ -766,16 +832,54 @@ class HTTPClient
 
     # Set authentication credential.
     def set_config(uri, config)
-      if uri.nil?
-        @config = config
-      else
-        uri = Util.uri_dirname(urify(uri))
-        @auth[uri] = config
+      synchronize do
+        if uri.nil?
+          @config = config
+        else
+          uri = Util.uri_dirname(urify(uri))
+          @auth[uri] = config
+        end
       end
     end
 
     # Get authentication credential.
     def get_config(uri = nil)
+      synchronize {
+        do_get_config(uri)
+      }
+    end
+
+    # Response handler: returns credential.
+    # It sends cred only when a given uri is;
+    # * child page of challengeable(got *Authenticate before) uri and,
+    # * child page of defined credential
+    def get(req)
+      target_uri = req.header.request_uri
+      synchronize {
+        return nil unless @challenge[nil] or @challenge.find { |uri, ok|
+          Util.uri_part_of(target_uri, uri) and ok
+        }
+        config = do_get_config(target_uri) || @config
+        return nil unless config
+        calc_cred(req, config)
+      }
+    end
+
+    # Challenge handler: remember URL for response.
+    def challenge(uri, param_str = nil)
+      synchronize {
+        if uri.nil?
+          @challenge[nil] = true
+        else
+          @challenge[urify(uri)] = true
+        end
+        true
+      }
+    end
+
+  private
+
+    def do_get_config(uri = nil)
       if uri.nil?
         @config
       else
@@ -785,32 +889,6 @@ class HTTPClient
         }
       end
     end
-
-    # Response handler: returns credential.
-    # It sends cred only when a given uri is;
-    # * child page of challengeable(got *Authenticate before) uri and,
-    # * child page of defined credential
-    def get(req)
-      target_uri = req.header.request_uri
-      return nil unless @challengeable[nil] or @challengeable.find { |uri, ok|
-        Util.uri_part_of(target_uri, uri) and ok
-      }
-      config = get_config(target_uri) || @config
-      return nil unless config
-      calc_cred(req, config)
-    end
-
-    # Challenge handler: remember URL for response.
-    def challenge(uri, param_str = nil)
-      if uri.nil?
-        @challengeable[nil] = true
-      else
-        @challengeable[urify(uri)] = true
-      end
-      true
-    end
-
-  private
 
     def calc_cred(req, config)
       header = {}

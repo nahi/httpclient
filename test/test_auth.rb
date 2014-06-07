@@ -110,7 +110,6 @@ class TestAuth < Test::Unit::TestCase
   def test_BASIC_auth
     c = HTTPClient.new
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
-    #httpaccess2_backup = c.www_auth.basic_auth.instance_eval { @scheme }
     begin
       @basic_auth.instance_eval { @auth_scheme = "BASIC" }
       c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
@@ -118,7 +117,35 @@ class TestAuth < Test::Unit::TestCase
       assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
     ensure
       @basic_auth.instance_eval { @auth_scheme = webrick_backup }
-      #c.www_auth.basic_auth.instance_eval { @scheme = httpaccess2_backup }
+    end
+  end
+
+  # To work this test consistently on CRuby you can to add 'Thread.pass' in
+  # @challenge iteration at BasicAuth#get like;
+  #
+  # return nil unless @challenge.find { |uri, ok|
+  #   Thread.pass
+  #   Util.uri_part_of(target_uri, uri) and ok
+  # }
+  def test_BASIC_auth_multi_thread
+    c = HTTPClient.new
+    webrick_backup = @basic_auth.instance_eval { @auth_scheme }
+    begin
+      @basic_auth.instance_eval { @auth_scheme = "BASIC" }
+      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
+      c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+
+      threads = 100.times.map { |idx|
+        Thread.new(idx) { |idx2|
+          Thread.abort_on_exception = true
+          Thread.pass
+          c.get("http://localhost:#{serverport}/basic_auth?#{idx2}")
+        }
+      }.map { |t|
+        t.join
+      }
+    ensure
+      @basic_auth.instance_eval { @auth_scheme = webrick_backup }
     end
   end
 
