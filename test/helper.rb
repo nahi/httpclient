@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-require 'test/unit'
 begin
   require 'simplecov'
   require 'simplecov-rcov'
@@ -7,6 +6,7 @@ begin
   SimpleCov.start
 rescue LoadError
 end
+require 'test/unit'
 
 require 'httpclient'
 require 'webrick'
