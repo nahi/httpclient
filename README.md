@@ -1,5 +1,5 @@
 httpclient - HTTP accessing library.
-Copyright (C) 2000-2012  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+Copyright (C) 2000-2014  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
 'httpclient' gives something like the functionality of libwww-perl (LWP) in
 Ruby.  'httpclient' formerly known as 'http-access2'.
@@ -13,7 +13,6 @@ See HTTPClient for documentation.
 * HTTPS(SSL), Cookies, proxy, authentication(Digest, NTLM, Basic), etc.
 * asynchronous HTTP request, streaming HTTP request.
 * debug mode CLI.
-
 * by contrast with net/http in standard distribution;
   * Cookies support
   * MT-safe
@@ -24,7 +23,6 @@ See HTTPClient for documentation.
   * extensible with filter interface
   * you don't have to care HTTP/1.1 persistent connection
     (httpclient cares instead of you)
-
 * Not supported now
   * Cache
   * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.
@@ -65,26 +63,7 @@ of Ruby.  Many thanks to Maebashi-san.
 
 ## Install
 
-### Gem
-
-You can install httpclient with rubygems.
-
-```
-gem install httpclient
-```
-
-### Package
-
-You can install httpclient with the bundled installer script.
-
-```
-ruby install.rb
-```
-
-It will install lib/* to your site_ruby directory such as
-`/usr/local/lib/ruby/site_ruby/1.8/`.
-
-For uninstall, delete installed files from your site_ruby directory.
+You can install httpclient via rubygems: `gem install httpclient`
 
 
 ## Usage
@@ -97,8 +76,6 @@ You can also check sample/howto.rb how to use APIs.
 
 * Gem repository
   * https://rubygems.org/gems/httpclient
-
-* git: git://github.com/nahi/httpclient.git
 
 ## Bug report or Feature request
 
@@ -113,43 +90,107 @@ Thanks in advance.
 
 ## Changes
 
-### Changes in 2.3.4
+### Changes in 2.4.0
 
-  July 27, 2013 - version 2.3.4
+Jun 8, 2014 - version 2.4.0
+
+**IMPORTANT CHANGES**
+
+This version changes default SSL version to :auto (same as nil) to use SSL/TLS
+version negotiation.  Former versions use SSLv3 as default that does not connect
+via TLS.  This change makes underlying OpenSSL library decide which SSL/TLS
+version to use but SSLv2 is disabled.
+
+This change makes your secure connection safer but if you see SSL connection
+failure with this version try specifying SSL version to use SSLv3 like;
+```
+client = HTTPClient.new
+client.ssl_config.ssl_version = :SSLv3
+```
 
   * Bug fixes
+    * Avoid unnecessary connection retries for OAuth error.
+      [#203](https://github.com/nahi/httpclient/issues/203)
+	* Make authentication drivers Thread-safe.  Note that HTTPClient instance is
+	  Thread-safe for authentication state update but it shares authentication
+	  state across threads by design.  If you don't want to share authentication
+	  state, such as for using different authentication username/password pair
+	  per thread, create HTTPClient instance for each Thread.
+      [#200](https://github.com/nahi/httpclient/issues/200)
+    * Avoid chunked String recycle in callback block.
+      [#193](https://github.com/nahi/httpclient/issues/193)
+    * Do not send empty 'oauth_token' in signed request for compatibility.
+      [#188](https://github.com/nahi/httpclient/issues/188)
+    * Ignore negative Content-Length header from server.
+      [#175](https://github.com/nahi/httpclient/issues/175)
+    * Fix incorrect use of absolute URL for HTTPS proxy requests.
+      [#168](https://github.com/nahi/httpclient/issues/168)
+    * Handle UTF characters in chunked bodies.
+      [#167](https://github.com/nahi/httpclient/issues/167)
+    * A new cookie never be accepted if an HTTPClient has the same expired cookie.
+      [#154](https://github.com/nahi/httpclient/issues/154)
+	* Allow spaces in NO_PROXY environment like; "hosta, hostb"
+      [#141](https://github.com/nahi/httpclient/issues/141)
+	* Avoid HttpClient::Message::Body#dump causes Encoding::CompatibilityError.
+      [#140](https://github.com/nahi/httpclient/issues/140)
 
-    * A new cookie never be accepted if an HTTPClient has the same expired cookie. #154
+  * Changes
+	* Change default SSL version to :auto to use version negotiation.
+      [#186](https://github.com/nahi/httpclient/issues/186),
+      [#204](https://github.com/nahi/httpclient/issues/204)
+    * Allow to pass client private key passphrase in SSLConfig.
+      [#201](https://github.com/nahi/httpclient/issues/201)
+    * Convert README to markdown syntax
+      [#198](https://github.com/nahi/httpclient/issues/198)
+    * Update default CA certificates: change the source from JDK's to Firefox's.
+      The file is downloaded from
+	  https://raw.githubusercontent.com/bagder/ca-bundle/master/ca-bundle.crt
+	  (Certificate data from Mozilla as of: Tue Apr 22 08:29:31 2014)
+      [#195](https://github.com/nahi/httpclient/issues/195)
+	* Callback block can be defined as to get 2 arguments to retrieve the
+	  response object.
+      [#194](https://github.com/nahi/httpclient/issues/194)
+    * Remove [] from given address for IPv6 compat.
+      [#176](https://github.com/nahi/httpclient/issues/176)
+    * Update API endpoints to those of Twitter REST API v1.1.
+      [#150](https://github.com/nahi/httpclient/issues/150)
 
-    * Handle UTF characters in chunked bodies. #167
 
-    * Fix incorrect use of absolute URL for HTTPS proxy requests. #168
+### Changes in 2.3.4
 
-    * Make sure to read socket in BINARY buffer. #171
+July 27, 2013 - version 2.3.4
+
+  * Bug fixes
+    * Make sure to read socket in BINARY buffer.
+	  [#171](https://github.com/nahi/httpclient/issues/171)
 
 ### Changes in 2.3.3
 
-  February 24, 2013 - version 2.3.3
+February 24, 2013 - version 2.3.3
 
   * Changes
 
-    * #144 Add User-Agent field by default. You can remove the header by
-      setting nil to HTTPClient#agent_name.
+	* Add User-Agent field by default. You can remove the header by setting nil
+	  to HTTPClient#agent_name.
+      [#144](https://github.com/nahi/httpclient/issues/144)
 
 ### Changes in 2.3.2
 
-  January 5, 2013 - version 2.3.2
+January 5, 2013 - version 2.3.2
 
+```
   * Changes 
 
     * #138 Revert Timeout change unintentionally included in v2.3.1.  It's
       reported that the change causes background processes not terminated
       properly.
+```
 
 ### Changes in 2.3.1
 
-  January 1, 2013 - version 2.3.1
+January 1, 2013 - version 2.3.1
 
+```
   * Changes
 
     * #137 Signing key is expiring for cacert_sha1.p7s.
@@ -163,12 +204,14 @@ Thanks in advance.
   * Bug fixes
 
     * #122 Support IPv6 address in URI
+```
 
 
 ### Changes in 2.3.0
 
-  October 10, 2012 - version 2.3.0
+October 10, 2012 - version 2.3.0
 
+```
     * Features
 
       * Added debug mode CLI.  bin/httpclient is installed as CLI.
@@ -195,20 +238,24 @@ Thanks in advance.
       * #118 Support for boolean values when making POST/PUT requests with
         multiipart/form Content-Type.
       * #110 Allows leading dots in no_proxy hostname suffixes.
+```
 
 ### Changes in 2.2.7
 
-  August 14, 2012 - version 2.2.7
+August 14, 2012 - version 2.2.7
 
+```
     * Bug fixes
 
       * Fix arity incompatibility introduced in 2.2.6.  It broke Webmock.
         Thanks Andrew France for the report!
+```
 
 ### Changes in 2.2.6
 
-  August 14, 2012 - version 2.2.6
+August 14, 2012 - version 2.2.6
 
+```
     * Bug fixes
 
       * Make get_content doesn't raise a BadResponseError for perfectly good
@@ -235,11 +282,13 @@ Thanks in advance.
 
       * Fill request parameters request_method, request_uri and request_query
         as part of response Message::Header.
+```
 
 ### Changes in 2.2.5
 
   May 06, 2012 - version 2.2.5
 
+```
     * Bug fixes
     
       * Added Magic encoding comment to hexdump.rb to avoid encoding error.
@@ -259,11 +308,13 @@ Thanks in advance.
         HTTPClient instance to use OpenSSL's default trusted CA certificates.
       * Allow to set Date header manually.
         ex. clent.get(uri, :header => {'Date' => Time.now.httpdate})
+```
 
 ### Changes in 2.2.4
 
   Dec 08, 2011 - version 2.2.4
 
+```
     * Bug fixes
 
       * Do not recycle buffer String object for yielding.  When the response is
@@ -273,19 +324,23 @@ Thanks in advance.
       * Set VERSION string in User-Agent header.  $Id$ didn't work long time...
 
       Bugs are reported by Seamus Abshere. Thanks!
+```
   
 ### Changes in 2.2.3
 
   Oct 28, 2011 - version 2.2.3
 
+```
     * Bug fixes
 
       * Ruby 1.8.6 support.  It's broken from 2.2.0.
+```
   
 ### Changes in 2.2.2
 
   Oct 17, 2011 - version 2.2.2
 
+```
     * Bug fixes
 
       * Do not sort query params on request: Wrongly sorted query params for
@@ -313,11 +368,13 @@ Thanks in advance.
     
         keep_alive_timeout is 15[sec] by default. The value is from the default
         value for KeepAliveTimeout of Apache httpd 2.  #68 #69
+```
 
 ### Changes in 2.2.1
 
   Jun 2, 2011 - version 2.2.1
 
+```
     * Bug fixes
 
       * For Lighttpd + PUT/POST support, do not send a request using chunked
@@ -355,11 +412,13 @@ Thanks in advance.
 
       * Changed default chunk size from 4K to 16K. It's used for reading size
         at a time.
+```
 
 ### Changes in 2.2.0
 
   Apr 8, 2011 - version 2.2.0
 
+```
     * Features
       * Add HTTPClient#cookies as an alias of #cookie_manager.cookies.
 
@@ -395,11 +454,13 @@ Thanks in advance.
         This feature was disabled by c206b687952e1ad3e20c20e69bdbd1a9cb38609e at
         2008-12-09. I should have written a test for keep-alive. Now I added it.
         Thanks Takahiro Nishimura(@dr_taka_n) for finding this bug.
+```
 
 ### Changes in 2.1.7
 
   Mar 22, 2011 - version 2.1.7
 
+```
     * Features
       * Add MD5-sess auth support. Thanks to wimm-dking. (#47)
       * Add SNI support. (Server Name Indication of HTTPS connection) (#49)
@@ -407,11 +468,13 @@ Thanks in advance.
       * NTLM logon to exchange Web Services. [experimental] Thanks to curzonj and mccraigmccraig (#52)
       * Add HTTPOnly cookie support. Thanks to nbrosnahan. (#55)
       * Add HTTPClient#socket_local for specifying local binding hostname and port of TCP socket. Thanks to icblenke.
+```
 
-### Changes in 2.1.6 =
+### Changes in 2.1.6
 
   Dec 20, 2010 - version 2.1.6
 
+```
     * IMPORTANT update for HTTPS(SSL) connection
       * Trusted CA bundle file cacert_sha1.p7s for older environment (where
         you cannot use SHA512 algorithm such as an old Mac OS X) included in
@@ -459,24 +522,30 @@ Thanks in advance.
         gauleng.
       * #38 DigestAuth + posting IO fails, patch by chetan.
       * #41 https-over-proxy fails with IIS, patch by tai.
+```
 
 ### Changes in 2.1.5
 
   Jun 25, 2009 - version 2.1.5.2
 
+```
     * Added another cacert distribution certificate which uses
       sha1WithRSAEncryption.  OpenSSL/0.9.7 cannot handle non-SHA1 digest
       algorithm for certificate.  The new certificate is
       RSA 2048 bit + SHA1 + notAfter:2010/12/31.  Corresponding CA bundle file
       is cacert_sha1.p7s.  It is loaded only when cacert.p7s cannot be loaded
       with the original distribution certificate.
+```
 
   Jun 11, 2009 - version 2.1.5.1
 
+```
     * README update.
+```
 
   Jun 8, 2009 - version 2.1.5
 
+```
     * IMPORTANT update for HTTPS(SSL) connection
       * Trusted CA bundle file included in httpclient <= 2.1.4 expires in
         Nov 2009. Please update to 2.1.5 by Oct 2009 if your application
@@ -512,9 +581,13 @@ Thanks in advance.
         Thanks! (#217)
       * Ensure to reset connection after invoking HTTPClient singleton methods
         for accessing such as HTTPClient.get_content. Thanks to @xgavin! (#214)
+```
+
+### Changes in 2.1.4
 
   Feb 13, 2009 - version 2.1.4
 
+```
     * Bug fixes
       * When we hit some site through http-proxy we get a response without
         Content-Length header.  httpclient/2.1.3 drops response body for such
@@ -529,9 +602,13 @@ Thanks in advance.
       * httpclient/2.1.3 cannot handle Cookie header with 'expires=' and
         'expires=""'.  Empty String for Time.parse returns Time.now unlike
         ParseDate.parsedate. Thanks to Mark for the patch. (#200) 
+```
+
+### Changes in 2.1.3
 
   Jan 8, 2009 - version 2.1.3.1
 
+```
     * Security fix introduced at 2.1.3.
       * get_content/post_content of httpclient/2.1.3 may send secure cookies
         for a https site to non-secure (non-https) site when the https site
@@ -541,9 +618,11 @@ Thanks in advance.
       * I realized this bug when I was reading open-uri story on
         [ruby-core:21205].  Ruby users should use open-uri rather than using
         net/http directly wherever possible.
+```
 
   Dec 29, 2008 - version 2.1.3
 
+```
     * Features
       * Proxy Authentication for SSL.
       * Performance improvements.
@@ -576,9 +655,13 @@ Thanks in advance.
         '204 No Content' for DAV.
       * Avoid blocking on socket closing when the socket is already closed by
         foreign host and the client runs under MT-condition. 
+```
+
+### Changes in 2.1.2
 
   Sep 22, 2007 - version 2.1.2
 
+```
     * HTTP
       * implemented Negotiate authentication with a support from exterior
         modules. 'rubyntlm' module is required for Negotiate auth with IIS.
@@ -597,9 +680,13 @@ Thanks in advance.
       * [BUG] SSL + debug_dev didn't work under version 2.1.1.
       * [BUG] Reason-Phrase of HTTP response status line can be empty according
       * to RFC2616.
+```
+
+### Changes in 2.1.1
 
   Aug 28, 2007 - version 2.1.1
 
+```
     * bug fix
       * domain_match should be case insensitive. thanks to Brian for the patch.
       * before calling SSLSocket#post_connection_check, check if
@@ -610,9 +697,13 @@ Thanks in advance.
     * misc
       * added HTTPClient#test_loopback_http_response which accepts test
         loopback response which contains HTTP header. 
+```
+
+### Changes in 2.1.0
 
   Jul 14, 2007 - version 2.1.0
 
+```
     * program/project renamed from 'http-access2' to 'httpclient'.
       there's compatibility layer included so existing programs for
       http-access2 which uses HTTPAccess2::Client should work with
@@ -625,17 +716,25 @@ Thanks in advance.
         doesn't load http_proxy/HTTP_PROXY when a library is considered to be
         running under CGI environment (checked by ENVREQUEST_METHOD existence.
         cgi_http_proxy/CGI_HTTP_PROXY is loaded instead.
+```
+
+### Changes in 2.0.9
 
   Jul 4, 2007 - version 2.0.9
 
+```
     * bug fix
       * fix the BasicAuth regression problem in 2.0.8.  A server may return
         "BASIC" as an authenticate scheme label instead of "Basic".  It must be
         treated as a case-insensitive token according to RFC2617 section 1.2.
         Thanks to mwedeme for contributing the patch. (#159)
+```
+
+### Changes in 2.0.8
 
   Jun 30, 2007 - version 2.0.8
 
+```
     * HTTP
       * added request/response filter interface and implemented DigestAuth
         based on the filter interface.  DigestAuth calc engine is based on
@@ -655,9 +754,13 @@ Thanks in advance.
         explicitly.  Thanks to the anonymous user who reported #154 (#154)
       * rescue EPIPE for keep-alive reconnecting.  Thanks to anonymous user
         who posted a patch at #124. (#124)
+```
+
+### Changes in 2.0.7
 
   May 13, 2007 - version 2.0.7
 
+```
     * HTTP
       * added proxyauth support. (#6)
       * let developer allow to rescue a redirect with relative URI. (#28)
@@ -688,9 +791,13 @@ Thanks in advance.
     * Connection
       * fixed a loop condition bug that caused intermittent empty response.
         (#150, #26, #125)
+```
+
+### Changes in 2.0.6
 
   September 16, 2005 - version 2.0.6
 
+```
     * HTTP
       * allows redirects from a "POST" request.  imported a patch from sveit.
         Thanks! (#7)
@@ -729,8 +836,13 @@ Thanks in advance.
         if your ruby is older than 2005-09-06 and you want to use SSL
         connection, do not set socket_sync = false to avoid a blocking bug of
         openssl/buffering.rb.
+```
+
+### Changes in 2.0.5
 
   December 24, 2004 - version 2.0.5
+
+```
     This is a minor bug fix release.
     - Connect/Send/Receive timeout cannot be configured. fixed.
     - IPSocket#addr caused SocketError? on Mac OS X 10.3.6 + ruby-1.8.1 GA.
@@ -741,24 +853,44 @@ Thanks in advance.
       HTTP 302: Found and redirects to the page again, causes
       HTTPAccess2::Client to raise "retry count exceeded".  Keat found that the
       server likes "Host: rubyforge.net" (not with port number).
+```
+
+### Changes in 2.0.4
 
   February 11, 2004 - version 2.0.4
+
+```
     - add Client#redirect_uri_callback interface.
     - refactorings and bug fixes found during negative test.
     - add SSL test.
+```
+
+### Changes in 2.0.3
 
   December 16, 2003 - version 2.0.3
+
+```
     - no_proxy was broken in 2.0.2.
     - do not dump 'Host' header under protocol_version == 'HTTP/1.0'
+```
+
+### Changes in 2.0.2
 
   December ?, 2003 - version 2.0.2
+
+```
     - do not trust HTTP_PROXY environment variable. set proxy server manually.
       http://ftp.ics.uci.edu/pub/websoft/libwww-perl/archive/2001h1/0072.html
       http://ftp.ics.uci.edu/pub/websoft/libwww-perl/archive/2001h1/0241.html
       http://curl.haxx.se/mail/archive-2001-12/0034.html
     - follow ossl2 change.
+```
+
+### Changes in 2.0.1
 
   October 4, 2003 - version 2.0.1
+
+```
     Query was not escaped when query was given as an Array or a Hash.  Fixed.
     Do not use http_proxy defined by ENV['http_proxy'] or ENV['HTTP_PROXY'] if
       the destination host is 'localhost'.
@@ -767,13 +899,22 @@ Thanks in advance.
       No regexp. (give "ruby-lang.org", not "*.ruby-lang.org")
       If you want specify hot by IP address, give full address.
         ("192.168.1.1, 192.168.1.2")
+```
+
+### Changes in 2.0
 
   September 10, 2003 - version 2.0
+
+```
     CamelCase to non_camel_case.
     SSL support (requires Ruby/OpenSSL).
     Cookies support.  lib/http-access2/cookie.rb is redistributed file which is
       originally included in Webagent by TAKAHASHI `Maki' Masayoshi.  You can
       download the entire package from http://www.rubycolor.org/arc/.
+```
 
   January 11, 2003 - version J
+
+```
     ruby/1.8 support.
+```
