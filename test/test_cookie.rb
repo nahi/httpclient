@@ -245,7 +245,7 @@ class TestCookieManager < Test::Unit::TestCase
     assert_equal(Time.gm(2010, 12, 1, 0,0,0), cookie.expires)
     assert_equal("/", cookie.path)
 
-    time = Time.now.utc.round + 60
+    time = Time.at(Time.now.to_i + 60).utc
     expires = time.strftime("%a, %d-%b-%Y %H:%M:%S GMT")
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=#{expires}; path=/"
     @cm.parse(str, urify('http://www.test.jp'))

@@ -98,8 +98,8 @@ module Helper
     while server.status != :Running
       Thread.pass
       unless t.alive?
-	t.join
-	raise
+        t.join
+        raise
       end
     end
     t
