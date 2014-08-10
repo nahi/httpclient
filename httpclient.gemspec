@@ -24,10 +24,9 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'rake'
-  spec.add_development_dependency 'test-unit'
   spec.add_development_dependency 'rspec'
   spec.add_development_dependency 'rdoc'
   spec.add_development_dependency 'coveralls'
   spec.add_development_dependency 'climate_control'
-  spec.add_development_dependency 'rspecify'
 end
+
