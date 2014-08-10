@@ -9,111 +9,111 @@ describe 'Cookies' do
     @c = WebAgent::Cookie.new()
   end
 
-  it { @c.should be_an_instance_of WebAgent::Cookie }
+  it { expect(@c).to be_an_instance_of WebAgent::Cookie }
 
   it '#discard' do
-    (!!@c.discard?).should be_false
+    expect(!!@c.discard?).to be_falsey
     @c.discard = true
-    (!!@c.discard?).should be_true
+    expect(!!@c.discard?).to be_truthy
   end
 
   it '#match?' do
     url = urify('http://www.rubycolor.org/hoge/funi/#919191')
 
     @c.domain = 'www.rubycolor.org'
-    @c.match?(url).should be_true
+    expect(@c.match?(url)).to be_truthy
 
     @c.domain = '.rubycolor.org'
-    @c.match?(url).should be_true
+    expect(@c.match?(url)).to be_truthy
 
     @c.domain = 'aaa.www.rubycolor.org'
-    @c.match?(url).should be_false
+    expect(@c.match?(url)).to be_falsey
 
     @c.domain = 'aaa.www.rubycolor.org'
-    @c.match?(url).should be_false
+    expect(@c.match?(url)).to be_falsey
 
     @c.domain = 'www.rubycolor.org'
     @c.path = '/'
-    @c.match?(url).should be_true
+    expect(@c.match?(url)).to be_truthy
 
     @c.domain = 'www.rubycolor.org'
     @c.path = '/hoge'
-    @c.match?(url).should be_true
+    expect(@c.match?(url)).to be_truthy
 
     @c.domain = 'www.rubycolor.org'
     @c.path = '/hoge/hoge'
-    @c.match?(url).should be_false
+    expect(@c.match?(url)).to be_falsey
 
     @c.domain = 'www.rubycolor.org'
     @c.path = '/hoge'
     @c.secure = true
-    @c.match?(url).should be_false
+    expect(@c.match?(url)).to be_falsey
 
     url2 = urify('https://www.rubycolor.org/hoge/funi/#919191')
     @c.domain = 'www.rubycolor.org'
     @c.path = '/hoge'
     @c.secure = true
-    @c.match?(url2).should be_true
+    expect(@c.match?(url2)).to be_truthy
 
     @c.domain = 'www.rubycolor.org'
     @c.path = '/hoge'
     @c.secure = nil
-    @c.match?(url2).should be_true
+    expect(@c.match?(url2)).to be_truthy
 
     url.port = 80
     @c.domain = 'www.rubycolor.org'
     @c.path = '/hoge'
-    @c.match?(url).should be_true
+    expect(@c.match?(url)).to be_truthy
 
     url_nopath = URI.parse('http://www.rubycolor.org')
     @c.domain = 'www.rubycolor.org'
     @c.path = '/'
-    @c.match?(url_nopath).should be_true
+    expect(@c.match?(url_nopath)).to be_truthy
   end
 
   it '#head_match?' do
-    @c.head_match?("","").should be_true
-    @c.head_match?("a","").should be_false
-    @c.head_match?("","a").should be_true
-    @c.head_match?("abcde","abcde").should be_true
-    @c.head_match?("abcde","abcdef").should be_true
-    @c.head_match?("abcdef","abcde").should be_false
-    @c.head_match?("abcde","bcde").should be_false
-    @c.head_match?("bcde","abcde").should be_false
+    expect(@c.head_match?("","")).to be_truthy
+    expect(@c.head_match?("a","")).to be_falsey
+    expect(@c.head_match?("","a")).to be_truthy
+    expect(@c.head_match?("abcde","abcde")).to be_truthy
+    expect(@c.head_match?("abcde","abcdef")).to be_truthy
+    expect(@c.head_match?("abcdef","abcde")).to be_falsey
+    expect(@c.head_match?("abcde","bcde")).to be_falsey
+    expect(@c.head_match?("bcde","abcde")).to be_falsey
   end
 
   it 'tail_match?' do
-    @c.tail_match?("","").should be_true
-    @c.tail_match?("a","").should be_false
-    @c.tail_match?("","a").should be_true
-    @c.tail_match?("abcde","abcde").should be_true
-    @c.tail_match?("abcde","abcdef").should be_false
-    @c.tail_match?("abcdef","abcde").should be_false
-    @c.tail_match?("abcde","bcde").should be_false
-    @c.tail_match?("bcde","abcde").should be_true
+    expect(@c.tail_match?("","")).to be_truthy
+    expect(@c.tail_match?("a","")).to be_falsey
+    expect(@c.tail_match?("","a")).to be_truthy
+    expect(@c.tail_match?("abcde","abcde")).to be_truthy
+    expect(@c.tail_match?("abcde","abcdef")).to be_falsey
+    expect(@c.tail_match?("abcdef","abcde")).to be_falsey
+    expect(@c.tail_match?("abcde","bcde")).to be_falsey
+    expect(@c.tail_match?("bcde","abcde")).to be_truthy
   end
 
 
   it 'domain_match' do
     extend WebAgent::CookieUtils
-    (!!domain_match("hoge.co.jp",".")).should be_true
-    (!!domain_match("192.168.10.1","192.168.10.1")).should be_true
-    (!!domain_match("192.168.10.1","192.168.10.2")).should be_false
-    (!!domain_match("hoge.co.jp",".hoge.co.jp")).should be_true
-    (!!domain_match("www.hoge.co.jp", "www.hoge.co.jp")).should be_true
-    (!!domain_match("www.hoge.co.jp", "www2.hoge.co.jp")).should be_false
-    (!!domain_match("www.hoge.co.jp", ".hoge.co.jp")).should be_true
-    (!!domain_match("www.aa.hoge.co.jp", ".hoge.co.jp")).should be_true
-    (!!domain_match("www.hoge.co.jp", "hoge.co.jp")).should be_false
+    expect(!!domain_match("hoge.co.jp",".")).to be_truthy
+    expect(!!domain_match("192.168.10.1","192.168.10.1")).to be_truthy
+    expect(!!domain_match("192.168.10.1","192.168.10.2")).to be_falsey
+    expect(!!domain_match("hoge.co.jp",".hoge.co.jp")).to be_truthy
+    expect(!!domain_match("www.hoge.co.jp", "www.hoge.co.jp")).to be_truthy
+    expect(!!domain_match("www.hoge.co.jp", "www2.hoge.co.jp")).to be_falsey
+    expect(!!domain_match("www.hoge.co.jp", ".hoge.co.jp")).to be_truthy
+    expect(!!domain_match("www.aa.hoge.co.jp", ".hoge.co.jp")).to be_truthy
+    expect(!!domain_match("www.hoge.co.jp", "hoge.co.jp")).to be_falsey
   end
 
   it 'join_quotedstr' do
     arr1 = ['hoge=funi', 'hoge2=funi2']
-    arr1.should eq @c.instance_eval{join_quotedstr(arr1,';')}
+    expect(arr1).to eq @c.instance_eval{join_quotedstr(arr1,';')}
     arr2 = ['hoge="fu', 'ni"',  'funi=funi']
-    ['hoge="fu;ni"','funi=funi'].should eq @c.instance_eval{join_quotedstr(arr2,';')}
+    expect(['hoge="fu;ni"','funi=funi']).to eq @c.instance_eval{join_quotedstr(arr2,';')}
     arr3 = ['hoge="funi";hoge2="fu','ni2";hoge3="hoge"',  'funi="funi"']
-    ['hoge="funi";hoge2="fu,ni2";hoge3="hoge"',  'funi="funi"'].should eq @c.instance_eval{join_quotedstr(arr3,',')}
+    expect(['hoge="funi";hoge2="fu,ni2";hoge3="hoge"',  'funi="funi"']).to eq @c.instance_eval{join_quotedstr(arr3,',')}
   end
 end
 
@@ -127,52 +127,52 @@ describe 'CookieManager' do
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=Wed, 01-Dec-2010 00:00:00 GMT; path=/"
     @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
-    cookie.should be_an_instance_of WebAgent::Cookie
-    cookie.name.should eq "inkid"
-    cookie.value.should eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
-    cookie.expires.should eq Time.gm(2010, 12, 1, 0,0,0)
-    cookie.path.should eq "/"
+    expect(cookie).to be_an_instance_of WebAgent::Cookie
+    expect(cookie.name).to eq "inkid"
+    expect(cookie.value).to eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
+    expect(cookie.expires).to eq Time.gm(2010, 12, 1, 0,0,0)
+    expect(cookie.path).to eq "/"
   end
 
   it 'parse2' do
     str = "xmen=off,0,0,1; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str, urify('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
-    cookie.should be_an_instance_of WebAgent::Cookie
-    cookie.name.should eq "xmen"
-    cookie.value.should eq "off,0,0,1"
-    cookie.domain.should eq ".excite.co.jp"
-    cookie.expires.should eq Time.gm(2037,12,31,12,0,0)
-    cookie.path.should eq "/"
+    expect(cookie).to be_an_instance_of WebAgent::Cookie
+    expect(cookie.name).to eq "xmen"
+    expect(cookie.value).to eq "off,0,0,1"
+    expect(cookie.domain).to eq ".excite.co.jp"
+    expect(cookie.expires).to eq Time.gm(2037,12,31,12,0,0)
+    expect(cookie.path).to eq "/"
 
-    cookie.secure?.should be_false
-    cookie.http_only?.should be_false
+    expect(cookie.secure?).to be_falsey
+    expect(cookie.http_only?).to be_falsey
   end
 
   it 'parse3' do
     str = "xmen=off,0,0,1; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT;Secure;HTTPOnly"
     @cm.parse(str, urify('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
-    cookie.should be_an_instance_of WebAgent::Cookie
-    cookie.name.should eq "xmen"
-    cookie.value.should eq "off,0,0,1"
-    cookie.domain.should eq ".excite.co.jp"
-    cookie.expires.should eq Time.gm(2037,12,31,12,0,0)
-    cookie.path.should eq "/"
-    cookie.secure?.should be_true
-    cookie.http_only?.should be_true
+    expect(cookie).to be_an_instance_of WebAgent::Cookie
+    expect(cookie.name).to eq "xmen"
+    expect(cookie.value).to eq "off,0,0,1"
+    expect(cookie.domain).to eq ".excite.co.jp"
+    expect(cookie.expires).to eq Time.gm(2037,12,31,12,0,0)
+    expect(cookie.path).to eq "/"
+    expect(cookie.secure?).to be_truthy
+    expect(cookie.http_only?).to be_truthy
   end
 
   it 'parse_double_semicolon' do
     str = "xmen=off,0,0,1;; path=\"/;;\"; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str, urify('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
-    cookie.should be_an_instance_of WebAgent::Cookie
-    cookie.name.should eq "xmen"
-    cookie.value.should eq "off,0,0,1"
-    cookie.domain.should eq ".excite.co.jp"
-    cookie.expires.should eq Time.gm(2037,12,31,12,0,0)
-    cookie.path.should eq "/;;"
+    expect(cookie).to be_an_instance_of WebAgent::Cookie
+    expect(cookie.name).to eq "xmen"
+    expect(cookie.value).to eq "off,0,0,1"
+    expect(cookie.domain).to eq ".excite.co.jp"
+    expect(cookie.expires).to eq Time.gm(2037,12,31,12,0,0)
+    expect(cookie.path).to eq "/;;"
   end
 
   it 'check_expired_cookies' do
@@ -188,58 +188,58 @@ describe 'CookieManager' do
     @cm.cookies = cookies
     @cm.check_expired_cookies()
     # expires == nil cookies (session cookie) exists.
-    @cm.cookies.should eq [c2,c4]
+    expect(@cm.cookies).to eq [c2,c4]
   end
 
   it 'parse_expires' do
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=; path=/"
     @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
-    cookie.should be_an_instance_of WebAgent::Cookie
-    cookie.name.should eq "inkid"
-    cookie.value.should eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
-    cookie.expires.should be_nil
-    cookie.path.should eq "/"
+    expect(cookie).to be_an_instance_of WebAgent::Cookie
+    expect(cookie.name).to eq "inkid"
+    expect(cookie.value).to eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
+    expect(cookie.expires).to be_nil
+    expect(cookie.path).to eq "/"
 
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; path=/; expires="
     @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
-    cookie.should be_an_instance_of WebAgent::Cookie
-    cookie.name.should eq "inkid"
-    cookie.value.should eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
-    cookie.expires.should be_nil
-    cookie.path.should eq "/"
+    expect(cookie).to be_an_instance_of WebAgent::Cookie
+    expect(cookie.name).to eq "inkid"
+    expect(cookie.value).to eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
+    expect(cookie.expires).to be_nil
+    expect(cookie.path).to eq "/"
 
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; path=/; expires=\"\""
     @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
-    cookie.should be_an_instance_of WebAgent::Cookie
-    cookie.name.should eq "inkid"
-    cookie.value.should eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
-    cookie.expires.should be_nil
-    cookie.path.should eq "/"
+    expect(cookie).to be_an_instance_of WebAgent::Cookie
+    expect(cookie.name).to eq "inkid"
+    expect(cookie.value).to eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
+    expect(cookie.expires).to be_nil
+    expect(cookie.path).to eq "/"
   end
 
   it 'parse_after_expiration' do
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=Wed, 01-Dec-2010 00:00:00 GMT; path=/"
     @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
-    cookie.should be_an_instance_of WebAgent::Cookie
-    cookie.name.should eq "inkid"
-    cookie.value.should eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
-    cookie.expires.should eq Time.gm(2010, 12, 1, 0,0,0)
-    cookie.path.should eq "/"
+    expect(cookie).to be_an_instance_of WebAgent::Cookie
+    expect(cookie.name).to eq "inkid"
+    expect(cookie.value).to eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
+    expect(cookie.expires).to eq Time.gm(2010, 12, 1, 0,0,0)
+    expect(cookie.path).to eq "/"
 
     time = Time.now.utc.round + 60
     expires = time.strftime("%a, %d-%b-%Y %H:%M:%S GMT")
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=#{expires}; path=/"
     @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
-    cookie.should be_an_instance_of WebAgent::Cookie
-    cookie.name.should eq "inkid"
-    cookie.value.should eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
-    cookie.expires.should eq time
-    cookie.path.should eq "/"
+    expect(cookie).to be_an_instance_of WebAgent::Cookie
+    expect(cookie.name).to eq "inkid"
+    expect(cookie.value).to eq "n92b0ADOgACIgUb9lsjHqAAAHu2a"
+    expect(cookie.expires).to eq time
+    expect(cookie.path).to eq "/"
   end
 
   it 'find_cookie' do
@@ -254,7 +254,7 @@ describe 'CookieManager' do
 
     url = urify('http://www.excite.co.jp/hoge/funi/')
     cookie_str = @cm.find(url)
-    cookie_str.should eq "xmen=off,0,0,2"
+    expect(cookie_str).to eq "xmen=off,0,0,2"
   end
 
   it 'load_cookies' do
@@ -271,24 +271,24 @@ EOF
       @cm.cookies_file = 'tmp_test.tmp'
       @cm.load_cookies()
       c0, c1, c2, c3 = @cm.cookies
-      c0.url.to_s.should eq 'http://www.zdnet.co.jp/news/0106/08/e_gibson.html'
-      c0.name.should eq 'NGUserID'
-      c0.value.should eq 'd29b8f49-10875-992421294-1'
-      c0.expires.should eq Time.at(2145801600)
-      c0.domain.should eq 'www.zdnet.co.jp'
-      c0.path.should eq '/'
-      c0.flag.should eq 9
+      expect(c0.url.to_s).to eq 'http://www.zdnet.co.jp/news/0106/08/e_gibson.html'
+      expect(c0.name).to eq 'NGUserID'
+      expect(c0.value).to eq 'd29b8f49-10875-992421294-1'
+      expect(c0.expires).to eq Time.at(2145801600)
+      expect(c0.domain).to eq 'www.zdnet.co.jp'
+      expect(c0.path).to eq '/'
+      expect(c0.flag).to eq 9
 
-      c1.url.to_s.should eq 'http://www.zdnet.co.jp/news/0106/08/e_gibson.html'
-      c1.name.should eq 'PACK'
-      c1.value.should eq 'zd3-992421294-7436'
-      c1.expires.should eq Time.at(1293839999)
-      c1.domain.should eq '.zdnet.co.jp'
-      c1.path.should eq '/'
-      c1.flag.should eq 13
+      expect(c1.url.to_s).to eq 'http://www.zdnet.co.jp/news/0106/08/e_gibson.html'
+      expect(c1.name).to eq 'PACK'
+      expect(c1.value).to eq 'zd3-992421294-7436'
+      expect(c1.expires).to eq Time.at(1293839999)
+      expect(c1.domain).to eq '.zdnet.co.jp'
+      expect(c1.path).to eq '/'
+      expect(c1.flag).to eq 13
       #
-      c2.expires.should be_nil
-      c3.expires.should be_nil
+      expect(c2.expires).to be_nil
+      expect(c3.expires).to be_nil
     ensure
       File.unlink("tmp_test.tmp")
     end
@@ -312,14 +312,14 @@ EOF
       File.open("tmp_test2.tmp","r") {|f|
 	str2 = f.read()
       }
-      str.should eq str2
+      expect(str).to eq str2
       #
-      File.exist?('tmp_test2.tmp').should be_true
+      expect(File.exist?('tmp_test2.tmp')).to be_truthy
       File.unlink("tmp_test2.tmp")
       @cm.save_cookies()
-      File.exist?('tmp_test2.tmp').should be_false
+      expect(File.exist?('tmp_test2.tmp')).to be_falsey
       @cm.save_cookies(true)
-      File.exist?('tmp_test2.tmp').should be_true
+      expect(File.exist?('tmp_test2.tmp')).to be_truthy
     ensure
       File.unlink("tmp_test.tmp")
       if FileTest.exist?("tmp_test2.tmp")
@@ -339,7 +339,7 @@ EOF
       @cm.parse("quxx=5; path=/; expires=#{(Time.now - 10).asctime}", uri)
       @cm.save_cookies()
       @cm.load_cookies
-      @cm.cookies.size.should eq 1
+      expect(@cm.cookies.size).to eq 1
     ensure
       File.unlink("tmp_test.tmp") if File.exist?("tmp_test.tmp")
     end
@@ -352,9 +352,9 @@ EOF
     c.url = urify("http://www.inac.co.jp/hoge")
     @cm.add(c)
     c = @cm.cookies[0]
-    c.name.should eq 'hoge'
-    c.value.should eq 'funi'
-    c.expires.should be_nil
+    expect(c.name).to eq 'hoge'
+    expect(c.value).to eq 'funi'
+    expect(c.expires).to be_nil
   end
 
   it 'add2' do
@@ -373,26 +373,26 @@ EOF
     @cm.add(c)
     #
     c1, c2 = @cm.cookies
-    c1.path.should eq ''
-    c2.path.should eq '/hoge/hoge2'
+    expect(c1.path).to eq ''
+    expect(c2.path).to eq '/hoge/hoge2'
   end
 
   it 'test_check_cookie_accept_domain' do
     @cm.accept_domains = [".example1.co.jp", "www1.example.jp"]
     @cm.reject_domains = [".example2.co.jp", "www2.example.jp"]
     check1 = @cm.check_cookie_accept_domain("www.example1.co.jp")
-    check1.should be_true
+    expect(check1).to be_truthy
     check2 = @cm.check_cookie_accept_domain("www.example2.co.jp")
-    check2.should be_false
+    expect(check2).to be_falsey
     check3 = @cm.check_cookie_accept_domain("www1.example.jp")
-    check3.should be_true
+    expect(check3).to be_truthy
     check4 = @cm.check_cookie_accept_domain("www2.example.jp")
-    check4.should be_false
+    expect(check4).to be_falsey
     check5 = @cm.check_cookie_accept_domain("aa.www2.example.jp")
-    check5.should be_true
+    expect(check5).to be_truthy
     check6 = @cm.check_cookie_accept_domain("aa.www2.example.jp")
-    check6.should be_true
-    @cm.check_cookie_accept_domain(nil).should be_false
+    expect(check6).to be_truthy
+    expect(@cm.check_cookie_accept_domain(nil)).to be_falsey
   end
 
 end

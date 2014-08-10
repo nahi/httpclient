@@ -87,7 +87,7 @@ describe 'KeepAlive' do
     (0...10).to_a.map {
       Thread.new {
         Thread.abort_on_exception = true
-        client.get(endpoint).content.should eq "12345"
+        expect(client.get(endpoint).content).to eq "12345"
       }
     }.each { |th| th.join }
     # send 5 requests, which should get KeepAliveDesconnected.
@@ -95,14 +95,14 @@ describe 'KeepAlive' do
     (0...5).to_a.map {
       Thread.new {
         Thread.abort_on_exception = true
-        client.get(endpoint).content.should eq "23456"
+        expect(client.get(endpoint).content).to eq "23456"
       }
     }.each { |th| th.join }
     # rest requests won't get KeepAliveDisconnected; how can I check this?
     (0...10).to_a.map {
       Thread.new {
         Thread.abort_on_exception = true
-        client.get(endpoint).content.should eq "34567"
+        expect(client.get(endpoint).content).to eq "34567"
       }
     }.each { |th| th.join }
   end
@@ -118,11 +118,11 @@ describe 'KeepAlive' do
     url = "http://127.0.0.1:#{server.addr[1]}/"
     # content-length
     5.times do
-      client.get(url).body.should eq '12345'
+      expect(client.get(url).body).to eq '12345'
     end
     # chunked
     5.times do
-      client.get(url + 'chunked').body.should eq 'abcdefghijklmnopqrstuvwxyz1234567890abcdef'
+      expect(client.get(url + 'chunked').body).to eq 'abcdefghijklmnopqrstuvwxyz1234567890abcdef'
     end
     server_thread.join
   end

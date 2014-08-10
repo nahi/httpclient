@@ -10,9 +10,9 @@ describe 'HTTPClient' do
     without_noproxy do
       @proxy.io.string = ""
       @client = HTTPClient.new(@proxy.u)
-      @client.proxy.should == urify(@proxy.u)
-      @client.head(@srv.u).status.should == 200
-      @proxy.io.string.should =~ /accept/
+      expect(@client.proxy).to eq(urify(@proxy.u))
+      expect(@client.head(@srv.u).status).to eq(200)
+      expect(@proxy.io.string).to match(/accept/)
     end
   end
   
@@ -22,8 +22,8 @@ describe 'HTTPClient' do
     @client.debug_dev = str
     @client.get(@srv.u)
     lines = str.split(/(?:\r?\n)+/)
-    lines[0].should == "= Request"
-    lines[4].should match /^User-Agent: agent_name_foo/
+    expect(lines[0]).to eq("= Request")
+    expect(lines[4]).to match /^User-Agent: agent_name_foo/
   end
   
   it "from" do
@@ -32,17 +32,17 @@ describe 'HTTPClient' do
     @client.debug_dev = str
     @client.get(@srv.u)
     lines = str.split(/(?:\r?\n)+/)
-    lines[0].should == "= Request"
-    lines[5].should match /^From: from_bar/
+    expect(lines[0]).to eq("= Request")
+    expect(lines[5]).to match /^From: from_bar/
   end
   
   it "debug dev" do
     str = ""
     @client.debug_dev = str
-    @client.debug_dev.object_id.should == str.object_id
-    str.empty?.should be_true
+    expect(@client.debug_dev.object_id).to eq(str.object_id)
+    expect(str.empty?).to be_truthy
     @client.get(@srv.u)
-    str.empty?.should be_false
+    expect(str.empty?).to be_falsey
   end
   
   it "debug dev stream" do
@@ -52,7 +52,7 @@ describe 'HTTPClient' do
     until conn.finished?
       Thread.pass
     end
-    str.empty?.should be_false
+    expect(str.empty?).to be_falsey
   end
   
   it "host given" do
@@ -60,19 +60,19 @@ describe 'HTTPClient' do
     @client.debug_dev = str
     @client.get(@srv.u)
     lines = str.split(/(?:\r?\n)+/)
-    lines[0].should == "= Request"
-    lines[2].should == "! CONNECTION ESTABLISHED"
-    lines[3].should == "GET / HTTP/1.1"
-    lines[7].should == "Host: localhost:#{@srv.port}"
+    expect(lines[0]).to eq("= Request")
+    expect(lines[2]).to eq("! CONNECTION ESTABLISHED")
+    expect(lines[3]).to eq("GET / HTTP/1.1")
+    expect(lines[7]).to eq("Host: localhost:#{@srv.port}")
     @client.reset_all
     str = ""
     @client.debug_dev = str
     @client.get(@srv.u, nil, "Host" => "foo")
     lines = str.split(/(?:\r?\n)+/)
-    lines[0].should == "= Request"
-    lines[2].should == "! CONNECTION ESTABLISHED"
-    lines[3].should == "GET / HTTP/1.1"
-    lines[4].should == "Host: foo"
+    expect(lines[0]).to eq("= Request")
+    expect(lines[2]).to eq("! CONNECTION ESTABLISHED")
+    expect(lines[3]).to eq("GET / HTTP/1.1")
+    expect(lines[4]).to eq("Host: foo")
   end
   
   it "redirect returns not modified" do
@@ -86,25 +86,25 @@ describe 'HTTPClient' do
       begin
         @client.proxy = "http://"
       rescue
-        $!.class.to_s.should match(/InvalidURIError/)
+        expect($!.class.to_s).to match(/InvalidURIError/)
       end
       @client.proxy = ""
-      @client.proxy.should be_nil
+      expect(@client.proxy).to be_nil
       @client.proxy = "http://admin:admin@foo:1234"
-      @client.proxy.should == urify("http://admin:admin@foo:1234")
+      expect(@client.proxy).to eq(urify("http://admin:admin@foo:1234"))
       uri = urify("http://bar:2345")
       @client.proxy = uri
-      @client.proxy.should == uri
+      expect(@client.proxy).to eq(uri)
       @proxy.io.string = ""
       @client.proxy = nil
-      @client.head(@srv.u).status.should == 200
-      @proxy.io.string.should_not =~ /accept/
+      expect(@client.head(@srv.u).status).to eq(200)
+      expect(@proxy.io.string).not_to match(/accept/)
       @proxy.io.string = ""
       @client.proxy = @proxy.u
       @client.debug_dev = str = ""
-      @client.head(@srv.u).status.should == 200
-      @proxy.io.string.should =~ /accept/
-      str.should =~ /Host: localhost:#{@srv.port}/
+      expect(@client.head(@srv.u).status).to eq(200)
+      expect(@proxy.io.string).to match(/accept/)
+      expect(str).to match(/Host: localhost:#{@srv.port}/)
     end
   end
   
@@ -112,29 +112,29 @@ describe 'HTTPClient' do
     @client.proxy = @proxy.u
     @client.debug_dev = str = ""
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
-    @client.head("http://www.example.com/foo").status.should == 200
-    (/\r\nHost: www\.example\.com\r\n/ =~ str).should be_true
+    expect(@client.head("http://www.example.com/foo").status).to eq(200)
+    expect(/\r\nHost: www\.example\.com\r\n/ =~ str).to be_truthy
     @client.debug_dev = str = ""
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
-    @client.head('http://www.example.com:12345/foo').status.should eq 200
-    str.should =~ /\r\nHost: www\.example\.com:12345\r\n/
+    expect(@client.head('http://www.example.com:12345/foo').status).to eq 200
+    expect(str).to match(/\r\nHost: www\.example\.com:12345\r\n/)
   end
   
   it "proxy env" do
     ClimateControl.modify http_proxy: 'http://admin:admin@foo:1234', NO_PROXY: 'foobar' do
       client = HTTPClient.new
-      client.proxy.should == urify("http://admin:admin@foo:1234")
-      client.no_proxy.should == "foobar"
+      expect(client.proxy).to eq(urify("http://admin:admin@foo:1234"))
+      expect(client.no_proxy).to eq("foobar")
     end
   end
   
   it "proxy env cgi" do
     ClimateControl.modify http_proxy: 'http://admin:admin@foo:1234', NO_PROXY: 'foobar', REQUEST_METHOD: 'GET' do
       client = HTTPClient.new
-      client.proxy.should == nil
+      expect(client.proxy).to eq(nil)
       ClimateControl.modify CGI_HTTP_PROXY: 'http://admin:admin@foo:1234' do
         client = HTTPClient.new
-        client.proxy.should == urify("http://admin:admin@foo:1234")
+        expect(client.proxy).to eq(urify("http://admin:admin@foo:1234"))
       end
     end
   end
@@ -142,56 +142,56 @@ describe 'HTTPClient' do
   it "empty proxy env" do
     ClimateControl.modify http_proxy: '' do
       client = HTTPClient.new
-      client.proxy.should == nil
+      expect(client.proxy).to eq(nil)
     end
   end
   
   it "noproxy for localhost" do
     @proxy.io.string = ""
     @client.proxy = @proxy.u
-    @client.head(@srv.u).status.should == 200
-    @proxy.io.string.should_not =~ /accept/ 
+    expect(@client.head(@srv.u).status).to eq(200)
+    expect(@proxy.io.string).not_to match(/accept/) 
   end
   
   it "no proxy" do
     without_noproxy do
-      @client.no_proxy.should == nil
+      expect(@client.no_proxy).to eq(nil)
       @client.no_proxy = "localhost"
-      @client.no_proxy.should == "localhost"
+      expect(@client.no_proxy).to eq("localhost")
 
       @proxy.io.string = ""
       @client.proxy = nil
-      @client.head(@srv.u).status.should == 200
-      @proxy.io.string.should_not =~ /accept/ 
+      expect(@client.head(@srv.u).status).to eq(200)
+      expect(@proxy.io.string).not_to match(/accept/) 
 
       @proxy.io.string = ""
       @client.proxy = @proxy.u
-      @client.head(@srv.u).status.should == 200
-      @proxy.io.string.should_not =~ /accept/ 
+      expect(@client.head(@srv.u).status).to eq(200)
+      expect(@proxy.io.string).not_to match(/accept/) 
 
       @proxy.io.string = ""
       @client.no_proxy = "foobar"
       @client.proxy = @proxy.u
-      @client.head(@srv.u).status.should == 200
-      @proxy.io.string.should =~ /accept/ 
+      expect(@client.head(@srv.u).status).to eq(200)
+      expect(@proxy.io.string).to match(/accept/) 
 
       @proxy.io.string = ""
       @client.no_proxy = "foobar,localhost:baz"
       @client.proxy = @proxy.u
-      @client.head(@srv.u).status.should == 200
-      @proxy.io.string.should_not =~ /accept/ 
+      expect(@client.head(@srv.u).status).to eq(200)
+      expect(@proxy.io.string).not_to match(/accept/) 
 
       @proxy.io.string = ""
       @client.no_proxy = "foobar,localhost:443"
       @client.proxy = @proxy.u
-      @client.head(@srv.u).status.should == 200
-      @proxy.io.string.should =~ /accept/ 
+      expect(@client.head(@srv.u).status).to eq(200)
+      expect(@proxy.io.string).to match(/accept/) 
 
       @proxy.io.string = ""
       @client.no_proxy = "foobar,localhost:443:localhost:#{@srv.port},baz"
       @client.proxy = @proxy.u
-      @client.head(@srv.u).status.should == 200
-      @proxy.io.string.should_not =~ /accept/ 
+      expect(@client.head(@srv.u).status).to eq(200)
+      expect(@proxy.io.string).not_to match(/accept/) 
     end
   end
   
@@ -205,22 +205,22 @@ describe 'HTTPClient' do
     it 'via proxy' do
       @client.no_proxy = ""
       @client.head("http://www.foo.com")
-      @str.should =~ /CONNECT TO localhost/
+      expect(@str).to match(/CONNECT TO localhost/)
     end
     it 'no proxy because .foo.com matches with www.foo.com' do
       @client.no_proxy = ".foo.com"
       @client.head("http://www.foo.com")
-      @str.should =~ /CONNECT TO www.foo.com/
+      expect(@str).to match(/CONNECT TO www.foo.com/)
     end
     it 'via proxy because .foo.com does not matche with foo.com' do
       @client.no_proxy = ".foo.com"
       @client.head("http://foo.com")
-      @str.should =~ /CONNECT TO localhost/
+      expect(@str).to match(/CONNECT TO localhost/)
     end
     it 'no proxy because foo.com matches with foo.com' do
       @client.no_proxy = "foo.com"
       @client.head("http://foo.com")
-      @str.should =~ /CONNECT TO foo.com/
+      expect(@str).to match(/CONNECT TO foo.com/)
     end
   end
   
@@ -244,9 +244,9 @@ hello
 EOS
       @client.debug_dev = str = ""
       @client.set_auth("http://www.example.org/baz/", "admin", "admin")
-      @client.get("http://www.example.org/baz/foo").content.should == "hello"
-      str.should match /^Cookie: foo=bar/
-      str.should match /^Authorization: Basic YWRtaW46YWRtaW4=/
+      expect(@client.get("http://www.example.org/baz/foo").content).to eq("hello")
+      expect(str).to match /^Cookie: foo=bar/
+      expect(str).to match /^Authorization: Basic YWRtaW46YWRtaW4=/
     end
   end
   
@@ -271,19 +271,19 @@ Connection: close\r
 \r
 hello
 EOS
-      @client.get("https://localhost:17171/baz").content.should == "hello"
+      expect(@client.get("https://localhost:17171/baz").content).to eq("hello")
     end
   end
   
   it "loopback response" do
     @client.test_loopback_response << "message body 1"
     @client.test_loopback_response << "message body 2"
-    @client.get_content("http://somewhere").should == "message body 1"
-    @client.get_content("http://somewhere").should == "message body 2"
+    expect(@client.get_content("http://somewhere")).to eq("message body 1")
+    expect(@client.get_content("http://somewhere")).to eq("message body 2")
     @client.debug_dev = str = ""
     @client.test_loopback_response << "message body 3"
-    @client.get_content("http://somewhere").should == "message body 3"
-    str.should match /message body 3/
+    expect(@client.get_content("http://somewhere")).to eq("message body 3")
+    expect(str).to match /message body 3/
   end
   
   it "loopback response stream" do
@@ -293,12 +293,12 @@ EOS
     until conn.finished?
       Thread.pass
     end
-    conn.pop.content.read.should == "message body 1"
+    expect(conn.pop.content.read).to eq("message body 1")
     conn = @client.get_async("http://somewhere")
     until conn.finished?
       Thread.pass
     end
-    conn.pop.content.read.should == "message body 2"
+    expect(conn.pop.content.read).to eq("message body 2")
   end
   
   it "loopback http response" do
@@ -310,8 +310,8 @@ message body 1"
 content-length: 100
 
 message body 2"
-    @client.get_content("http://somewhere").should == "message body 1"
-    @client.get_content("http://somewhere").should == "message body 2"
+    expect(@client.get_content("http://somewhere")).to eq("message body 1")
+    expect(@client.get_content("http://somewhere")).to eq("message body 2")
   end
   
   it "multiline header" do
@@ -325,9 +325,9 @@ content-length: 100
 
 message body 1"
     res = @client.get("http://somewhere")
-    res.content.should == "message body 1"
-    res.header["x-foo"].should == ["XXX YYY"]
-    res.header["x-bar"].should == ["XXX YYY"]
+    expect(res.content).to eq("message body 1")
+    expect(res.header["x-foo"]).to eq(["XXX YYY"])
+    expect(res.header["x-bar"]).to eq(["XXX YYY"])
   end
   
   it "broken header" do
@@ -337,7 +337,7 @@ content-length: 100
 
 message body 1"
     res = @client.get("http://somewhere")
-    res.content.should == "message body 1"
+    expect(res.content).to eq("message body 1")
   end
   
   it "request uri in response" do
@@ -345,13 +345,13 @@ message body 1"
 content-length: 100
 
 message body"
-    @client.get("http://google.com/").header.request_uri.should == urify("http://google.com/")
+    expect(@client.get("http://google.com/").header.request_uri).to eq(urify("http://google.com/"))
   end
   
   it "request uri in response when redirect" do
     expected = urify(@srv.u("hello"))
-    @client.get(@srv.u("redirect1"), :follow_redirect => true).header.request_uri.should == expected
-    @client.get(@srv.u("redirect2"), :follow_redirect => true).header.request_uri.should == expected
+    expect(@client.get(@srv.u("redirect1"), :follow_redirect => true).header.request_uri).to eq(expected)
+    expect(@client.get(@srv.u("redirect2"), :follow_redirect => true).header.request_uri).to eq(expected)
   end
   
   describe "redirect" do
@@ -374,7 +374,7 @@ message body"
 
     it 'http -> http is OK' do
       @client.test_loopback_http_response << @redirect_to_http
-      @client.get_content(@url).should eq 'hello'
+      expect(@client.get_content(@url)).to eq 'hello'
     end
 
     it 'trying to normal endpoint with SSL -> SSL negotiation failure' do
@@ -402,25 +402,25 @@ message body"
   end
   
   it "redirect see other" do
-    @client.post_content(@srv.u("redirect_see_other")).should == "hello"
+    expect(@client.post_content(@srv.u("redirect_see_other"))).to eq("hello")
   end
   
   it "redirect relative" do
     @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: hello\n\n"
     silent do
-      @client.get_content(@srv.u('redirect1')).should eq 'hello'
+      expect(@client.get_content(@srv.u('redirect1'))).to eq 'hello'
     end
 
     @client.reset_all
     @client.redirect_uri_callback = @client.method(:strict_redirect_uri_callback)
-    @client.get_content(@srv.u('redirect1')).should eq 'hello'
+    expect(@client.get_content(@srv.u('redirect1'))).to eq 'hello'
     @client.reset_all
     @client.test_loopback_http_response << "HTTP/1.0 302 OK\nLocation: hello\n\n"
     begin
       @client.get_content(@srv.u('redirect1'))
-      false.should be_true
+      expect(false).to be_truthy
     rescue HTTPClient::BadResponseError => e
-      e.res.status.should eq 302
+      expect(e.res.status).to eq 302
     end
   end
   
@@ -437,7 +437,7 @@ Location: /foo
 hello"
     
     silent do
-      @client.get_content(https_url).should == "hello"
+      expect(@client.get_content(https_url)).to eq("hello")
     end
   end
   
@@ -450,10 +450,10 @@ hello"
   end
   
   it "head" do
-    @client.head(@srv.u("servlet")).header["x-head"][0].should == "head"
+    expect(@client.head(@srv.u("servlet")).header["x-head"][0]).to eq("head")
     param = {"1" => "2", "3" => "4"}
     res = @client.head(@srv.u("servlet"), param)
-    params(res.header["x-query"][0]).should == param
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "head async" do
@@ -463,32 +463,32 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    params(res.header["x-query"][0]).should == param
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "get" do
-    @client.get(@srv.u("servlet")).content.should == "get"
+    expect(@client.get(@srv.u("servlet")).content).to eq("get")
     param = {"1" => "2", "3" => "4"}
     res = @client.get(@srv.u("servlet"), param)
-    params(res.header["x-query"][0]).should == param
-    res.contenttype.should be_nil
+    expect(params(res.header["x-query"][0])).to eq(param)
+    expect(res.contenttype).to be_nil
     url = @srv.u("servlet?5=6&7=8")
     res = @client.get(url, param)
-    params(res.header["x-query"][0]).should == param.merge("5" => "6", "7" => "8")
-    res.contenttype.should be_nil
+    expect(params(res.header["x-query"][0])).to eq(param.merge("5" => "6", "7" => "8"))
+    expect(res.contenttype).to be_nil
   end
   
   it "head follow redirect" do
     expected = urify(@srv.u("hello"))
-    @client.head(@srv.u("hello"), :follow_redirect => true).header.request_uri.should == expected
-    @client.head(@srv.u("redirect1"), :follow_redirect => true).header.request_uri.should == expected
-    @client.head(@srv.u("redirect2"), :follow_redirect => true).header.request_uri.should == expected
+    expect(@client.head(@srv.u("hello"), :follow_redirect => true).header.request_uri).to eq(expected)
+    expect(@client.head(@srv.u("redirect1"), :follow_redirect => true).header.request_uri).to eq(expected)
+    expect(@client.head(@srv.u("redirect2"), :follow_redirect => true).header.request_uri).to eq(expected)
   end
   
   it "get follow redirect" do
-    @client.get(@srv.u("hello"), :follow_redirect => true).body.should == "hello"
-    @client.get(@srv.u("redirect1"), :follow_redirect => true).body.should == "hello"
-    @client.get(@srv.u("redirect2"), :follow_redirect => true).body.should == "hello"
+    expect(@client.get(@srv.u("hello"), :follow_redirect => true).body).to eq("hello")
+    expect(@client.get(@srv.u("redirect1"), :follow_redirect => true).body).to eq("hello")
+    expect(@client.get(@srv.u("redirect2"), :follow_redirect => true).body).to eq("hello")
   end
   
   it "get async" do
@@ -498,23 +498,23 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    params(res.header["x-query"][0]).should == param
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "get async for largebody" do
     conn = @client.get_async(@srv.u("largebody"))
     res = conn.pop
-    res.content.read.length.should == 1000.*(1000)
+    expect(res.content.read.length).to eq(1000.*(1000))
   end
   
   it "get with block" do
     called = false
     res = @client.get(@srv.u("servlet")) do |str|
-      str.should == "get"
+      expect(str).to eq("get")
       called = true
     end
-    called.should be_true
-    res.content.should be_nil
+    expect(called).to be_truthy
+    expect(res.content).to be_nil
   end
   
   it "get with block chunk string recycle" do
@@ -523,65 +523,65 @@ hello"
     res = @client.get(@srv.u("servlet")) do |str|
       body << str
     end
-    body.size.should == 2
-    body.join.should == "get"
+    expect(body.size).to eq(2)
+    expect(body.join).to eq("get")
   end
   
   it "post" do
-    @client.post(@srv.u("servlet")).content[0, 4].should == "post"
+    expect(@client.post(@srv.u("servlet")).content[0, 4]).to eq("post")
     param = {"1" => "2", "3" => "4"}
     res = @client.post(@srv.u("servlet"), param)
-    params(res.header["x-query"][0]).should == param
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "post follow redirect" do
-    @client.post(@srv.u("hello"), :follow_redirect => true).body.should == "hello"
-    @client.post(@srv.u("redirect1"), :follow_redirect => true).body.should == "hello"
-    @client.post(@srv.u("redirect2"), :follow_redirect => true).body.should == "hello"
+    expect(@client.post(@srv.u("hello"), :follow_redirect => true).body).to eq("hello")
+    expect(@client.post(@srv.u("redirect1"), :follow_redirect => true).body).to eq("hello")
+    expect(@client.post(@srv.u("redirect2"), :follow_redirect => true).body).to eq("hello")
   end
   
   it "post with content type" do
     param = [["1", "2"], ["3", "4"]]
     ext = {"content-type" => "application/x-www-form-urlencoded", "hello" => "world"}
-    @client.post(@srv.u("servlet")).content[0, 4].should == "post"
+    expect(@client.post(@srv.u("servlet")).content[0, 4]).to eq("post")
     res = @client.post(@srv.u("servlet"), param, ext)
-    params(res.header["x-query"][0]).should == Hash[param]
+    expect(params(res.header["x-query"][0])).to eq(Hash[param])
     ext = [["content-type", "multipart/form-data"], ["hello", "world"]]
-    @client.post(@srv.u("servlet")).content[0, 4].should == "post"
+    expect(@client.post(@srv.u("servlet")).content[0, 4]).to eq("post")
     res = @client.post(@srv.u("servlet"), param, ext)
-    res.content.should match /Content-Disposition: form-data; name="1"/
-    res.content.should match /Content-Disposition: form-data; name="3"/
+    expect(res.content).to match /Content-Disposition: form-data; name="1"/
+    expect(res.content).to match /Content-Disposition: form-data; name="3"/
     ext = {"content-type" => "multipart/form-data; boundary=hello"}
-    @client.post(@srv.u("servlet")).content[0, 4].should == "post"
+    expect(@client.post(@srv.u("servlet")).content[0, 4]).to eq("post")
     res = @client.post(@srv.u("servlet"), param, ext)
-    res.content.should match /Content-Disposition: form-data; name="1"/
-    res.content.should match /Content-Disposition: form-data; name="3"/
-    res.content.should == "post,--hello\r\nContent-Disposition: form-data; name=\"1\"\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\"\r\n\r\n4\r\n--hello--\r\n\r\n"
+    expect(res.content).to match /Content-Disposition: form-data; name="1"/
+    expect(res.content).to match /Content-Disposition: form-data; name="3"/
+    expect(res.content).to eq("post,--hello\r\nContent-Disposition: form-data; name=\"1\"\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\"\r\n\r\n4\r\n--hello--\r\n\r\n")
   end
   
   it "post with custom multipart and boolean params" do
     param = [["boolean_true", true]]
     ext = {"content-type" => "multipart/form-data"}
-    @client.post(@srv.u("servlet")).content[0, 4].should == "post"
+    expect(@client.post(@srv.u("servlet")).content[0, 4]).to eq("post")
     res = @client.post(@srv.u("servlet"), param, ext)
-    res.content.should match /Content-Disposition: form-data; name="boolean_true"\r\n\r\ntrue\r\n/
+    expect(res.content).to match /Content-Disposition: form-data; name="boolean_true"\r\n\r\ntrue\r\n/
 
     param = [["boolean_false", false]]
     res = @client.post(@srv.u("servlet"), param, ext)
-    res.content.should match /Content-Disposition: form-data; name="boolean_false"\r\n\r\nfalse\r\n/
+    expect(res.content).to match /Content-Disposition: form-data; name="boolean_false"\r\n\r\nfalse\r\n/
 
     param = [["nil", nil]]
     res = @client.post(@srv.u("servlet"), param, ext)
-    res.content.should match /Content-Disposition: form-data; name="nil"\r\n\r\n\r\n/
+    expect(res.content).to match /Content-Disposition: form-data; name="nil"\r\n\r\n\r\n/
   end
   
   it "post with file" do
     STDOUT.sync = true
     File.open(__FILE__) do |file|
       res = @client.post(@srv.u("servlet"), 1 => 2, 3 => file)
-      res.content.should match /^Content-Disposition: form-data; name="1"\r\n/mn
-      res.content.should match /^Content-Disposition: form-data; name="3";/
-      res.content.should match /FIND_TAG_IN_THIS_FILE/
+      expect(res.content).to match /^Content-Disposition: form-data; name="1"\r\n/mn
+      expect(res.content).to match /^Content-Disposition: form-data; name="3";/
+      expect(res.content).to match /FIND_TAG_IN_THIS_FILE/
     end
   end
   
@@ -609,11 +609,11 @@ hello"
     end
     @client.debug_dev = str = StringIO.new
     res = @client.post(@srv.u("servlet"), 1 => 2, 3 => myio)
-    res.content.should match /\r\nContent-Disposition: form-data; name="1"\r\n/m
-    res.content.should match /\r\n2\r\n/m
-    res.content.should match /\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m
-    str.string.should match /\r\nContent-Length:/m
-    myio.called.should == 3
+    expect(res.content).to match /\r\nContent-Disposition: form-data; name="1"\r\n/m
+    expect(res.content).to match /\r\n2\r\n/m
+    expect(res.content).to match /\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m
+    expect(str.string).to match /\r\nContent-Length:/m
+    expect(myio.called).to eq(3)
   end
   
   it "post with io nosize" do
@@ -623,10 +623,10 @@ hello"
     end
     @client.debug_dev = str = StringIO.new
     res = @client.post(@srv.u("servlet"), {1 => 2, 3 => myio})
-    res.content.should match /\r\nContent-Disposition: form-data; name="1"\r\n/m
-    res.content.should match /\r\n2\r\n/m
-    res.content.should match /\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m
-    res.content.should match /\r\n4\r\n/m
+    expect(res.content).to match /\r\nContent-Disposition: form-data; name="1"\r\n/m
+    expect(res.content).to match /\r\n2\r\n/m
+    expect(res.content).to match /\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m
+    expect(res.content).to match /\r\n4\r\n/m
     # TODO is this needed?
     #res.content.should match /\r\nTransfer-Encoding: chunked\r\n/m
   end
@@ -638,42 +638,42 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    params(res.header["x-query"][0]).should == param
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "post with block" do
     called = false
     res = @client.post(@srv.u("servlet")) do |str|
-      str.should == "post,"
+      expect(str).to eq("post,")
       called = true
     end
-    called.should be_true
-    res.content.should be_nil
+    expect(called).to be_truthy
+    expect(res.content).to be_nil
     called = false
     param = [["1", "2"], ["3", "4"]]
     res = @client.post(@srv.u("servlet"), param) do |str|
-      str.should == "post,1=2&3=4"
+      expect(str).to eq("post,1=2&3=4")
       called = true
     end
-    called.should be_true
-    res.header["x-query"][0].should == "1=2&3=4"
-    res.content.should be_nil
+    expect(called).to be_truthy
+    expect(res.header["x-query"][0]).to eq("1=2&3=4")
+    expect(res.content).to be_nil
   end
   
   it "post with custom multipart" do
     ext = {"content-type" => "multipart/form-data"}
-    @client.post(@srv.u("servlet")).content[0, 4].should == "post"
+    expect(@client.post(@srv.u("servlet")).content[0, 4]).to eq("post")
     body = [{ 'Content-Disposition' => 'form-data; name="1"', :content => "2"},
             { 'Content-Disposition' => 'form-data; name="3"', :content => "4"}]
     res = @client.post(@srv.u("servlet"), body, ext)
-    res.content.should match /Content-Disposition: form-data; name="1"/
-    res.content.should match /Content-Disposition: form-data; name="3"/
+    expect(res.content).to match /Content-Disposition: form-data; name="1"/
+    expect(res.content).to match /Content-Disposition: form-data; name="3"/
     ext = {"content-type" => "multipart/form-data; boundary=hello"}
-    @client.post(@srv.u("servlet")).content[0, 4].should == "post"
+    expect(@client.post(@srv.u("servlet")).content[0, 4]).to eq("post")
     res = @client.post(@srv.u("servlet"), body, ext)
-    res.content.should match /Content-Disposition: form-data; name="1"/
-    res.content.should match /Content-Disposition: form-data; name="3"/
-    res.content.should == "post,--hello\r\nContent-Disposition: form-data; name=\"1\"\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\"\r\n\r\n4\r\n--hello--\r\n\r\n"
+    expect(res.content).to match /Content-Disposition: form-data; name="1"/
+    expect(res.content).to match /Content-Disposition: form-data; name="3"/
+    expect(res.content).to eq("post,--hello\r\nContent-Disposition: form-data; name=\"1\"\r\n\r\n2\r\n--hello\r\nContent-Disposition: form-data; name=\"3\"\r\n\r\n4\r\n--hello--\r\n\r\n")
   end
   
   it "post with custom multipart and file" do
@@ -682,26 +682,26 @@ hello"
       ext = {"Content-Type" => "multipart/alternative"}
       body = [{"Content-Type" => "text/plain", :content => "this is only a test"}, {"Content-Type" => "application/x-ruby", :content => file}]
       res = @client.post(@srv.u("servlet"), body, ext)
-      res.content.should match /^Content-Type: text\/plain\r\n/m
-      res.content.should match /^this is only a test\r\n/m
-      res.content.should match /^Content-Type: application\/x-ruby\r\n/m
-      res.content.should match /FIND_TAG_IN_THIS_FILE/
+      expect(res.content).to match /^Content-Type: text\/plain\r\n/m
+      expect(res.content).to match /^this is only a test\r\n/m
+      expect(res.content).to match /^Content-Type: application\/x-ruby\r\n/m
+      expect(res.content).to match /FIND_TAG_IN_THIS_FILE/
     end
   end
   
   it "put" do
-    @client.put(@srv.u("servlet")).content.should == "put"
+    expect(@client.put(@srv.u("servlet")).content).to eq("put")
     param = {"1" => "2", "3" => "4"}
     @client.debug_dev = str = ""
     res = @client.put(@srv.u("servlet"), param)
-    params(res.header["x-query"][0]).should == param
-    str.split(/\r?\n/)[5].should == "Content-Type: application/x-www-form-urlencoded"
+    expect(params(res.header["x-query"][0])).to eq(param)
+    expect(str.split(/\r?\n/)[5]).to eq("Content-Type: application/x-www-form-urlencoded")
   end
   
   it "put bytesize" do
     res = @client.put(@srv.u("servlet"), "txt" => "あいうえお")
-    res.header["x-query"][0].should == "txt=%E3%81%82%E3%81%84%E3%81%86%E3%81%88%E3%81%8A"
-    res.header["x-size"][0].should == "15"
+    expect(res.header["x-query"][0]).to eq("txt=%E3%81%82%E3%81%84%E3%81%86%E3%81%88%E3%81%8A")
+    expect(res.header["x-size"][0]).to eq("15")
   end
   
   it "put async" do
@@ -711,16 +711,16 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    params(res.header["x-query"][0]).should == param
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "patch" do
-    @client.patch(@srv.u("servlet")).content.should == "patch"
+    expect(@client.patch(@srv.u("servlet")).content).to eq("patch")
     param = {"1" => "2", "3" => "4"}
     @client.debug_dev = str = ""
     res = @client.patch(@srv.u("servlet"), param)
-    params(res.header["x-query"][0]).should == param
-    str.split(/\r?\n/)[5].should == "Content-Type: application/x-www-form-urlencoded"
+    expect(params(res.header["x-query"][0])).to eq(param)
+    expect(str.split(/\r?\n/)[5]).to eq("Content-Type: application/x-www-form-urlencoded")
   end
   
   it "patch async" do
@@ -730,18 +730,18 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    params(res.header["x-query"][0]).should == param
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "delete" do
-    @client.delete(@srv.u("servlet")).content.should == "delete"
+    expect(@client.delete(@srv.u("servlet")).content).to eq("delete")
   end
   
   it "delete with body" do
     param = {'1'=>'2', '3'=>'4'}
     @client.debug_dev = str = ''
-    @client.delete(@srv.u('servlet'), param).content.should eq "delete"
-    HTTP::Message.parse(str.split(/\r?\n\r?\n/)[2]).should eq({'1' => ['2'], '3' => ['4']})
+    expect(@client.delete(@srv.u('servlet'), param).content).to eq "delete"
+    expect(HTTP::Message.parse(str.split(/\r?\n\r?\n/)[2])).to eq({'1' => ['2'], '3' => ['4']})
   end
   
   it "delete async" do
@@ -750,11 +750,11 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    res.content.read.should == "delete"
+    expect(res.content.read).to eq("delete")
   end
   
   it "options" do
-    @client.options(@srv.u("servlet")).content.should == "options"
+    expect(@client.options(@srv.u("servlet")).content).to eq("options")
   end
   
   it "options async" do
@@ -763,11 +763,11 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    res.content.read.should == "options"
+    expect(res.content.read).to eq("options")
   end
   
   it "propfind" do
-    @client.propfind(@srv.u("servlet")).content.should == "propfind"
+    expect(@client.propfind(@srv.u("servlet")).content).to eq("propfind")
   end
   
   it "propfind async" do
@@ -776,15 +776,15 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    res.content.read.should == "propfind"
+    expect(res.content.read).to eq("propfind")
   end
   
   it "proppatch" do
-    @client.proppatch(@srv.u("servlet")).content.should == "proppatch"
+    expect(@client.proppatch(@srv.u("servlet")).content).to eq("proppatch")
     param = {"1" => "2", "3" => "4"}
     res = @client.proppatch(@srv.u("servlet"), param)
-    res.content.should == "proppatch"
-    params(res.header["x-query"][0]).should == param
+    expect(res.content).to eq("proppatch")
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "proppatch async" do
@@ -794,15 +794,15 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    res.content.read.should == "proppatch"
-    params(res.header["x-query"][0]).should == param
+    expect(res.content.read).to eq("proppatch")
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "trace" do
-    @client.trace(@srv.u("servlet")).content.should == "trace"
+    expect(@client.trace(@srv.u("servlet")).content).to eq("trace")
     param = {"1" => "2", "3" => "4"}
     res = @client.trace(@srv.u("servlet"), param)
-    params(res.header["x-query"][0]).should == param
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "trace async" do
@@ -812,55 +812,55 @@ hello"
       Thread.pass
     end
     res = conn.pop
-    params(res.header["x-query"][0]).should == param
+    expect(params(res.header["x-query"][0])).to eq(param)
   end
   
   it "chunked" do
-    @client.get_content(@srv.u("chunked"), "msg" => "chunked").should == "chunked"
-    @client.get_content(@srv.u("chunked"), "msg" => "あいうえお").should == "あいうえお"
+    expect(@client.get_content(@srv.u("chunked"), "msg" => "chunked")).to eq("chunked")
+    expect(@client.get_content(@srv.u("chunked"), "msg" => "あいうえお")).to eq("あいうえお")
   end
   
   it "chunked empty" do
-    @client.get_content(@srv.u("chunked"), "msg" => "").should == ""
+    expect(@client.get_content(@srv.u("chunked"), "msg" => "")).to eq("")
   end
   
   it "get query" do
-    check_query_get({1=>2}).should eq({'1'=>'2'})
-    check_query_get({"a"=>"A", "B"=>"b"}).should eq({'a'=>'A', 'B'=>'b'})
-    check_query_get({"&"=>"&"}).should eq({'&'=>'&'})
-    check_query_get({"= "=>" =+"}).should eq({'= '=>' =+'})
-    ['=', '&'].sort.should eq check_query_get([["=", "="], ["=", "&"]])['='].to_ary.sort
+    expect(check_query_get({1=>2})).to eq({'1'=>'2'})
+    expect(check_query_get({"a"=>"A", "B"=>"b"})).to eq({'a'=>'A', 'B'=>'b'})
+    expect(check_query_get({"&"=>"&"})).to eq({'&'=>'&'})
+    expect(check_query_get({"= "=>" =+"})).to eq({'= '=>' =+'})
+    expect(['=', '&'].sort).to eq check_query_get([["=", "="], ["=", "&"]])['='].to_ary.sort
 
-    {'123'=>'45'}.should eq check_query_get('123=45')
-    {'12 3'=>'45', ' '=>' '}.should eq check_query_get('12+3=45&+=+')
-    {}.should eq check_query_get('')
-    {'1'=>'2'}.should eq check_query_get({1=>StringIO.new('2')})
-    {'1'=>'2', '3'=>'4'}.should eq check_query_get(StringIO.new('3=4&1=2'))
+    expect({'123'=>'45'}).to eq check_query_get('123=45')
+    expect({'12 3'=>'45', ' '=>' '}).to eq check_query_get('12+3=45&+=+')
+    expect({}).to eq check_query_get('')
+    expect({'1'=>'2'}).to eq check_query_get({1=>StringIO.new('2')})
+    expect({'1'=>'2', '3'=>'4'}).to eq check_query_get(StringIO.new('3=4&1=2'))
 
     hash = check_query_get({"a"=>["A","a"], "B"=>"b"})
-    {'a'=>'A', 'B'=>'b'}.should eq hash
-    ['A','a'].should eq hash['a'].to_ary
+    expect({'a'=>'A', 'B'=>'b'}).to eq hash
+    expect(['A','a']).to eq hash['a'].to_ary
 
     hash = check_query_get({"a"=>WEBrick::HTTPUtils::FormData.new("A","a"), "B"=>"b"})
-    {'a'=>'A', 'B'=>'b'}.should eq hash
-    ['A','a'].should eq hash['a'].to_ary
+    expect({'a'=>'A', 'B'=>'b'}).to eq hash
+    expect(['A','a']).to eq hash['a'].to_ary
 
     hash = check_query_get({"a"=>[StringIO.new("A"),StringIO.new("a")], "B"=>StringIO.new("b")})
-    {'a'=>'A', 'B'=>'b'}.should eq hash
-    ['A','a'].should eq hash['a'].to_ary
+    expect({'a'=>'A', 'B'=>'b'}).to eq hash
+    expect(['A','a']).to eq hash['a'].to_ary
   end
   
   it "post body" do
-    check_query_post(1 => 2).should == {"1" => "2"}
-    check_query_post("a" => "A", "B" => "b").should == {"a" => "A", "B" => "b"}
-    check_query_post("&" => "&").should == {"&" => "&"}
-    check_query_post("= " => " =+").should == {"= " => " =+"}
-    check_query_post([["=", "="], ["=", "&"]])["="].to_ary.sort.should == ["=", "&"].sort
-    check_query_post("123=45").should == {"123" => "45"}
-    check_query_post("12+3=45&+=+").should == {"12 3" => "45", " " => " "}
-    check_query_post("").should == {}
+    expect(check_query_post(1 => 2)).to eq({"1" => "2"})
+    expect(check_query_post("a" => "A", "B" => "b")).to eq({"a" => "A", "B" => "b"})
+    expect(check_query_post("&" => "&")).to eq({"&" => "&"})
+    expect(check_query_post("= " => " =+")).to eq({"= " => " =+"})
+    expect(check_query_post([["=", "="], ["=", "&"]])["="].to_ary.sort).to eq(["=", "&"].sort)
+    expect(check_query_post("123=45")).to eq({"123" => "45"})
+    expect(check_query_post("12+3=45&+=+")).to eq({"12 3" => "45", " " => " "})
+    expect(check_query_post("")).to eq({})
     post_body = StringIO.new("foo=bar&foo=baz")
-    check_query_post(post_body)["foo"].to_ary.sort.should == ["bar", "baz"]
+    expect(check_query_post(post_body)["foo"].to_ary.sort).to eq(["bar", "baz"])
   end
   
   it "extra headers" do
@@ -868,34 +868,34 @@ hello"
     @client.debug_dev = str
     @client.head(@srv.u, nil, "ABC" => "DEF")
     lines = str.split(/(?:\r?\n)+/)
-    lines[0].should == "= Request"
-    lines[4].should match "ABC: DEF"
+    expect(lines[0]).to eq("= Request")
+    expect(lines[4]).to match "ABC: DEF"
     str = ""
     @client.debug_dev = str
     @client.get(@srv.u, nil, [["ABC", "DEF"], ["ABC", "DEF"]])
     lines = str.split(/(?:\r?\n)+/)
-    lines[0].should == "= Request"
-    lines[4].should match "ABC: DEF"
-    lines[5].should match "ABC: DEF"
+    expect(lines[0]).to eq("= Request")
+    expect(lines[4]).to match "ABC: DEF"
+    expect(lines[5]).to match "ABC: DEF"
   end
   
   it "http custom date header" do
     @client.debug_dev = str = ""
     res = @client.get(@srv.u("hello"), :header => {"Date" => "foo"})
     lines = str.split(/(?:\r?\n)+/)
-    lines[4].should == "Date: foo"
+    expect(lines[4]).to eq("Date: foo")
   end
   
   it "timeout" do
-    @client.connect_timeout.should == 60
-    @client.send_timeout.should == 120
-    @client.receive_timeout.should == 60
+    expect(@client.connect_timeout).to eq(60)
+    expect(@client.send_timeout).to eq(120)
+    expect(@client.receive_timeout).to eq(60)
     @client.connect_timeout = 1
     @client.send_timeout = 2
     @client.receive_timeout = 3
-    @client.connect_timeout.should == 1
-    @client.send_timeout.should == 2
-    @client.receive_timeout.should == 3
+    expect(@client.connect_timeout).to eq(1)
+    expect(@client.send_timeout).to eq(2)
+    expect(@client.receive_timeout).to eq(3)
   end
   
   it "connect timeout" do
@@ -907,28 +907,28 @@ hello"
   end
   
   it "receive timeout" do
-    @client.get_content(@srv.u("sleep?sec=2")).should == "hello"
+    expect(@client.get_content(@srv.u("sleep?sec=2"))).to eq("hello")
     @client.receive_timeout = 1
-    @client.get_content(@srv.u("sleep?sec=0")).should == "hello"
+    expect(@client.get_content(@srv.u("sleep?sec=0"))).to eq("hello")
     
     expect {
       @client.get_content(@srv.u("sleep?sec=2"))
     }.to raise_error(HTTPClient::ReceiveTimeoutError)
     @client.receive_timeout = 3
-    @client.get_content(@srv.u("sleep?sec=2")).should == "hello"
+    expect(@client.get_content(@srv.u("sleep?sec=2"))).to eq("hello")
   end
   
   it "receive timeout post" do
-    @client.post(@srv.u("sleep"), :sec => 2).content.should == "hello"
+    expect(@client.post(@srv.u("sleep"), :sec => 2).content).to eq("hello")
     @client.receive_timeout = 1
-    @client.post(@srv.u("sleep"), :sec => 0).content.should == "hello"
+    expect(@client.post(@srv.u("sleep"), :sec => 0).content).to eq("hello")
     
     expect {
       @client.post(@srv.u("sleep"), :sec => 2)\
     }.to raise_error(HTTPClient::ReceiveTimeoutError)
 
     @client.receive_timeout = 3
-    @client.post(@srv.u("sleep"), :sec => 2).content.should == "hello"
+    expect(@client.post(@srv.u("sleep"), :sec => 2).content).to eq("hello")
   end
   
   it "reset" do
@@ -956,7 +956,7 @@ hello"
     @client.set_cookie_store(cookiefile)
     cookie = @client.cookie_manager.cookies.first
     url = cookie.url
-    cookie.domain_match(url.host, cookie.domain).should be_true
+    expect(cookie.domain_match(url.host, cookie.domain)).to be_truthy
     @client.reset_all
     @client.test_loopback_http_response << "HTTP/1.0 200 OK
 Set-Cookie: foo=bar; expires=#{Time.at(1924873200).gmtime.httpdate}
@@ -965,7 +965,7 @@ OK"
     @client.get_content("http://rubyforge.org/account/login.php")
     @client.save_cookie_store
     str = File.read(cookiefile)
-    str.should match /http:\/\/rubyforge.org\/account\/login.php\tfoo\tbar\t1924873200\trubyforge.org\t\/account\t1/
+    expect(str).to match /http:\/\/rubyforge.org\/account\/login.php\tfoo\tbar\t1924873200\trubyforge.org\t\/account\t1/
     File.unlink(cookiefile)
   end
   
@@ -1023,68 +1023,68 @@ OK"
   
   it "connection" do
     c = HTTPClient::Connection.new
-    c.finished?.should be_true
-    c.join.should be_nil
+    expect(c.finished?).to be_truthy
+    expect(c.join).to be_nil
   end
   
   it "site" do
     site = HTTPClient::Site.new
-    site.scheme.should == "tcp"
-    site.host.should == "0.0.0.0"
-    site.port.should == 0
-    site.addr.should == "tcp://0.0.0.0:0"
-    site.to_s.should == "tcp://0.0.0.0:0"
+    expect(site.scheme).to eq("tcp")
+    expect(site.host).to eq("0.0.0.0")
+    expect(site.port).to eq(0)
+    expect(site.addr).to eq("tcp://0.0.0.0:0")
+    expect(site.to_s).to eq("tcp://0.0.0.0:0")
     
     site.inspect
     site = HTTPClient::Site.new(urify("http://localhost:12345/foo"))
-    site.scheme.should == "http"
-    site.host.should == "localhost"
-    site.port.should == 12345
-    site.addr.should == "http://localhost:12345"
-    site.to_s.should == "http://localhost:12345"
+    expect(site.scheme).to eq("http")
+    expect(site.host).to eq("localhost")
+    expect(site.port).to eq(12345)
+    expect(site.addr).to eq("http://localhost:12345")
+    expect(site.to_s).to eq("http://localhost:12345")
     
     site.inspect
     site1 = HTTPClient::Site.new(urify("http://localhost:12341/"))
     site2 = HTTPClient::Site.new(urify("http://localhost:12342/"))
     site3 = HTTPClient::Site.new(urify("http://localhost:12342/"))
-    site1.should_not == site2
+    expect(site1).not_to eq(site2)
     h = {site1 => "site1", site2 => "site2"}
     h[site3] = "site3"
-    h[site1].should == "site1"
-    h[site2].should == "site3"
+    expect(h[site1]).to eq("site1")
+    expect(h[site2]).to eq("site3")
   end
   
   it "http header" do
     res = @client.get(@srv.u("hello"))
-    res.contenttype.should == "text/html"
-    res.header.get(nil).size.should == 5
+    expect(res.contenttype).to eq("text/html")
+    expect(res.header.get(nil).size).to eq(5)
     res.header.delete("connection")
-    res.header.get(nil).size.should == 4
+    expect(res.header.get(nil).size).to eq(4)
     res.header["foo"] = "bar"
-    res.header["foo"].should == ["bar"]
-    res.header.get("foo").should == [["foo", "bar"]]
+    expect(res.header["foo"]).to eq(["bar"])
+    expect(res.header.get("foo")).to eq([["foo", "bar"]])
     res.header["foo"] = ["bar", "bar2"]
-    res.header.get("foo").should == [["foo", "bar"], ["foo", "bar2"]]
+    expect(res.header.get("foo")).to eq([["foo", "bar"], ["foo", "bar2"]])
   end
   
   it "session manager" do
     mgr = HTTPClient::SessionManager.new(@client)
-    (mgr.instance_eval do
+    expect(mgr.instance_eval do
       @proxy
-    end).should be_nil
-    mgr.debug_dev.should be_nil
+    end).to be_nil
+    expect(mgr.debug_dev).to be_nil
     @client.debug_dev = Object.new
     @client.proxy = "http://myproxy:12345"
     mgr = HTTPClient::SessionManager.new(@client)
-    mgr.instance_eval do
+    expect(mgr.instance_eval do
       @proxy
-    end.to_s.should == "http://myproxy:12345"
-    mgr.debug_dev.should == @client.debug_dev
+    end.to_s).to eq("http://myproxy:12345")
+    expect(mgr.debug_dev).to eq(@client.debug_dev)
   end
   
   it "socket local" do
     @client.socket_local.host = '127.0.0.1'
-    @client.get_content(@srv.u('hello')).should == 'hello'
+    expect(@client.get_content(@srv.u('hello'))).to eq('hello')
     @client.reset_all
     @client.socket_local.port = @srv.port
     begin
@@ -1097,23 +1097,27 @@ OK"
     ary = ("b".."d").map do |k|
       ["key2", k]
     end << ["key1", "a"] << ["key3", "z"]
-    HTTP::Message.escape_query(ary).should == "key2=b&key2=c&key2=d&key1=a&key3=z"
+    expect(HTTP::Message.escape_query(ary)).to eq("key2=b&key2=c&key2=d&key1=a&key3=z")
   end
   it 'charset' do
     body = @client.get(@srv.u("charset")).body
-    body.encoding.should == Encoding::EUC_JP
-    body.should == "あいうえお".encode(Encoding::EUC_JP)
+    expect(body.encoding).to eq(Encoding::EUC_JP)
+    expect(body).to eq("あいうえお".encode(Encoding::EUC_JP))
   end
   it 'continue' do
     @client.debug_dev = str = ''
     res = @client.get(@srv.u('continue'), :header => {:Expect => '100-continue'})
-    res.status.should eq 200
-    res.body.should eq 'done!'
-    str.should match /Expect: 100-continue/
+    expect(res.status).to eq 200
+    expect(res.body).to eq 'done!'
+    expect(str).to match /Expect: 100-continue/
   end
 
   it 'ipv6' do
-    server = TCPServer.open('::1', 0) rescue return # Skip if IPv6 is unavailable.
+    begin
+      server = TCPServer.open('::1', 0)
+    rescue
+      next # Skip if IPv6 is unavailable.
+    end
     server_thread = Thread.new {
       Thread.abort_on_exception = true
       sock = server.accept
@@ -1128,7 +1132,7 @@ OK"
     }
     uri = "http://[::1]:#{server.addr[1]}/"
     begin
-      @client.get(uri).body.should eq '12345'
+      expect(@client.get(uri).body).to eq '12345'
     ensure
       server.close
       server_thread.kill
