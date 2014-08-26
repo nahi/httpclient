@@ -7,3 +7,4 @@ reports
 Gemfile.lock
 .rbx
 .bundle
+.ruby-version
