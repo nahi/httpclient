@@ -15,7 +15,7 @@ group :development do
   gem 'simplecov'
   # For Jenkins
   gem 'test-unit'
-  gem 'ci_reporter'
+  gem 'ci_reporter_test_unit'
   gem 'simplecov-rcov'
   gem 'pry'
   gem 'rack'
