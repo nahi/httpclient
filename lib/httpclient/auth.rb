@@ -310,7 +310,6 @@ class HTTPClient
     end
 
     def get(req)
-      target_uri = req.header.request_uri
       synchronize {
         return nil unless @challenge['challenged']
         @cred
@@ -487,7 +486,6 @@ class HTTPClient
     # regardless of target uri if the proxy has required authentication
     # before
     def get(req)
-      target_uri = req.header.request_uri
       synchronize {
         param = @challenge
         return nil unless param
