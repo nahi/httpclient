@@ -12,12 +12,12 @@ end
 group :development do
   gem 'rake', :require => false
   gem 'rdoc'
-  gem 'simplecov'
+  gem 'simplecov', :platforms => [:ruby_19, :ruby_20]
   # For Jenkins
   gem 'test-unit'
   gem 'ci_reporter'
   gem 'ci_reporter_test_unit'
-  gem 'simplecov-rcov'
+  gem 'simplecov-rcov', :platforms => [:ruby_19, :ruby_20]
   gem 'pry'
   gem 'rack'
   gem 'rubysspi'
