@@ -15,8 +15,8 @@ group :development do
   gem 'simplecov', :platforms => [:ruby_19, :ruby_20]
   # For Jenkins
   gem 'test-unit'
-  gem 'ci_reporter'
-  gem 'ci_reporter_test_unit'
+  # ci_reporter 2.x doesn't support Ruby 1.8
+  gem 'ci_reporter', '~> 1.9'
   gem 'simplecov-rcov', :platforms => [:ruby_19, :ruby_20]
   gem 'pry'
   gem 'rack'
