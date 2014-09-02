@@ -844,11 +844,11 @@ module HTTP
         query.each { |attr, value|
           left = escape(attr.to_s) << '='
           if values = Array.try_convert(value)
-            values.each { |value|
-              if value.respond_to?(:read)
-                value = value.read
+            values.each { |v|
+              if v.respond_to?(:read)
+                v = v.read
               end
-              pairs.push(left + escape(value.to_s))
+              pairs.push(left + escape(v.to_s))
             }
           else
             if value.respond_to?(:read)
