@@ -13,3 +13,8 @@ script: "bundle exec rake --trace"
 notifications:
   recipients:
     - nahi@ruby-lang.org
+
+matrix:
+  allow_failures:
+    - rvm: ruby-head
+    - rvm: jruby-head
