@@ -1,13 +1,10 @@
-require 'rake'
+require 'bundler/setup'
 require 'rake/testtask'
 require 'rdoc/task'
-require 'rubygems/package_task'
 require 'ci/reporter/rake/test_unit'
+require 'bundler/gem_tasks'
 
 task :default => :test
-
-require 'bundler'
-Bundler::GemHelper.install_tasks
 
 ENV['CI_REPORTS'] = File.expand_path('./reports', File.dirname(__FILE__))
 task :test => ['ci:setup:testunit', 'test-run']
