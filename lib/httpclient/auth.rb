@@ -12,28 +12,9 @@ require 'mutex_m'
 
 
 class HTTPClient
-
-  begin
-    require 'net/ntlm'
-    NTLMEnabled = true
-  rescue LoadError
-    NTLMEnabled = false
-  end
-
-  begin
-    require 'win32/sspi'
-    SSPIEnabled = true
-  rescue LoadError
-    SSPIEnabled = false
-  end
-
-  begin
-    require 'gssapi'
-    GSSAPIEnabled = true
-  rescue LoadError
-    GSSAPIEnabled = false
-  end
-
+  NTLMEnabled = defined?(NTLM)
+  SSPIEnabled = defined?(Win32::SSPI)
+  GSSAPIEnabled = defined?(GSSAPI)
 
   # Common abstract class for authentication filter.
   #
