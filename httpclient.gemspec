@@ -1,6 +1,6 @@
 require './lib/httpclient/version'
 
-Gem::Specification.new do |s|
+Gem::Specification.new { |s|
   s.name = 'httpclient'
   s.version = HTTPClient::VERSION
   s.author = 'Hiroshi Nakamura'
@@ -10,4 +10,4 @@ Gem::Specification.new do |s|
   s.summary = 'gives something like the functionality of libwww-perl (LWP) in Ruby'
   s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.md']
   s.license = 'ruby'
-end
+}
