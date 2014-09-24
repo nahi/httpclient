@@ -13,27 +13,9 @@ require 'mutex_m'
 
 class HTTPClient
 
-  begin
-    require 'net/ntlm'
-    NTLMEnabled = true
-  rescue LoadError
-    NTLMEnabled = false
-  end
-
-  begin
-    require 'win32/sspi'
-    SSPIEnabled = true
-  rescue LoadError
-    SSPIEnabled = false
-  end
-
-  begin
-    require 'gssapi'
-    GSSAPIEnabled = true
-  rescue LoadError
-    GSSAPIEnabled = false
-  end
-
+  NTLMEnabled = false
+  SSPIEnabled = false
+  GSSAPIEnabled = false
 
   # Common abstract class for authentication filter.
   #
@@ -239,7 +221,6 @@ class HTTPClient
     def initialize
       super
       @cred = nil
-      @set = false
       @auth = {}
       @challenge = {}
       @scheme = "Basic"
@@ -263,15 +244,12 @@ class HTTPClient
           uri = Util.uri_dirname(uri)
           @auth[uri] = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
         end
-        @set = true
       end
     end
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      synchronize {
-        @set == true
-      }
+      @cred || !@auth.empty?
     end
 
     # Response handler: returns credential.
@@ -305,7 +283,6 @@ class HTTPClient
     def set(uri, user, passwd)
       synchronize do
         @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
-        @set = true
       end
     end
 
@@ -338,7 +315,6 @@ class HTTPClient
       super
       @auth = {}
       @challenge = {}
-      @set = false
       @nonce_count = 0
       @scheme = "Digest"
     end
@@ -359,15 +335,12 @@ class HTTPClient
           uri = Util.uri_dirname(uri)
           @auth[uri] = [user, passwd]
         end
-        @set = true
       end
     end
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      synchronize {
-        @set == true
-      }
+      !@auth.empty?
     end
 
     # Response handler: returns credential.
@@ -477,7 +450,6 @@ class HTTPClient
     # overrides DigestAuth#set. sets default user name and password. uri is not used.
     def set(uri, user, passwd)
       synchronize do
-        @set = true
         @auth = [user, passwd]
       end
     end
@@ -529,7 +501,6 @@ class HTTPClient
       @auth_default = nil
       @challenge = {}
       @scheme = scheme
-      @set = false
       @ntlm_opt = {
         :ntlmv2 => true
       }
@@ -553,21 +524,17 @@ class HTTPClient
         else
           @auth_default = [user, passwd]
         end
-        @set = true
       end
     end
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      synchronize {
-        @set == true
-      }
+      @auth_default || !@auth.empty?
     end
 
     # Response handler: returns credential.
     # See ruby/ntlm for negotiation state transition.
     def get(req)
-      return nil unless NTLMEnabled
       target_uri = req.header.request_uri
       synchronize {
         domain_uri, param = @challenge.find { |uri, v|
@@ -581,6 +548,7 @@ class HTTPClient
           user, passwd = @auth_default
         end
         return nil unless user
+        Util.try_require('net/ntlm') || return
         domain = nil
         domain, user = user.split("\\") if user.index("\\")
         state = param[:state]
@@ -604,7 +572,6 @@ class HTTPClient
 
     # Challenge handler: remember URL and challenge token for response.
     def challenge(uri, param_str)
-      return false unless NTLMEnabled
       synchronize {
         if param_str.nil? or @challenge[uri].nil?
           c = @challenge[uri] = {}
@@ -653,27 +620,27 @@ class HTTPClient
       # not supported
     end
 
-    # have we marked this as set - ie that it's valid to use in this context?
+    # Check always (not effective but it works)
     def set?
-      SSPIEnabled || GSSAPIEnabled
+      !@challenge.empty?
     end
 
     # Response handler: returns credential.
     # See win32/sspi for negotiation state transition.
     def get(req)
-      return nil unless SSPIEnabled || GSSAPIEnabled
       target_uri = req.header.request_uri
       synchronize {
         domain_uri, param = @challenge.find { |uri, v|
           Util.uri_part_of(target_uri, uri)
         }
         return nil unless param
+        Util.try_require('win32/sspi') || Util.try_require('gssapi') || return
         state = param[:state]
         authenticator = param[:authenticator]
         authphrase = param[:authphrase]
         case state
         when :init
-          if SSPIEnabled
+          if defined?(Win32::SSPI)
             authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
             return authenticator.get_initial_token(@scheme)
           else # use GSSAPI
@@ -683,7 +650,7 @@ class HTTPClient
           end
         when :response
           @challenge.delete(domain_uri)
-          if SSPIEnabled
+          if defined?(Win32::SSPI)
             return authenticator.complete_authentication(authphrase)
           else # use GSSAPI
             return authenticator.init_context(authphrase.unpack('m').pop)
@@ -695,7 +662,6 @@ class HTTPClient
 
     # Challenge handler: remember URL and challenge token for response.
     def challenge(uri, param_str)
-      return false unless SSPIEnabled || GSSAPIEnabled
       synchronize {
         if param_str.nil? or @challenge[uri].nil?
           c = @challenge[uri] = {}
@@ -823,9 +789,9 @@ class HTTPClient
       # not supported
     end
 
-    # have we marked this as set - ie that it's valid to use in this context?
+    # Check always (not effective but it works)
     def set?
-      true
+      !@challenge.empty?
     end
 
     # Set authentication credential.
