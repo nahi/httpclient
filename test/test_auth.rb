@@ -150,6 +150,19 @@ class TestAuth < Test::Unit::TestCase
     end
   end
 
+  def test_BASIC_auth_nil_uri
+    c = HTTPClient.new
+    webrick_backup = @basic_auth.instance_eval { @auth_scheme }
+    begin
+      @basic_auth.instance_eval { @auth_scheme = "BASIC" }
+      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
+      c.set_auth(nil, 'admin', 'admin')
+      assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
+    ensure
+      @basic_auth.instance_eval { @auth_scheme = webrick_backup }
+    end
+  end
+
   # To work this test consistently on CRuby you can to add 'Thread.pass' in
   # @challenge iteration at BasicAuth#get like;
   #
