@@ -249,7 +249,7 @@ class HTTPClient
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      @cred || !@auth.empty?
+      @cred || @auth.any?
     end
 
     # Response handler: returns credential.
@@ -340,7 +340,7 @@ class HTTPClient
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      !@auth.empty?
+      @auth.any?
     end
 
     # Response handler: returns credential.
@@ -529,7 +529,7 @@ class HTTPClient
 
     # have we marked this as set - ie that it's valid to use in this context?
     def set?
-      @auth_default || !@auth.empty?
+      @auth_default || @auth.any?
     end
 
     # Response handler: returns credential.

@@ -169,12 +169,10 @@ class HTTPClient
     # It returns 'true' for the second require in contrast of the standard
     # require returns false if the feature is already loaded.
     def try_require(feature)
-      begin
-        require feature
-        true
-      rescue LoadError
-        false
-      end
+      require feature
+      true
+    rescue LoadError
+      false
     end
     module_function :try_require
 
