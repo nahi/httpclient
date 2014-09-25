@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 require 'http-access2'
 require File.expand_path('helper', File.dirname(__FILE__))
 
