@@ -176,7 +176,7 @@ class TestHTTPClient < Test::Unit::TestCase
     setup_proxyserver
     escape_noproxy do
       begin
-        @client.proxy = "http://"
+        @client.proxy = "http://あ"
       rescue
         assert_match(/InvalidURIError/, $!.class.to_s)
       end
