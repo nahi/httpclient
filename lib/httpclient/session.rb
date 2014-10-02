@@ -623,9 +623,9 @@ class HTTPClient
       rescue HTTPClient::TimeoutError
         close
         raise
-      rescue
+      rescue => e
         close
-        if SSLEnabled and $!.is_a?(OpenSSL::SSL::SSLError)
+        if SSLEnabled and e.is_a?(OpenSSL::SSL::SSLError)
           raise KeepAliveDisconnected.new(self)
         else
           raise
