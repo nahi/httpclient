@@ -921,8 +921,8 @@ private
             retry_count -= 1
           end
         end
-      rescue Exception
-        conn.push $!
+      rescue Exception => e
+        conn.push e
       end
     }
     conn.async_thread = t

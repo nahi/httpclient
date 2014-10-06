@@ -118,8 +118,8 @@ class TestClient < Test::Unit::TestCase
     escape_noproxy do
       begin
        	@client.proxy = "http://あ"
-      rescue
-        assert_match(/InvalidURIError/, $!.class.to_s)
+      rescue => e
+        assert_match(/InvalidURIError/, e.class.to_s)
       end
       @client.proxy = ""
       assert_nil(@client.proxy)
