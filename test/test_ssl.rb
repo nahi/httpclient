@@ -33,7 +33,11 @@ class TestSSL < Test::Unit::TestCase
     assert_equal(OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT, cfg.verify_mode)
     assert_nil(cfg.verify_callback)
     assert_nil(cfg.timeout)
-    assert_equal(OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2, cfg.options)
+    assert_equal(
+      OpenSSL::SSL::OP_ALL & ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS | OpenSSL::SSL::OP_NO_COMPRESSION |
+      OpenSSL::SSL::OP_NO_SSLv2 | OpenSSL::SSL::OP_NO_SSLv3,
+      cfg.options
+    )
     assert_equal("ALL:!aNULL:!eNULL:!SSLv2", cfg.ciphers)
     assert_instance_of(OpenSSL::X509::Store, cfg.cert_store)
   end
@@ -166,6 +170,24 @@ end
     end
   end
 
+  def test_no_sslv3
+    teardown_server
+    setup_server_with_ssl_version(:SSLv3)
+    assert_raise(OpenSSL::SSL::SSLError) do
+      @client.ssl_config.verify_mode = nil
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+  end
+
+  def test_allow_tlsv1
+    teardown_server
+    setup_server#_with_ssl_version(:TLSv1)
+    assert_nothing_raised do
+      @client.ssl_config.verify_mode = nil
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+  end
+
 private
 
   def cert(filename)
@@ -197,6 +219,31 @@ private
       :SSLClientCA => cert('ca.cert'),
       :SSLCertName => nil
     )
+    @serverport = @server.config[:Port]
+    [:hello].each do |sym|
+      @server.mount(
+        "/#{sym}",
+        WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
+      )
+    end
+    @server_thread = start_server_thread(@server)
+  end
+
+  def setup_server_with_ssl_version(ssl_version)
+    logger = Logger.new(STDERR)
+    #logger.level = Logger::Severity::FATAL	# avoid logging SSLError (ERROR level)
+    @server = WEBrick::HTTPServer.new(
+      :BindAddress => "localhost",
+      :Logger => logger,
+      :Port => 0,
+      :AccessLog => [],
+      :DocumentRoot => DIR,
+      :SSLEnable => true,
+      :SSLCACertificateFile => File.join(DIR, 'ca.cert'),
+      :SSLCertificate => cert('server.cert'),
+      :SSLPrivateKey => key('server.key')
+    )
+    @server.ssl_context.ssl_version = ssl_version
     @serverport = @server.config[:Port]
     [:hello].each do |sym|
       @server.mount(
