@@ -619,14 +619,14 @@ class HTTPClient
       rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE, IOError
         # JRuby can raise IOError instead of ECONNRESET for now
         close
-        raise KeepAliveDisconnected.new(self)
+        raise KeepAliveDisconnected.new(self, $!)
       rescue HTTPClient::TimeoutError
         close
         raise
       rescue
         close
         if SSLEnabled and $!.is_a?(OpenSSL::SSL::SSLError)
-          raise KeepAliveDisconnected.new(self)
+          raise KeepAliveDisconnected.new(self, $!)
         else
           raise
         end
@@ -886,7 +886,7 @@ class HTTPClient
           rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE, IOError
             # JRuby can raise IOError instead of ECONNRESET for now
             close
-            raise KeepAliveDisconnected.new(self)
+            raise KeepAliveDisconnected.new(self, $!)
           end
           if StatusParseRegexp !~ initial_line
             @version = '0.9'

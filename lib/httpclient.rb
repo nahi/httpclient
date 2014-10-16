@@ -870,8 +870,11 @@ private
 
   class KeepAliveDisconnected < StandardError # :nodoc:
     attr_reader :sess
-    def initialize(sess = nil)
+    attr_reader :cause
+    def initialize(sess = nil, cause = nil)
+      super("#{self.class.name}: #{cause ? cause.message : nil}")
       @sess = sess
+      @cause = cause
     end
   end
 
