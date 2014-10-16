@@ -78,3 +78,7 @@ Please file a ticket at the project web site.
 1. find a similar ticket from https://github.com/nahi/httpclient/issues
 2. create a new ticket by clicking 'Create Issue' button.
 3. you can use github features such as pull-request if you like.
+
+## Changes
+
+See [ChangeLog](https://github.com/nahi/httpclient/blob/master/CHANGELOG.md)

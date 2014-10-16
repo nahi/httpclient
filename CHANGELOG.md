@@ -1,5 +1,32 @@
 ## Changes
 
+### Changes in 2.5.0
+
+Oct 17, 2014 - version 2.5.0
+
+**IMPORTANT CHANGES**
+
+This version changes (again) default SSL options to help
+BEAST/CRIME/POODLE Attach prevension.
+
+ * Disabled SSLv3 in favor of POODLE Attach prevention.
+ * Enabled 1/n-1 fragment in favor of BEAST Attach prevention.
+ * No TLS compression in favor of CRIME Attach prevention.
+
+You can restore the previous SSL configuration like this;
+
+```ruby
+client = HTTPClient.new
+client.ssl_config.ssl_version = :SSLv23
+client.ssl_config.options = OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2
+```
+
+  * Changes
+	* Change default SSL options. See above.
+    * Keep cause error of KeepAliveDisconnected. It allows caller to
+	  investigate the cause of KeepAliveDisconnected.
+
+
 ### Changes in 2.4.0
 
 Jun 8, 2014 - version 2.4.0
