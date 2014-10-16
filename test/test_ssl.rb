@@ -33,11 +33,10 @@ class TestSSL < Test::Unit::TestCase
     assert_equal(OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT, cfg.verify_mode)
     assert_nil(cfg.verify_callback)
     assert_nil(cfg.timeout)
-    assert_equal(
-      OpenSSL::SSL::OP_ALL & ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS | OpenSSL::SSL::OP_NO_COMPRESSION |
-      OpenSSL::SSL::OP_NO_SSLv2 | OpenSSL::SSL::OP_NO_SSLv3,
-      cfg.options
-    )
+    expected_options = OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2 | OpenSSL::SSL::OP_NO_SSLv3
+    expected_options &= ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS if defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS)
+    expected_options |= OpenSSL::SSL::OP_NO_COMPRESSION if defined?(OpenSSL::SSL::OP_NO_COMPRESSION)
+    assert_equal(expected_options, cfg.options)
     assert_equal("ALL:!aNULL:!eNULL:!SSLv2", cfg.ciphers)
     assert_instance_of(OpenSSL::X509::Store, cfg.cert_store)
   end
