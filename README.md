@@ -30,7 +30,7 @@ See HTTPClient for documentation.
 
 ## httpclient command
 
-Usage: 1) `httpclient get https://www.google.co.jp/ q=ruby`  
+Usage: 1) `httpclient get https://www.google.co.jp/?q=ruby`  
 Usage: 2) `httpclient`
 
 For 1) it issues a GET request to the given URI and shows the wiredump and
