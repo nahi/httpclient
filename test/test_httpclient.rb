@@ -928,7 +928,18 @@ EOS
   end
 
   def test_options
-    assert_equal("options", @client.options(serverurl + 'servlet').content)
+    assert_equal('options', @client.options(serverurl + 'servlet').content)
+  end
+
+  def test_options_with_header
+    res = @client.options(serverurl + 'servlet', {'x-header' => 'header'})
+    assert_equal('header', res.headers['X-Header'])
+  end
+
+  def test_options_with_body
+    res = @client.options(serverurl + 'servlet', :body => 'body', :header => {'x-header' => 'header'})
+    assert_equal('header', res.headers['X-Header'])
+    assert_equal('body', res.headers['X-Body'])
   end
 
   def test_options_async
@@ -1772,8 +1783,9 @@ private
     end
 
     def do_OPTIONS(req, res)
-      # check RFC for legal response.
       res.body = 'options'
+      res['x-header'] = req['X-Header']
+      res['x-body'] = req.body
     end
 
     def do_PROPFIND(req, res)

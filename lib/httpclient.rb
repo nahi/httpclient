@@ -695,8 +695,14 @@ class HTTPClient
   end
 
   # Sends OPTIONS request to the specified URL.  See request for arguments.
+  # CAUTION: from historical reason, this method accepts :body unusual way.
   def options(uri, *args, &block)
-    request(:options, uri, argument_to_hash(args, :header), &block)
+    if args.size == 1 and Hash === args[0] and args[0].key?(:body)
+      new_args = args[0]
+    else
+      new_args = argument_to_hash(args, :header)
+    end
+    request(:options, uri, new_args, &block)
   end
 
   # Sends PROPFIND request to the specified URL.  See request for arguments.
