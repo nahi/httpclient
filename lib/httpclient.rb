@@ -627,8 +627,13 @@ class HTTPClient
   # If you need to get full HTTP response including HTTP status and headers,
   # use post method.
   def post_content(uri, *args, &block)
-    body, header = keyword_argument(args, :body, :header)
-    success_content(follow_redirect(:post, uri, nil, body, header || {}, &block))
+    if hashy_argument_has_keys(args, :query, :body)
+      query, body, header = keyword_argument(args, :query, :body, :header)
+    else
+      query = nil
+      body, header = keyword_argument(args, :body, :header)
+    end
+    success_content(follow_redirect(:post, uri, query, body, header || {}, &block))
   end
 
   # A method for redirect uri callback.  How to use:
@@ -681,33 +686,32 @@ class HTTPClient
   # You should not depend on :follow_redirect => true for POST method.  It
   # sends the same POST method to the new location which is prohibited in HTTP spec.
   def post(uri, *args, &block)
-    request(:post, uri, argument_to_hash(args, :body, :header, :follow_redirect), &block)
+    if hashy_argument_has_keys(args, :query, :body)
+      new_args = args[0]
+    else
+      new_args = argument_to_hash(args, :body, :header, :follow_redirect)
+    end
+    request(:post, uri, new_args, &block)
   end
 
   # Sends PUT request to the specified URL.  See request for arguments.
   def put(uri, *args, &block)
-    request(:put, uri, argument_to_hash(args, :body, :header), &block)
-  end
-
-  # Sends DELETE request to the specified URL.  See request for arguments.
-  # From historical reason, this method accepts :query only as a Hash args
-  def delete(uri, *args, &block)
-    if hashy_arguments_has_key(args, :query)
+    if hashy_argument_has_keys(args, :query, :body)
       new_args = args[0]
     else
       new_args = argument_to_hash(args, :body, :header)
     end
-    request(:delete, uri, new_args, &block)
+    request(:put, uri, new_args, &block)
+  end
+
+  # Sends DELETE request to the specified URL.  See request for arguments.
+  def delete(uri, *args, &block)
+    request(:delete, uri, argument_to_hash(args, :body, :header, :query), &block)
   end
 
   # Sends OPTIONS request to the specified URL.  See request for arguments.
-  # From historical reason, this method accepts :query and :body only as a Hash args
   def options(uri, *args, &block)
-    if hashy_arguments_has_key(args, :query, :body)
-      new_args = args[0]
-    else
-      new_args = argument_to_hash(args, :header)
-    end
+    new_args = argument_to_hash(args, :header, :query, :body)
     request(:options, uri, new_args, &block)
   end
 
@@ -808,50 +812,53 @@ class HTTPClient
   # Sends POST request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def post_async(uri, *args)
-    body, header = keyword_argument(args, :body, :header)
-    request_async(:post, uri, nil, body || '', header || {})
+    if hashy_argument_has_keys(args, :query, :body)
+      new_args = args[0]
+    else
+      new_args = argument_to_hash(args, :body, :header)
+    end
+    request_async2(:post, uri, new_args)
   end
 
-  # Sends PUT request in async style.  See request_async for arguments.
+  # Sends PUT request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def put_async(uri, *args)
-    body, header = keyword_argument(args, :body, :header)
-    request_async(:put, uri, nil, body || '', header || {})
+    if hashy_argument_has_keys(args, :query, :body)
+      new_args = args[0]
+    else
+      new_args = argument_to_hash(args, :body, :header)
+    end
+    request_async2(:put, uri, new_args)
   end
 
-  # Sends DELETE request in async style.  See request_async for arguments.
+  # Sends DELETE request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def delete_async(uri, *args)
-    header = keyword_argument(args, :header)
-    request_async(:delete, uri, nil, nil, header || {})
+    request_async2(:delete, uri, argument_to_hash(args, :body, :header, :query))
   end
 
-  # Sends OPTIONS request in async style.  See request_async for arguments.
+  # Sends OPTIONS request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def options_async(uri, *args)
-    header = keyword_argument(args, :header)
-    request_async(:options, uri, nil, nil, header || {})
+    request_async2(:options, uri, argument_to_hash(args, :header, :query, :body))
   end
 
-  # Sends PROPFIND request in async style.  See request_async for arguments.
+  # Sends PROPFIND request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def propfind_async(uri, *args)
-    header = keyword_argument(args, :header)
-    request_async(:propfind, uri, nil, nil, header || PROPFIND_DEFAULT_EXTHEADER)
+    request_async2(:propfind, uri, argument_to_hash(args, :body, :header))
   end
   
-  # Sends PROPPATCH request in async style.  See request_async for arguments.
+  # Sends PROPPATCH request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def proppatch_async(uri, *args)
-    body, header = keyword_argument(args, :body, :header)
-    request_async(:proppatch, uri, nil, body, header || {})
+    request_async2(:proppatch, uri, argument_to_hash(args, :body, :header))
   end
   
-  # Sends TRACE request in async style.  See request_async for arguments.
+  # Sends TRACE request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def trace_async(uri, *args)
-    query, body, header = keyword_argument(args, :query, :body, :header)
-    request_async(:trace, uri, query, body, header || {})
+    request_async2(:trace, uri, argument_to_hash(args, :query, :header))
   end
 
   # Sends a request in async style.  request method creates new Thread for
@@ -859,6 +866,21 @@ class HTTPClient
   #
   # Arguments definition is the same as request.
   def request_async(method, uri, query = nil, body = nil, header = {})
+    uri = urify(uri)
+    do_request_async(method, uri, query, body, header)
+  end
+
+  # new method that has same signature as 'request'
+  def request_async2(method, uri, *args)
+    query, body, header = keyword_argument(args, :query, :body, :header)
+    if [:post, :put].include?(method)
+      body ||= ''
+    end
+    if method == :propfind
+      header ||= PROPFIND_DEFAULT_EXTHEADER
+    else
+      header ||= {}
+    end
     uri = urify(uri)
     do_request_async(method, uri, query, body, header)
   end
@@ -890,11 +912,11 @@ private
     end
   end
 
-  def hashy_arguments_has_key(args, *key)
+  def hashy_argument_has_keys(args, *key)
     # if the given arg is a single Hash and...
     args.size == 1 and Hash === args[0] and
       # it has any one of the key
-      key.any? { |e| args[0].key?(e) }
+      key.all? { |e| args[0].key?(e) }
   end
 
   def do_request(method, uri, query, body, header, &block)
