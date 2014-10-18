@@ -346,6 +346,8 @@ class HTTPClient
   attr_proxy(:agent_name, true)
   # From header in HTTP request.
   attr_proxy(:from, true)
+  # Referer header in HTTP request.
+  attr_proxy(:referer, true)
   # An array of response HTTP String (not a HTTP message body) which is used
   # for loopback test.  See test/* to see how to use it.
   attr_proxy(:test_loopback_http_response)
@@ -377,7 +379,7 @@ class HTTPClient
   #
   #   HTTPClient.new(:agent_name => 'MyAgent/0.1')
   def initialize(*args)
-    proxy, agent_name, from = keyword_argument(args, :proxy, :agent_name, :from)
+    proxy, agent_name, from, referer = keyword_argument(args, :proxy, :agent_name, :from, :referer)
     @proxy = nil        # assigned later.
     @no_proxy = nil
     @no_proxy_regexps = []
@@ -390,6 +392,7 @@ class HTTPClient
     @session_manager = SessionManager.new(self)
     @session_manager.agent_name = agent_name || DEFAULT_AGENT_NAME
     @session_manager.from = from
+    @session_manager.referer = referer
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
     @cookie_manager = WebAgent::CookieManager.new
     @follow_redirect_count = 10
