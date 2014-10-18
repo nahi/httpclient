@@ -1,5 +1,15 @@
 ## Changes
 
+### Changes in 2.5.1
+
+Oct 19, 2014 - version 2.5.1
+
+  * Changes
+	* Allow to specify :query in POST, PUT, DELETE and OPTIONS requests.
+      Closes #83.
+    * Allow to specify :body in OPTIONS request. Closes #136.
+
+
 ### Changes in 2.5.0
 
 Oct 17, 2014 - version 2.5.0
@@ -7,11 +17,11 @@ Oct 17, 2014 - version 2.5.0
 **IMPORTANT CHANGES**
 
 This version changes (again) default SSL options to help
-BEAST/CRIME/POODLE Attach prevension.
+BEAST/CRIME/POODLE Attack prevension.
 
- * Disabled SSLv3 in favor of POODLE Attach prevention.
- * Enabled 1/n-1 fragment in favor of BEAST Attach prevention.
- * No TLS compression in favor of CRIME Attach prevention.
+ * Disabled SSLv3 in favor of POODLE Attack prevention.
+ * Enabled 1/n-1 fragment in favor of BEAST Attack prevention.
+ * No TLS compression in favor of CRIME Attack prevention.
 
 You can restore the previous SSL configuration like this;
 
