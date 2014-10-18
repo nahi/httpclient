@@ -690,14 +690,20 @@ class HTTPClient
   end
 
   # Sends DELETE request to the specified URL.  See request for arguments.
+  # From historical reason, this method accepts :query only as a Hash args
   def delete(uri, *args, &block)
-    request(:delete, uri, argument_to_hash(args, :body, :header), &block)
+    if hashy_arguments_has_key(args, :query)
+      new_args = args[0]
+    else
+      new_args = argument_to_hash(args, :body, :header)
+    end
+    request(:delete, uri, new_args, &block)
   end
 
   # Sends OPTIONS request to the specified URL.  See request for arguments.
-  # CAUTION: from historical reason, this method accepts :body unusual way.
+  # From historical reason, this method accepts :query and :body only as a Hash args
   def options(uri, *args, &block)
-    if args.size == 1 and Hash === args[0] and args[0].key?(:body)
+    if hashy_arguments_has_key(args, :query, :body)
       new_args = args[0]
     else
       new_args = argument_to_hash(args, :header)
@@ -882,6 +888,13 @@ private
       @sess = sess
       @cause = cause
     end
+  end
+
+  def hashy_arguments_has_key(args, *key)
+    # if the given arg is a single Hash and...
+    args.size == 1 and Hash === args[0] and
+      # it has any one of the key
+      key.any? { |e| args[0].key?(e) }
   end
 
   def do_request(method, uri, query, body, header, &block)

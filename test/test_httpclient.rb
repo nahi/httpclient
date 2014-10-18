@@ -727,6 +727,21 @@ EOS
     assert_equal(param, params(res.header["x-query"][0]))
   end
 
+  def test_post_with_query
+    # this {:query => 'query'} recognized as body
+    res = @client.post(serverurl + 'servlet', :query => 'query')
+    assert_equal("post", res.content[0, 4])
+    assert_equal("query=query", res.headers["X-Query"])
+    assert_equal("", res.headers["X-Request-Query"])
+  end
+
+  def test_post_with_query_and_body
+    res = @client.post(serverurl + 'servlet', :query => {:query => 'query'}, :body => {:body => 'body'})
+    assert_equal("post", res.content[0, 4])
+    assert_equal("body=body", res.headers["X-Query"])
+    assert_equal("query=query", res.headers["X-Request-Query"])
+  end
+
   def test_post_follow_redirect
     assert_equal('hello', @client.post(serverurl + 'hello', :follow_redirect => true).body)
     assert_equal('hello', @client.post(serverurl + 'redirect1', :follow_redirect => true).body)
@@ -894,6 +909,13 @@ EOS
     assert_equal('Content-Type: application/x-www-form-urlencoded', str.split(/\r?\n/)[5])
   end
 
+  def test_put_with_query_and_body
+    res = @client.put(serverurl + 'servlet', :query => {:query => 'query'}, :body => {:body => 'body'})
+    assert_equal("put", res.content)
+    assert_equal("body=body", res.headers["X-Query"])
+    assert_equal("query=query", res.headers["X-Request-Query"])
+  end
+
   def test_put_bytesize
     res = @client.put(serverurl + 'servlet', 'txt' => 'あいうえお')
     assert_equal('txt=%E3%81%82%E3%81%84%E3%81%86%E3%81%88%E3%81%8A', res.header["x-query"][0])
@@ -910,6 +932,19 @@ EOS
 
   def test_delete
     assert_equal("delete", @client.delete(serverurl + 'servlet').content)
+  end
+
+  def test_delete_with_query
+    res = @client.delete(serverurl + 'servlet', :query => {:query => 'query'})
+    assert_equal("delete", res.content)
+    assert_equal('query=query', res.headers['X-Request-Query'])
+  end
+
+  def test_delete_with_query_and_body
+    res = @client.delete(serverurl + 'servlet', :query => {:query => 'query'}, :body => {:body => 'body'})
+    assert_equal("delete", res.content)
+    assert_equal('query=query', res.headers['X-Request-Query'])
+    assert_equal('body=body', res.headers['X-Query'])
   end
 
   # Not prohibited by spec, but normally it's ignored
@@ -937,6 +972,11 @@ EOS
   end
 
   def test_options_with_body
+    res = @client.options(serverurl + 'servlet', :body => 'body')
+    assert_equal('body', res.headers['X-Body'])
+  end
+
+  def test_options_with_body_and_header
     res = @client.options(serverurl + 'servlet', :body => 'body', :header => {'x-header' => 'header'})
     assert_equal('header', res.headers['X-Header'])
     assert_equal('body', res.headers['X-Body'])
@@ -1769,6 +1809,7 @@ private
       res["content-type"] = "text/plain" # iso-8859-1, not US-ASCII
       res.body = 'post,' + req.body.to_s
       res["x-query"] = body_response(req)
+      res["x-request-query"] = req.query_string
     end
 
     def do_PUT(req, res)
@@ -1776,10 +1817,13 @@ private
       param = WEBrick::HTTPUtils.parse_query(req.body) || {}
       res["x-size"] = (param['txt'] || '').size
       res.body = param['txt'] || 'put'
+      res["x-request-query"] = req.query_string
     end
 
     def do_DELETE(req, res)
       res.body = 'delete'
+      res["x-query"] = body_response(req)
+      res["x-request-query"] = req.query_string
     end
 
     def do_OPTIONS(req, res)
