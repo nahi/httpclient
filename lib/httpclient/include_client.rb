@@ -36,6 +36,8 @@
 # are also provided. Widget.http_client is identical to Widget.new.http_client
 #
 #
+require 'httpclient'
+
 class HTTPClient
   module IncludeClient
         
