@@ -217,6 +217,9 @@ class HTTPClient
     # Authentication scheme.
     attr_reader :scheme
 
+    # Send Authorization Header without receiving 401
+    attr_accessor :force_auth
+
     # Creates new BasicAuth filter.
     def initialize
       super
@@ -224,6 +227,7 @@ class HTTPClient
       @auth = {}
       @challenge = {}
       @scheme = "Basic"
+      @force_auth = false
     end
 
     # Resets challenge state.  Do not send '*Authorization' header until the
@@ -259,7 +263,7 @@ class HTTPClient
     def get(req)
       target_uri = req.header.request_uri
       synchronize {
-        return nil unless @challenge.find { |uri, ok|
+        return nil if !@force_auth and !@challenge.any? { |uri, ok|
           Util.uri_part_of(target_uri, uri) and ok
         }
         return @cred if @cred

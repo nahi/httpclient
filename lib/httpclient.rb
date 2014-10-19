@@ -377,12 +377,13 @@ class HTTPClient
   #
   #   HTTPClient.new(:agent_name => 'MyAgent/0.1')
   def initialize(*args)
-    proxy, agent_name, from = keyword_argument(args, :proxy, :agent_name, :from)
+    proxy, agent_name, from, force_basic_auth = keyword_argument(args, :proxy, :agent_name, :from, :force_basic_auth)
     @proxy = nil        # assigned later.
     @no_proxy = nil
     @no_proxy_regexps = []
     @www_auth = WWWAuth.new
     @proxy_auth = ProxyAuth.new
+    @www_auth.basic_auth.force_auth = @proxy_auth.basic_auth.force_auth = force_basic_auth
     @request_filter = [@proxy_auth, @www_auth]
     @debug_dev = nil
     @redirect_uri_callback = method(:default_redirect_uri_callback)
@@ -529,6 +530,14 @@ class HTTPClient
   def set_proxy_auth(user, passwd)
     @proxy_auth.set_auth(user, passwd)
     reset_all
+  end
+
+  # Turn on/off the BasicAuth force flag. Generally HTTP client must
+  # send Authorization header after it gets 401 error from server from
+  # security reason. But in some situation (e.g. API client) you might
+  # want to send Authorization from the beginning.
+  def force_basic_auth=(force_basic_auth)
+    @www_auth.basic_auth.force_auth = @proxy_auth.basic_auth.force_auth = force_basic_auth
   end
 
   # Sets the filename where non-volatile Cookies be saved by calling

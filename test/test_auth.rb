@@ -142,9 +142,37 @@ class TestAuth < Test::Unit::TestCase
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
     begin
       @basic_auth.instance_eval { @auth_scheme = "BASIC" }
-      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
       assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
+    ensure
+      @basic_auth.instance_eval { @auth_scheme = webrick_backup }
+    end
+  end
+
+  def test_BASIC_auth_force
+    c = HTTPClient.new
+    webrick_backup = @basic_auth.instance_eval { @auth_scheme }
+    begin
+      @basic_auth.instance_eval { @auth_scheme = "BASIC" }
+      c.force_basic_auth = true
+      c.debug_dev = str = ''
+      c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+      assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
+      assert_equal('Authorization: Basic YWRtaW46YWRtaW4=', str.split(/\r?\n/)[5])
+    ensure
+      @basic_auth.instance_eval { @auth_scheme = webrick_backup }
+    end
+  end
+
+  def test_BASIC_auth_async
+    # async methods don't issure retry call so for successful authentication you need to set force_basic_auth flag
+    c = HTTPClient.new(:force_basic_auth => true)
+    webrick_backup = @basic_auth.instance_eval { @auth_scheme }
+    begin
+      @basic_auth.instance_eval { @auth_scheme = "BASIC" }
+      c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+      conn = c.get_async("http://localhost:#{serverport}/basic_auth")
+      assert_equal('basic_auth OK', conn.pop.body.read)
     ensure
       @basic_auth.instance_eval { @auth_scheme = webrick_backup }
     end
