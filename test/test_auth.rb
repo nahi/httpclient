@@ -141,7 +141,10 @@ class TestAuth < Test::Unit::TestCase
     c = HTTPClient.new
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
     begin
+      # WEBrick in ruby 1.8.7 uses 'BASIC' instead of 'Basic'
       @basic_auth.instance_eval { @auth_scheme = "BASIC" }
+      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
+      #
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
       assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
     ensure
@@ -153,12 +156,15 @@ class TestAuth < Test::Unit::TestCase
     c = HTTPClient.new
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
     begin
+      # WEBrick in ruby 1.8.7 uses 'BASIC' instead of 'Basic'
       @basic_auth.instance_eval { @auth_scheme = "BASIC" }
+      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
+      #
       c.force_basic_auth = true
       c.debug_dev = str = ''
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
       assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
-      assert_equal('Authorization: Basic YWRtaW46YWRtaW4=', str.split(/\r?\n/)[5])
+      assert_equal('Authorization: Basic YWRtaW46YWRtaW4='.upcase, str.split(/\r?\n/)[5].upcase)
     ensure
       @basic_auth.instance_eval { @auth_scheme = webrick_backup }
     end
@@ -169,7 +175,10 @@ class TestAuth < Test::Unit::TestCase
     c = HTTPClient.new(:force_basic_auth => true)
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
     begin
+      # WEBrick in ruby 1.8.7 uses 'BASIC' instead of 'Basic'
       @basic_auth.instance_eval { @auth_scheme = "BASIC" }
+      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
+      #
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
       conn = c.get_async("http://localhost:#{serverport}/basic_auth")
       assert_equal('basic_auth OK', conn.pop.body.read)
