@@ -798,15 +798,13 @@ class HTTPClient
   # Sends HEAD request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def head_async(uri, *args)
-    query, header = keyword_argument(args, :query, :header)
-    request_async(:head, uri, query, nil, header || {})
+    request_async2(:head, uri, argument_to_hash(args, :query, :header))
   end
 
   # Sends GET request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def get_async(uri, *args)
-    query, header = keyword_argument(args, :query, :header)
-    request_async(:get, uri, query, nil, header || {})
+    request_async2(:get, uri, argument_to_hash(args, :query, :header))
   end
 
   # Sends POST request in async style.  See request_async for arguments.
