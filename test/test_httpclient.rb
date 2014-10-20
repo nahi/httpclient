@@ -554,6 +554,28 @@ EOS
     assert(called)
   end
 
+  def test_get_content_with_base_url
+    @client = HTTPClient.new(:base_url => serverurl[0..-1])
+    assert_equal('hello', @client.get_content('/hello'))
+    assert_equal('hello', @client.get_content('/redirect1'))
+    assert_equal('hello', @client.get_content('/redirect2'))
+    @client.reset('/')
+    assert_raises(HTTPClient::BadResponseError) do
+      @client.get_content('/notfound')
+    end
+    assert_raises(HTTPClient::BadResponseError) do
+      @client.get_content('/redirect_self')
+    end
+    called = false
+    @client.redirect_uri_callback = lambda { |uri, res|
+      newuri = res.header['location'][0]
+      called = true
+      newuri
+    }
+    assert_equal('hello', @client.get_content('/relative_redirect'))
+    assert(called)
+  end
+
   GZIP_CONTENT = "\x1f\x8b\x08\x00\x1a\x96\xe0\x4c\x00\x03\xcb\x48\xcd\xc9\xc9\x07\x00\x86\xa6\x10\x36\x05\x00\x00\x00"
   DEFLATE_CONTENT = "\x78\x9c\xcb\x48\xcd\xc9\xc9\x07\x00\x06\x2c\x02\x15"
   GZIP_CONTENT.force_encoding('BINARY') if GZIP_CONTENT.respond_to?(:force_encoding)
@@ -640,6 +662,20 @@ EOS
     assert_nil(res.contenttype)
   end
 
+  def test_get_with_base_url
+    @client = HTTPClient.new(:base_url => serverurl[0..-1])
+    assert_equal("get", @client.get('/servlet').content)
+    param = {'1'=>'2', '3'=>'4'}
+    res = @client.get('/servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
+    assert_nil(res.contenttype)
+    #
+    url = '/servlet?5=6&7=8'
+    res = @client.get(url, param)
+    assert_equal(param.merge("5"=>"6", "7"=>"8"), params(res.header["x-query"][0]))
+    assert_nil(res.contenttype)
+  end
+
   def test_head_follow_redirect
     expected = urify(serverurl + 'hello')
     assert_equal(expected, @client.head(serverurl + 'hello', :follow_redirect => true).header.request_uri)
@@ -655,6 +691,22 @@ EOS
 
   def test_get_async
     param = {'1'=>'2', '3'=>'4'}
+    conn = @client.get_async(serverurl + 'servlet', param)
+    Thread.pass while !conn.finished?
+    res = conn.pop
+    assert_equal(param, params(res.header["x-query"][0]))
+  end
+
+  def test_get_async_with_base_url
+    param = {'1'=>'2', '3'=>'4'}
+    @client = HTTPClient.new(:base_url => serverurl)
+
+    # Use preconfigured :base_url
+    conn = @client.get_async('servlet', param)
+    Thread.pass while !conn.finished?
+    res = conn.pop
+    assert_equal(param, params(res.header["x-query"][0]))
+    # full URL still works
     conn = @client.get_async(serverurl + 'servlet', param)
     Thread.pass while !conn.finished?
     res = conn.pop

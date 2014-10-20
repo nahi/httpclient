@@ -362,10 +362,14 @@ class HTTPClient
 
   # Creates a HTTPClient instance which manages sessions, cookies, etc.
   #
-  # HTTPClient.new takes 3 optional arguments for proxy url string,
-  # User-Agent String and From header String.  User-Agent and From are embedded
-  # in HTTP request Header if given.  No User-Agent and From header added
-  # without setting it explicitly.
+  # HTTPClient.new takes optional arguments as a Hash.
+  #  * :proxy - proxy url string
+  #  * :agent_name - User-Agent String
+  #  * :from - from header String
+  #  * :base_url - base URL for all resource URL
+  #  * :force_basic_auth - flag for sending Authorization header w/o gettin 401 first
+  # User-Agent and From are embedded in HTTP request Header if given.
+  # From header is not set without setting it explicitly.
   #
   #   proxy = 'http://myproxy:8080'
   #   agent_name = 'MyAgent/0.1'
@@ -377,10 +381,12 @@ class HTTPClient
   #
   #   HTTPClient.new(:agent_name => 'MyAgent/0.1')
   def initialize(*args)
-    proxy, agent_name, from, force_basic_auth = keyword_argument(args, :proxy, :agent_name, :from, :force_basic_auth)
+    proxy, agent_name, from, base_url, force_basic_auth =
+      keyword_argument(args, :proxy, :agent_name, :from, :base_url, :force_basic_auth)
     @proxy = nil        # assigned later.
     @no_proxy = nil
     @no_proxy_regexps = []
+    @base_url = base_url
     @www_auth = WWWAuth.new
     @proxy_auth = ProxyAuth.new
     @www_auth.basic_auth.force_auth = @proxy_auth.basic_auth.force_auth = force_basic_auth
@@ -510,14 +516,14 @@ class HTTPClient
   #
   # Calling this method resets all existing sessions.
   def set_auth(domain, user, passwd)
-    uri = urify(domain)
+    uri = to_resource_url(domain)
     @www_auth.set_auth(uri, user, passwd)
     reset_all
   end
 
   # Deprecated.  Use set_auth instead.
   def set_basic_auth(domain, user, passwd)
-    uri = urify(domain)
+    uri = to_resource_url(domain)
     @www_auth.basic_auth.set(uri, user, passwd)
     reset_all
   end
@@ -787,7 +793,7 @@ class HTTPClient
     else
       header ||= {}
     end
-    uri = urify(uri)
+    uri = to_resource_url(uri)
     if block
       if block.arity == 1
         filtered_block = proc { |res, str|
@@ -873,7 +879,7 @@ class HTTPClient
   #
   # Arguments definition is the same as request.
   def request_async(method, uri, query = nil, body = nil, header = {})
-    uri = urify(uri)
+    uri = to_resource_url(uri)
     do_request_async(method, uri, query, body, header)
   end
 
@@ -888,14 +894,14 @@ class HTTPClient
     else
       header ||= {}
     end
-    uri = urify(uri)
+    uri = to_resource_url(uri)
     do_request_async(method, uri, query, body, header)
   end
 
   # Resets internal session for the given URL.  Keep-alive connection for the
   # site (host-port pair) is disconnected if exists.
   def reset(uri)
-    uri = urify(uri)
+    uri = to_resource_url(uri)
     @session_manager.reset(uri)
   end
 
@@ -999,7 +1005,7 @@ private
   end
 
   def follow_redirect(method, uri, query, body, header, &block)
-    uri = urify(uri)
+    uri = to_resource_url(uri)
     if block
       filtered_block = proc { |r, str|
         block.call(str) if r.ok?
@@ -1207,5 +1213,14 @@ private
 
   def set_encoding(str, encoding)
     str.force_encoding(encoding) if encoding
+  end
+
+  def to_resource_url(uri)
+    u = urify(uri)
+    if @base_url && u.scheme.nil? && u.host.nil?
+      urify(@base_url + uri)
+    else
+      u
+    end
   end
 end
