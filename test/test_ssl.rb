@@ -230,7 +230,7 @@ private
 
   def setup_server_with_ssl_version(ssl_version)
     logger = Logger.new(STDERR)
-    #logger.level = Logger::Severity::FATAL	# avoid logging SSLError (ERROR level)
+    logger.level = Logger::Severity::FATAL	# avoid logging SSLError (ERROR level)
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => logger,
