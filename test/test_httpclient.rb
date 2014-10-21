@@ -670,7 +670,8 @@ EOS
     assert_equal(param, params(res.header["x-query"][0]))
     assert_nil(res.contenttype)
     #
-    url = '/servlet?5=6&7=8'
+    @client.base_url = serverurl[0..-1] + '/servlet'
+    url = '?5=6&7=8'
     res = @client.get(url, param)
     assert_equal(param.merge("5"=>"6", "7"=>"8"), params(res.header["x-query"][0]))
     assert_nil(res.contenttype)

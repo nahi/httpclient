@@ -324,6 +324,8 @@ class HTTPClient
   # How many times get_content and post_content follows HTTP redirect.
   # 10 by default.
   attr_accessor :follow_redirect_count
+  # Base url of resources.
+  attr_accessor :base_url
 
   # Set HTTP version as a String:: 'HTTP/1.0' or 'HTTP/1.1'
   attr_proxy(:protocol_version, true)
@@ -366,7 +368,7 @@ class HTTPClient
   #  * :proxy - proxy url string
   #  * :agent_name - User-Agent String
   #  * :from - from header String
-  #  * :base_url - base URL for all resource URL
+  #  * :base_url - base URL of resources
   #  * :force_basic_auth - flag for sending Authorization header w/o gettin 401 first
   # User-Agent and From are embedded in HTTP request Header if given.
   # From header is not set without setting it explicitly.
@@ -376,10 +378,12 @@ class HTTPClient
   #   from = 'from@example.com'
   #   HTTPClient.new(proxy, agent_name, from)
   #
-  # You can use a keyword argument style Hash.  Keys are :proxy, :agent_name
-  # and :from.
+  # After you set base_url, all resources you pass to get, post and other
+  # methods are recognized to be prefixed with base_url. Say base_url is
+  # 'https://api.example.com/v1, get('/users') is the same as
+  # get('https://api.example.com/v1/users') internally. You can also pass
+  # full URL from 'http://' even after setting base_url.
   #
-  #   HTTPClient.new(:agent_name => 'MyAgent/0.1')
   def initialize(*args)
     proxy, agent_name, from, base_url, force_basic_auth =
       keyword_argument(args, :proxy, :agent_name, :from, :base_url, :force_basic_auth)
