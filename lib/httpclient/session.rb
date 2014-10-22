@@ -38,8 +38,8 @@ class HTTPClient
     # Creates a new Site based on the given URI.
     def initialize(uri = nil)
       if uri
-        @scheme = uri.scheme
-        @host = uri.hostname
+        @scheme = uri.scheme || 'tcp'
+        @host = uri.hostname || '0.0.0.0'
         @port = uri.port.to_i
       else
         @scheme = 'tcp'
@@ -797,13 +797,13 @@ class HTTPClient
       socket = nil
       begin
         @debug_dev << "! CONNECT TO #{site.host}:#{site.port}\n" if @debug_dev
-				clean_host = site.host.delete("[]")
-				clean_local = @socket_local.host.delete("[]")
+        clean_host = site.host.delete("[]")
         if str = @test_loopback_http_response.shift
           socket = LoopBackSocket.new(clean_host, site.port, str)
         elsif @socket_local == Site::EMPTY
           socket = TCPSocket.new(clean_host, site.port)
         else
+          clean_local = @socket_local.host.delete("[]")
           socket = TCPSocket.new(clean_host, site.port, clean_local, @socket_local.port)
         end
         if @debug_dev
