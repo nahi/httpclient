@@ -8,6 +8,7 @@ Gem::Specification.new { |s|
   s.executables = ['httpclient']
   s.homepage = 'https://github.com/nahi/httpclient'
   s.summary = 'gives something like the functionality of libwww-perl (LWP) in Ruby'
+  s.require_paths = ['lib']
   s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.md']
   s.license = 'ruby'
 }
