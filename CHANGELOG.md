@@ -1,5 +1,37 @@
 ## Changes
 
+### Changes in 2.5.2
+
+Oct 29, 2014 - version 2.5.2
+
+  * Changes
+    * Add :force_basic_auth config - #166, #179, #181.
+	  Generally HTTP client must send Authorization header after it gets 401
+	  error from server from security reason. But in some situation (e.g.
+	  API client) you might want to send Authorization from the beginning.
+	  You can turn on/off force_basic_auth flag for sending Authorization
+	  header from the beginning. (Of cource, if a request URI matches with
+	  the URI you set in set_auth method)
+
+```ruby
+	  Syntax:
+		HTTPClient.new(:force_basic_auth => true)
+	  or
+		c = HTTPClient.new
+		c.force_basic_auth = true
+```
+
+    * Add :base_url to HTTPClient configuration.
+	  Passing path to get, post, etc. is recognized as a request to
+	  :base_url + uri.  If you pass full URL :base_url is ignored.
+
+```ruby
+	  api = HTTPClient.new(:base_url => 'https://api.example.com/v1')
+	  api.get("/users.json") # => Get https://api.example.com/v1/users.json
+	  api.get("https://localhost/path") # => https://localhost/path
+```
+
+
 ### Changes in 2.5.1
 
 Oct 19, 2014 - version 2.5.1
