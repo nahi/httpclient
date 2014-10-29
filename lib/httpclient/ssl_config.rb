@@ -341,7 +341,7 @@ class HTTPClient
         depth = ctx.error_depth
         code = ctx.error
         msg = ctx.error_string
-        warn("at depth #{depth} - #{code}: #{msg}")
+        warn("at depth #{depth} - #{code}: #{msg}") if $DEBUG
       end
       is_ok
     end
