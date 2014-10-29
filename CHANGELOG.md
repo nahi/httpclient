@@ -13,23 +13,23 @@ Oct 29, 2014 - version 2.5.2
 	  header from the beginning. (Of cource, if a request URI matches with
 	  the URI you set in set_auth method)
 
-```ruby
-	  Syntax:
-		HTTPClient.new(:force_basic_auth => true)
-	  or
-		c = HTTPClient.new
-		c.force_basic_auth = true
-```
+    Syntax:
+    ```ruby
+      HTTPClient.new(:force_basic_auth => true)
+      # or
+      c = HTTPClient.new
+      c.force_basic_auth = true
+    ```
 
     * Add :base_url to HTTPClient configuration.
-	  Passing path to get, post, etc. is recognized as a request to
-	  :base_url + uri.  If you pass full URL :base_url is ignored.
+    Passing path to get, post, etc. is recognized as a request to
+    :base_url + uri.  If you pass full URL :base_url is ignored.
 
-```ruby
-	  api = HTTPClient.new(:base_url => 'https://api.example.com/v1')
-	  api.get("/users.json") # => Get https://api.example.com/v1/users.json
-	  api.get("https://localhost/path") # => https://localhost/path
-```
+    ```ruby
+      api = HTTPClient.new(:base_url => 'https://api.example.com/v1')
+      api.get("/users.json") # => Get https://api.example.com/v1/users.json
+      api.get("https://localhost/path") # => https://localhost/path
+    ```
 
 
 ### Changes in 2.5.1
