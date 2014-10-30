@@ -326,6 +326,8 @@ class HTTPClient
   attr_accessor :follow_redirect_count
   # Base url of resources.
   attr_accessor :base_url
+  # Defalut request header.
+  attr_accessor :default_header
 
   # Set HTTP version as a String:: 'HTTP/1.0' or 'HTTP/1.1'
   attr_proxy(:protocol_version, true)
@@ -369,6 +371,7 @@ class HTTPClient
   #  * :agent_name - User-Agent String
   #  * :from - from header String
   #  * :base_url - base URL of resources
+  #  * :default_header - header Hash all HTTP requests should have
   #  * :force_basic_auth - flag for sending Authorization header w/o gettin 401 first
   # User-Agent and From are embedded in HTTP request Header if given.
   # From header is not set without setting it explicitly.
@@ -378,19 +381,29 @@ class HTTPClient
   #   from = 'from@example.com'
   #   HTTPClient.new(proxy, agent_name, from)
   #
-  # After you set base_url, all resources you pass to get, post and other
+  # After you set :base_url, all resources you pass to get, post and other
   # methods are recognized to be prefixed with base_url. Say base_url is
   # 'https://api.example.com/v1, get('/users') is the same as
   # get('https://api.example.com/v1/users') internally. You can also pass
   # full URL from 'http://' even after setting base_url.
   #
+  # :default_header is for providing default headers Hash that all HTTP
+  # requests should have, such as custom 'Authorization' header in API.
+  # You can override :default_header with :header Hash parameter in HTTP
+  # request methods.
+  #
+  # :force_basic_auth turns on/off the BasicAuth force flag. Generally
+  # HTTP client must send Authorization header after it gets 401 error
+  # from server from security reason. But in some situation (e.g. API
+  # client) you might want to send Authorization from the beginning.
   def initialize(*args)
-    proxy, agent_name, from, base_url, force_basic_auth =
-      keyword_argument(args, :proxy, :agent_name, :from, :base_url, :force_basic_auth)
+    proxy, agent_name, from, base_url, default_header, force_basic_auth =
+      keyword_argument(args, :proxy, :agent_name, :from, :base_url, :default_header, :force_basic_auth)
     @proxy = nil        # assigned later.
     @no_proxy = nil
     @no_proxy_regexps = []
     @base_url = base_url
+    @default_header = default_header || {}
     @www_auth = WWWAuth.new
     @proxy_auth = ProxyAuth.new
     @www_auth.basic_auth.force_auth = @proxy_auth.basic_auth.force_auth = force_basic_auth
@@ -1055,9 +1068,9 @@ private
   def create_request(method, uri, query, body, header)
     method = method.to_s.upcase
     if header.is_a?(Hash)
-      header = header.to_a
+      header = @default_header.merge(header).to_a
     else
-      header = header.dup
+      header = @default_header.to_a + header.dup
     end
     boundary = nil
     if body
