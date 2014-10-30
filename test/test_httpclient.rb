@@ -679,7 +679,6 @@ EOS
 
   def test_get_with_default_header
     @client = HTTPClient.new(:base_url => serverurl[0..-1], :default_header => {'x-header' => 'custom'})
-    @client.debug_dev = STDERR
     assert_equal('custom', @client.get('/servlet').headers['X-Header'])
     @client.default_header = {'x-header' => 'custom2'}
     assert_equal('custom2', @client.get('/servlet').headers['X-Header'])
