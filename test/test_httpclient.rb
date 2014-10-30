@@ -677,6 +677,18 @@ EOS
     assert_nil(res.contenttype)
   end
 
+  def test_get_with_default_header
+    @client = HTTPClient.new(:base_url => serverurl[0..-1], :default_header => {'x-header' => 'custom'})
+    @client.debug_dev = STDERR
+    assert_equal('custom', @client.get('/servlet').headers['X-Header'])
+    @client.default_header = {'x-header' => 'custom2'}
+    assert_equal('custom2', @client.get('/servlet').headers['X-Header'])
+    # passing Hash overrides
+    assert_equal('custom3', @client.get('/servlet', :header => {'x-header' => 'custom3'}).headers['X-Header'])
+    # passing Array does not override
+    assert_equal('custom2, custom4', @client.get('/servlet', :header => [['x-header', 'custom4']]).headers['X-Header'])
+  end
+
   def test_head_follow_redirect
     expected = urify(serverurl + 'hello')
     assert_equal(expected, @client.head(serverurl + 'hello', :follow_redirect => true).header.request_uri)
@@ -1855,6 +1867,7 @@ private
 
     def do_GET(req, res)
       res.body = 'get'
+      res['x-header'] = req['X-Header']
       res["x-query"] = query_response(req)
     end
 
