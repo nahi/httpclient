@@ -158,8 +158,8 @@ class HTTPClient
     end
 
     def query(req, via_proxy)
-      req.http_body.chunk_size = @chunk_size
-      sess = open(req.header.request_uri, via_proxy)
+      req.http_body.chunk_size = @chunk_size if req.http_body
+      sess = open(req, via_proxy)
       begin
         sess.query(req)
       rescue
@@ -195,11 +195,10 @@ class HTTPClient
 
   private
 
-    def open(uri, via_proxy = false)
-      site = Site.new(uri)
-      sess = nil
-      if cached = get_cached_session(site)
-        sess = cached
+    def open(req, via_proxy = false)
+      site = Site.new(req.header.request_uri)
+      if req.use_persistent_connection? && cached = get_cached_session(site)
+        cached
       else
         sess = Session.new(@client, site, @agent_name, @from)
         sess.proxy = via_proxy ? @proxy : nil
@@ -216,8 +215,8 @@ class HTTPClient
         sess.socket_local = @socket_local
         sess.test_loopback_http_response = @test_loopback_http_response
         sess.transparent_gzip_decompression = @transparent_gzip_decompression
+        sess
       end
-      sess
     end
 
     def close_all
