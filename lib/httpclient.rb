@@ -1036,6 +1036,9 @@ private
       body.pos = pos if pos
       res = do_request(method, uri, query, body, header, &filtered_block)
       if res.redirect?
+        if res.header['location'].empty?
+          raise BadResponseError.new("Missing Location header for redirect", res)
+        end
         method = :get if res.see_other? # See RFC2616 10.3.4
         uri = urify(@redirect_uri_callback.call(uri, res))
         retry_number += 1

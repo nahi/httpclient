@@ -143,6 +143,18 @@ class TestHTTPClient < Test::Unit::TestCase
     end
   end
 
+  class LocationRemoveFilter
+    def filter_request(req); end
+    def filter_response(req, res); res.header.delete('Location'); end
+  end
+
+  def test_redirect_without_location_should_gracefully_fail
+    @client.request_filter << LocationRemoveFilter.new
+    assert_raises(HTTPClient::BadResponseError) do
+      @client.get(serverurl + 'redirect1', :follow_redirect => true)
+    end
+  end
+
   def test_protocol_version_http11
     assert_equal(nil, @client.protocol_version)
     str = ""
