@@ -797,10 +797,18 @@ EOS
   end
 
   def test_post
-    assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4])
+    assert_equal("post", @client.post(serverurl + 'servlet', '').content[0, 4])
     param = {'1'=>'2', '3'=>'4'}
     res = @client.post(serverurl + 'servlet', param)
     assert_equal(param, params(res.header["x-query"][0]))
+  end
+
+  def test_post_empty
+    @client.debug_dev = str = ''
+    # nil body means 'no content' that is allowed but WEBrick cannot handle it.
+    @client.post(serverurl + 'servlet', :body => nil)
+    # request does not have 'Content-Type'
+    assert_equal(1, str.scan(/content-type/i).size)
   end
 
   def test_post_with_query
@@ -827,18 +835,18 @@ EOS
   def test_post_with_content_type
     param = [['1', '2'], ['3', '4']]
     ext = {'content-type' => 'application/x-www-form-urlencoded', 'hello' => 'world'}
-    assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
+    assert_equal("post", @client.post(serverurl + 'servlet', '').content[0, 4], ext)
     res = @client.post(serverurl + 'servlet', param, ext)
     assert_equal(Hash[param], params(res.header["x-query"][0]))
     #
     ext = [['content-type', 'multipart/form-data'], ['hello', 'world']]
-    assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
+    assert_equal("post", @client.post(serverurl + 'servlet', '').content[0, 4], ext)
     res = @client.post(serverurl + 'servlet', param, ext)
     assert_match(/Content-Disposition: form-data; name="1"/, res.content)
     assert_match(/Content-Disposition: form-data; name="3"/, res.content)
     #
     ext = {'content-type' => 'multipart/form-data; boundary=hello'}
-    assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
+    assert_equal("post", @client.post(serverurl + 'servlet', '').content[0, 4], ext)
     res = @client.post(serverurl + 'servlet', param, ext)
     assert_match(/Content-Disposition: form-data; name="1"/, res.content)
     assert_match(/Content-Disposition: form-data; name="3"/, res.content)
@@ -848,7 +856,7 @@ EOS
   def test_post_with_custom_multipart_and_boolean_params
     param = [['boolean_true', true]]
     ext = { 'content-type' => 'multipart/form-data' }
-    assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
+    assert_equal("post", @client.post(serverurl + 'servlet', '').content[0, 4], ext)
     res = @client.post(serverurl + 'servlet', param, ext)
     assert_match(/Content-Disposition: form-data; name="boolean_true"\r\n\r\ntrue\r\n/, res.content)
     #
@@ -927,7 +935,7 @@ EOS
 
   def test_post_with_block
     called = false
-    res = @client.post(serverurl + 'servlet') { |str|
+    res = @client.post(serverurl + 'servlet', '') { |str|
       assert_equal('post,', str)
       called = true
     }
@@ -947,7 +955,7 @@ EOS
 
   def test_post_with_custom_multipart
     ext = {'content-type' => 'multipart/form-data'}
-    assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
+    assert_equal("post", @client.post(serverurl + 'servlet', '').content[0, 4], ext)
     body = [{ 'Content-Disposition' => 'form-data; name="1"', :content => "2"},
             { 'Content-Disposition' => 'form-data; name="3"', :content => "4"}]
     res = @client.post(serverurl + 'servlet', body, ext)
@@ -955,7 +963,7 @@ EOS
     assert_match(/Content-Disposition: form-data; name="3"/, res.content)
     #
     ext = {'content-type' => 'multipart/form-data; boundary=hello'}
-    assert_equal("post", @client.post(serverurl + 'servlet').content[0, 4], ext)
+    assert_equal("post", @client.post(serverurl + 'servlet', '').content[0, 4], ext)
     res = @client.post(serverurl + 'servlet', body, ext)
     assert_match(/Content-Disposition: form-data; name="1"/, res.content)
     assert_match(/Content-Disposition: form-data; name="3"/, res.content)
@@ -977,7 +985,7 @@ EOS
   end
 
   def test_put
-    assert_equal("put", @client.put(serverurl + 'servlet').content)
+    assert_equal("put", @client.put(serverurl + 'servlet', '').content)
     param = {'1'=>'2', '3'=>'4'}
     @client.debug_dev = str = ''
     res = @client.put(serverurl + 'servlet', param)

@@ -244,7 +244,7 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_post
-    assert_equal("post", @client.post(serverurl + 'servlet').content)
+    assert_equal("post", @client.post(serverurl + 'servlet', '').content)
     param = {'1'=>'2', '3'=>'4'}
     res = @client.get(serverurl + 'servlet', param)
     assert_equal(param, params(res.header["x-query"][0]))

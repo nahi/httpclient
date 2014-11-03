@@ -802,9 +802,6 @@ class HTTPClient
   # chunked request.  At least cgi.rb does not support it.
   def request(method, uri, *args, &block)
     query, body, header, follow_redirect = keyword_argument(args, :query, :body, :header, :follow_redirect)
-    if [:post, :put].include?(method)
-      body ||= ''
-    end
     if method == :propfind
       header ||= PROPFIND_DEFAULT_EXTHEADER
     else
