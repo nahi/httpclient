@@ -32,6 +32,7 @@ class WebAgent
     end
 
     def domain_match(host, domain)
+      return false if domain.nil?
       domainname = domain.sub(/\.\z/, '').downcase
       hostname = host.sub(/\.\z/, '').downcase
       case domain
@@ -193,7 +194,7 @@ class WebAgent
 	when 'httponly'
 	  @http_only = true  ## value may nil, but must 'true'.
 	else
-	  ## ignore
+          warn("Unknown key: #{key} = #{value}")
 	end
       }
     end
