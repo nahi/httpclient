@@ -1,5 +1,45 @@
 ## Changes
 
+### Changes in 2.5.3
+
+This release includes behavior changes of POST and PUT requests that has
+nil as a body. See changes below. Emtpty String as a body is not affected.
+
+ * Changes
+
+   * Update cacert. "Certificate data from Mozilla as of: Tue Oct 28 22:03:58 2014"
+ 
+   * Do not use persistent connection for POST and PUT.
+     It could cause duplicated POST or PUT by connection reset while
+     processing.  Do not use persistent connection for POST and PUT, and also
+     do not retry when it detects connection failure. #142.
+
+   * Allow no content POST and PUT.
+     Previously POST or PUT with :body => nil meant that 'POST or PUT with 0
+     length entity body'. But sometimes you need to POST or PUT actually no
+     content which should not have Content-Type nor Content-Length.
+     It could be incompatible change for user who POST/PUT-ed with empty body
+     but it should be rare, actually WEBrick cannot handle such 'no content'
+     POST and PUT. #128.
+
+   * Add default_header property.
+     :default_header is for providing default headers Hash that all HTTP
+     requests should have, such as custom 'Authorization' header in API.  You
+     can override :default_header with :header Hash parameter in HTTP request
+     methods.
+
+   * raise if redirect res does not have Location header. #155.
+
+ * Bug fixes
+
+   * Avoid NPE by a cookie without domain=.
+     The root cause is still uncertain though. Closes #123
+
+   * Suppress verify_callback warning.
+     Because OpenSSL can try multiple certificate chains and some of it can
+     fail, and one of them succeeds. For that case warning is irrelevant.
+     Let it warn only in $DEBUG mode. #221.
+
 ### Changes in 2.5.2
 
 Oct 29, 2014 - version 2.5.2
