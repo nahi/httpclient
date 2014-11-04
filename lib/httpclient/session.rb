@@ -159,7 +159,7 @@ class HTTPClient
 
     def query(req, via_proxy)
       req.http_body.chunk_size = @chunk_size if req.http_body
-      sess = open(req, via_proxy)
+      sess = get_session(req, via_proxy)
       begin
         sess.query(req)
       rescue
@@ -195,28 +195,36 @@ class HTTPClient
 
   private
 
-    def open(req, via_proxy = false)
+    # TODO: create PR for webmock's httpclient adapter to use get_session
+    # instead of open so that we can remove duplicated Site creation for
+    # each session.
+    def get_session(req, via_proxy = false)
       site = Site.new(req.header.request_uri)
       if req.use_persistent_connection? && cached = get_cached_session(site)
         cached
       else
-        sess = Session.new(@client, site, @agent_name, @from)
-        sess.proxy = via_proxy ? @proxy : nil
-        sess.socket_sync = @socket_sync
-        sess.requested_version = @protocol_version if @protocol_version
-        sess.connect_timeout = @connect_timeout
-        sess.connect_retry = @connect_retry
-        sess.send_timeout = @send_timeout
-        sess.receive_timeout = @receive_timeout
-        sess.read_block_size = @read_block_size
-        sess.protocol_retry_count = @protocol_retry_count
-        sess.ssl_config = @ssl_config
-        sess.debug_dev = @debug_dev
-        sess.socket_local = @socket_local
-        sess.test_loopback_http_response = @test_loopback_http_response
-        sess.transparent_gzip_decompression = @transparent_gzip_decompression
-        sess
+        open(req.header.request_uri, via_proxy)
       end
+    end
+
+    def open(uri, via_proxy = false)
+      site = Site.new(uri)
+      sess = Session.new(@client, site, @agent_name, @from)
+      sess.proxy = via_proxy ? @proxy : nil
+      sess.socket_sync = @socket_sync
+      sess.requested_version = @protocol_version if @protocol_version
+      sess.connect_timeout = @connect_timeout
+      sess.connect_retry = @connect_retry
+      sess.send_timeout = @send_timeout
+      sess.receive_timeout = @receive_timeout
+      sess.read_block_size = @read_block_size
+      sess.protocol_retry_count = @protocol_retry_count
+      sess.ssl_config = @ssl_config
+      sess.debug_dev = @debug_dev
+      sess.socket_local = @socket_local
+      sess.test_loopback_http_response = @test_loopback_http_response
+      sess.transparent_gzip_decompression = @transparent_gzip_decompression
+      sess
     end
 
     def close_all
