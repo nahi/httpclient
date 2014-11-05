@@ -200,7 +200,7 @@ class HTTPClient
     # each session.
     def get_session(req, via_proxy = false)
       site = Site.new(req.header.request_uri)
-      if req.use_persistent_connection? && cached = get_cached_session(site)
+      if cached = get_cached_session(site)
         cached
       else
         open(req.header.request_uri, via_proxy)

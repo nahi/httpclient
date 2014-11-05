@@ -958,7 +958,7 @@ private
       body.pos = pos if pos
       req = create_request(method, uri, query, body, header)
       begin
-        protect_keep_alive_disconnected(req) do
+        protect_keep_alive_disconnected do
           do_get_block(req, proxy, conn, &block)
         end
         res = conn.pop
@@ -984,7 +984,7 @@ private
           body.pos = pos if pos
           req = create_request(method, uri, query, body, header)
           begin
-            protect_keep_alive_disconnected(req) do
+            protect_keep_alive_disconnected do
               do_get_stream(req, proxy, tconn)
             end
             break
@@ -1054,14 +1054,14 @@ private
     end
   end
 
-  def protect_keep_alive_disconnected(req)
+  def protect_keep_alive_disconnected
     begin
       yield
     rescue KeepAliveDisconnected => e
       if e.sess
         @session_manager.invalidate(e.sess.dest)
       end
-      yield if req.use_persistent_connection?
+      yield
     end
   end
 

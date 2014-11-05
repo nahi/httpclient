@@ -1043,10 +1043,6 @@ module HTTP
     def see_other?
       status == HTTP::Status::SEE_OTHER
     end
-
-    def use_persistent_connection?
-      header.request_method != 'POST' && header.request_method != 'PUT'
-    end
   end
 
 end
