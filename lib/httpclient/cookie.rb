@@ -210,6 +210,13 @@ class WebAgent
     end
   end
 
+  ##
+  # An Array class that already includes the MonitorMixin module.
+  #
+  class SynchronizedArray < Array
+    include MonitorMixin
+  end
+
   class CookieManager
     include CookieUtils
 
@@ -223,8 +230,7 @@ class WebAgent
     attr_accessor :accept_domains, :reject_domains
 
     def initialize(file=nil)
-      @cookies = Array.new
-      @cookies.extend(MonitorMixin)
+      @cookies = SynchronizedArray.new
       @cookies_file = file
       @is_saved = true
       @reject_domains = Array.new
@@ -233,8 +239,11 @@ class WebAgent
     end
 
     def cookies=(cookies)
-      @cookies = cookies
-      @cookies.extend(MonitorMixin)
+      if cookies.is_a?(SynchronizedArray)
+        @cookies = cookies
+      else
+        @cookies = SynchronizedArray.new(cookies)
+      end
     end
 
     def save_all_cookies(force = nil, save_unused = true, save_discarded = true)
