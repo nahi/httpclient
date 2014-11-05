@@ -9,11 +9,6 @@ nil as a body. See changes below. Emtpty String as a body is not affected.
 
    * Update cacert. "Certificate data from Mozilla as of: Tue Oct 28 22:03:58 2014"
  
-   * Do not use persistent connection for POST and PUT.
-     It could cause duplicated POST or PUT by connection reset while
-     processing.  Do not use persistent connection for POST and PUT, and also
-     do not retry when it detects connection failure. #142.
-
    * Allow no content POST and PUT.
      Previously POST or PUT with :body => nil meant that 'POST or PUT with 0
      length entity body'. But sometimes you need to POST or PUT actually no
