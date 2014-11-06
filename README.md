@@ -1,10 +1,11 @@
 httpclient - HTTP accessing library.
+
 Copyright (C) 2000-2014  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
 'httpclient' gives something like the functionality of libwww-perl (LWP) in
 Ruby.  'httpclient' formerly known as 'http-access2'.
 
-See HTTPClient for documentation.
+See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentation.
 
 
 ## Features
@@ -43,9 +44,9 @@ get "https://www.google.co.jp/", :q => :ruby
 
 ## Author
 
-Name:: Hiroshi Nakamura
-E-mail:: nahi@ruby-lang.org
-Project web site:: http://github.com/nahi/httpclient
+ * Name:: Hiroshi Nakamura
+ * E-mail:: nahi@ruby-lang.org
+ * Project web site:: http://github.com/nahi/httpclient
 
 
 ## License
@@ -68,7 +69,7 @@ You can install httpclient via rubygems: `gem install httpclient`
 
 ## Usage
 
-See HTTPClient for documentation.
+See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentation.
 You can also check sample/howto.rb how to use APIs.
 
 ## Bug report or Feature request
