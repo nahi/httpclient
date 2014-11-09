@@ -1742,6 +1742,12 @@ EOS
     end
   end
 
+  def test_uri_no_schema
+    assert_raise(ArgumentError) do
+      @client.get_content("www.example.com")
+    end
+  end
+
 private
 
   def check_query_get(query)

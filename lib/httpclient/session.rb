@@ -199,11 +199,15 @@ class HTTPClient
     # instead of open so that we can remove duplicated Site creation for
     # each session.
     def get_session(req, via_proxy = false)
-      site = Site.new(req.header.request_uri)
+      uri = req.header.request_uri
+      if uri.scheme.nil?
+        raise ArgumentError.new("Request URI must have schema. Possibly add 'http://' to the request URI?")
+      end
+      site = Site.new(uri)
       if cached = get_cached_session(site)
         cached
       else
-        open(req.header.request_uri, via_proxy)
+        open(uri, via_proxy)
       end
     end
 
