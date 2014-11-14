@@ -8,6 +8,8 @@ nil as a body. See changes below. Emtpty String as a body is not affected.
  * Changes
 
    * Update cacert. "Certificate data from Mozilla as of: Tue Oct 28 22:03:58 2014"
+     -> Reverted in 2.5.3.3 because it caused unexpected SSLError. See
+     https://github.com/nahi/httpclient/issues/230
  
    * Allow no content POST and PUT.
      Previously POST or PUT with :body => nil meant that 'POST or PUT with 0
