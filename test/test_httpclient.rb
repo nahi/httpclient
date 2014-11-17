@@ -1579,8 +1579,11 @@ EOS
     server = TCPServer.open('127.0.0.1', 0)
     server.listen(30) # set enough backlogs
     endpoint = "http://127.0.0.1:#{server.addr[1]}/"
-    Thread.new {
+    queue = Queue.new
+    Thread.new(queue) { |qs|
       Thread.abort_on_exception = true
+      # want 5 requests issued
+      5.times { qs.pop }
       # emulate 10 keep-alive connections
       10.times do |idx|
         sock = server.accept
@@ -1609,22 +1612,29 @@ EOS
         sock.close
       end
     }
-    # allocate 10 keep-alive connections
+    # try to allocate 10 keep-alive connections; it's a race so some
+    # threads can reuse the connection so actual number of keep-alive
+    # connections should be smaller than 10.
     (0...10).to_a.map {
-      Thread.new {
-        assert_equal("12345", client.get(endpoint).content)
+      Thread.new(queue) { |qc|
+        Thread.abort_on_exception = true
+        conn = client.get_async(endpoint)
+        qc.push(true)
+        assert_equal("12345", conn.pop.content.read)
       }
     }.each { |th| th.join }
-    # send 5 requests, which should get KeepAliveDesconnected.
-    # doing these requests, rest keep-alive connections are invalidated.
+    # send 5 requests, some of these should get KeepAliveDesconnected
+    # but should retry with new connection.
     (0...5).to_a.map {
       Thread.new {
+        Thread.abort_on_exception = true
         assert_equal("23456", client.get(endpoint).content)
       }
     }.each { |th| th.join }
-    # rest requests won't get KeepAliveDisconnected; how can I check this?
+    # rest requests won't get KeepAliveDisconnected
     (0...10).to_a.map {
       Thread.new {
+        Thread.abort_on_exception = true
         assert_equal("34567", client.get(endpoint).content)
       }
     }.each { |th| th.join }

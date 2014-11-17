@@ -183,16 +183,6 @@ class HTTPClient
       add_cached_session(sess)
     end
 
-    def invalidate(site)
-      @sess_pool_mutex.synchronize do
-        if pool = @sess_pool[site]
-          pool.each do |sess|
-            sess.invalidate
-          end
-        end
-      end
-    end
-
   private
 
     # TODO: create PR for webmock's httpclient adapter to use get_session
@@ -253,6 +243,9 @@ class HTTPClient
     end
 
     def get_cached_session(site)
+      if Thread.current[:HTTPClient_AcquireNewConnection]
+        return nil
+      end
       @sess_pool_mutex.synchronize do
         now = Time.now
         if now > @sess_pool_last_checked + @keep_alive_timeout
@@ -284,7 +277,7 @@ class HTTPClient
     end
 
     def valid_session?(sess, now)
-      !sess.invalidated? and (now <= sess.last_used + @keep_alive_timeout)
+      (now <= sess.last_used + @keep_alive_timeout)
     end
 
     def add_cached_session(sess)
@@ -578,7 +571,6 @@ class HTTPClient
     def initialize(client, dest, agent_name, from)
       @client = client
       @dest = dest
-      @invalidated = false
       @proxy = nil
       @socket_sync = true
       @requested_version = nil
@@ -660,14 +652,6 @@ class HTTPClient
 
     def closed?
       @state == :INIT
-    end
-
-    def invalidate
-      @invalidated = true
-    end
-
-    def invalidated?
-      @invalidated
     end
 
     def get_header

@@ -1058,10 +1058,13 @@ private
     begin
       yield
     rescue KeepAliveDisconnected => e
-      if e.sess
-        @session_manager.invalidate(e.sess.dest)
+      # Force to create new connection
+      Thread.current[:HTTPClient_AcquireNewConnection] = true
+      begin
+        yield
+      ensure
+        Thread.current[:HTTPClient_AcquireNewConnection] = false
       end
-      yield
     end
   end
 
