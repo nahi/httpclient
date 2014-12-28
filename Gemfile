@@ -1,7 +1,7 @@
 source "http://rubygems.org"
 
 platform :jruby do
-  gem 'jruby-openssl'
+  gem 'jruby-openssl', '= 0.9.5'
 end
 
 platform :rbx do
