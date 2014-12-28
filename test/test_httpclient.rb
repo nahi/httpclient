@@ -710,7 +710,13 @@ EOS
   def test_get_follow_redirect
     assert_equal('hello', @client.get(serverurl + 'hello', :follow_redirect => true).body)
     assert_equal('hello', @client.get(serverurl + 'redirect1', :follow_redirect => true).body)
-    assert_equal('hello', @client.get(serverurl + 'redirect2', :follow_redirect => true).body)
+
+    res = @client.get(serverurl + 'redirect2', :follow_redirect => true)
+    assert_equal('hello', res.body)
+    assert_equal("http://localhost:#{@serverport}/hello", res.header.request_uri.to_s)
+    assert_equal("http://localhost:#{@serverport}/redirect3", res.previous.header.request_uri.to_s)
+    assert_equal("http://localhost:#{@serverport}/redirect2", res.previous.previous.header.request_uri.to_s)
+    assert_equal(nil, res.previous.previous.previous)
   end
 
   def test_get_async

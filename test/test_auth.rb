@@ -146,7 +146,11 @@ class TestAuth < Test::Unit::TestCase
       c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
       #
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
-      assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
+      res = c.get("http://localhost:#{serverport}/basic_auth")
+      assert_equal('basic_auth OK', res.content)
+      assert_equal(200, res.status)
+      assert_equal(401, res.previous.status)
+      assert_equal(nil, res.previous.previous)
     ensure
       @basic_auth.instance_eval { @auth_scheme = webrick_backup }
     end
