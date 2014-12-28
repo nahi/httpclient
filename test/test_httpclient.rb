@@ -914,7 +914,8 @@ EOS
     assert_match(/\r\n2\r\n/m, res.content)
     assert_match(/\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m, res.content)
     assert_match(/\r\nContent-Length:/m, str.string)
-    assert_equal(3, myio.called)
+    # HTTPClient reads from head to 'size'; CHUNK_SIZE bytes then 1 byte, that's all.
+    assert_equal(2, myio.called)
   end
 
   def test_post_with_io_nosize # streaming + chunked post
@@ -929,6 +930,43 @@ EOS
     assert_match(/\r\nContent-Disposition: form-data; name="3"; filename=""\r\n/m, res.content)
     assert_match(/\r\n4\r\n/m, res.content)
     assert_match(/\r\nTransfer-Encoding: chunked\r\n/m, str.string)
+  end
+
+  def test_post_with_sized_io
+    myio = StringIO.new("45")
+    def myio.size
+      1
+    end
+    res = @client.post(serverurl + 'servlet', myio)
+    assert_equal('post,4', res.content)
+  end
+
+  def test_post_with_sized_io_part
+    myio = StringIO.new("45")
+    def myio.size
+      1
+    end
+    @client.debug_dev = str = StringIO.new
+    res = @client.post(serverurl + 'servlet', { :file => myio })
+    assert_match(/\r\n4\r\n/, str.string, 'should send "4" not "45"')
+  end
+
+  def test_post_with_unknown_sized_io_part
+    myio1 = StringIO.new("123")
+    myio2 = StringIO.new("45")
+    class << myio1
+      undef :size
+    end
+    class << myio2
+      # This does not work because other file is 'unknown sized'
+      def size
+        1
+      end
+    end
+    @client.debug_dev = str = StringIO.new
+    res = @client.post(serverurl + 'servlet', { :file1 => myio1, :file2 => myio2 })
+    puts str.string
+    assert_match(/\r\n45\r\n/, str.string)
   end
 
   def test_post_async

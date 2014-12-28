@@ -485,13 +485,15 @@ module HTTP
       # reason. (header is dumped to dev, too)
       # If no dev (the second argument) given, this method returns a dumped
       # String.
+      #
+      # assert: @size is not nil
       def dump(header = '', dev = '')
         if @body.is_a?(Parts)
           dev << header
           @body.parts.each do |part|
             if Message.file?(part)
               reset_pos(part)
-              dump_file(part, dev)
+              dump_file(part, dev, @body.sizes[part])
             else
               dev << part
             end
@@ -499,7 +501,7 @@ module HTTP
         elsif Message.file?(@body)
           dev << header
           reset_pos(@body)
-          dump_file(@body, dev)
+          dump_file(@body, dev, @size)
         elsif @body
           dev << header + @body
         else
@@ -567,10 +569,14 @@ module HTTP
         io.pos = @positions[io] if @positions.key?(io)
       end
 
-      def dump_file(io, dev)
+      def dump_file(io, dev, sz)
         buf = ''
-        while !io.read(@chunk_size, buf).nil?
+        rest = sz
+        while rest > 0
+          n = io.read([rest, @chunk_size].min, buf)
+          raise ArgumentError.new("Illegal size value: #size returns #{sz} but cannot read") if n.nil?
           dev << buf
+          rest -= n.bytesize
         end
       end
 
@@ -595,10 +601,12 @@ module HTTP
 
       class Parts
         attr_reader :size
+        attr_reader :sizes
 
         def initialize
           @body = []
-          @size = 0
+          @sizes = {}
+          @size = 0 # total
           @as_stream = false
         end
 
@@ -607,15 +615,18 @@ module HTTP
             @as_stream = true
             @body << part
             if part.respond_to?(:lstat)
-              @size += part.lstat.size
+              sz = part.lstat.size
+              add_size(part, sz)
             elsif part.respond_to?(:size)
               if sz = part.size
-                @size += sz
+                add_size(part, sz)
               else
+                @sizes.clear
                 @size = nil
               end
             else
               # use chunked upload
+              @sizes.clear
               @size = nil
             end
           elsif @body[-1].is_a?(String)
@@ -632,6 +643,15 @@ module HTTP
             @body
           else
             [@body.join]
+          end
+        end
+
+      private
+
+        def add_size(part, sz)
+          if @size
+            @sizes[part] = sz
+            @size += sz
           end
         end
       end
