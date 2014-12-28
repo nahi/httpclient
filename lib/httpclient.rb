@@ -966,7 +966,7 @@ private
         res.previous = previous
         break
       rescue RetryableResponse
-        previous = conn.pop
+        res = previous = conn.pop
         retry_count -= 1
       end
     end
