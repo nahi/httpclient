@@ -1,5 +1,6 @@
 require 'test/unit'
 require 'uri'
+require 'tempfile'
 
 require 'httpclient/cookie'
 
@@ -407,6 +408,60 @@ EOF
     check6 = @cm.check_cookie_accept_domain("aa.www2.example.jp")
     assert_equal(true, check6)
     assert_equal(false, @cm.check_cookie_accept_domain(nil))
+  end
+
+  def test_keep_escaped
+    uri = urify('http://www.example.org')
+
+    @cm.parse("bar=2; path=/", uri)
+    c = @cm.cookies.first
+    assert_equal('2', c.value)
+    assert_equal('2', c.raw_value)
+    assert_equal('bar=2', @cm.find(uri))
+
+    @cm.parse("bar=\"2\"; path=/", uri)
+    c = @cm.cookies.first
+    assert_equal('2', c.value)
+    assert_equal('"2"', c.raw_value)
+    assert_equal('bar="2"', @cm.find(uri))
+
+    @cm.parse("bar=; path=/", uri)
+    c = @cm.cookies.first
+    assert_equal(nil, c.value)
+    assert_equal('', c.raw_value)
+    assert_equal('bar=', @cm.find(uri))
+
+    @cm.parse("bar=\"\"; path=/", uri)
+    c = @cm.cookies.first
+    assert_equal(nil, c.value)
+    assert_equal('""', c.raw_value)
+    assert_equal('bar=""', @cm.find(uri))
+  end
+
+  def test_load_cookies_escaped
+    uri = urify('http://example.org/')
+    f = Tempfile.new('test_cookie')
+    File.open(f.path, 'w') do |f|
+      f.write <<EOF
+http://example.org/	key	"value"	0	.example.org	/	13	0			
+http://example.org/	key	""		.example.org	/	13	0			
+http://example.org/	key			.example.org	/	13	0			
+EOF
+    end
+    @cm.cookies_file = f.path
+    @cm.load_cookies
+    c0, c1, c2 = @cm.cookies
+    assert_equal('value', c0.value)
+    assert_equal('"value"', c0.raw_value)
+    assert_equal(nil, c1.value)
+    assert_equal('""', c1.raw_value)
+    assert_equal(nil, c2.value)
+    assert_equal('', c2.raw_value)
+    assert_equal('key="value"', @cm.find(uri))
+    c0.value = ''
+    assert_equal('key=', @cm.find(uri))
+    c0.value = '""'
+    assert_equal('key=""', @cm.find(uri))
   end
 
 end

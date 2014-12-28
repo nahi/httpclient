@@ -52,11 +52,20 @@ class WebAgent
   class Cookie
     include CookieUtils
 
-    attr_accessor :name, :value
+    attr_accessor :name, :raw_value
     attr_accessor :domain, :path
     attr_accessor :expires      ## for Netscape Cookie
     attr_accessor :url
     attr_writer :use, :secure, :http_only, :discard, :domain_orig, :path_orig, :override
+
+    def value
+      normalize_cookie_value(@raw_value)
+    end
+
+    # for backward compatibility
+    def value=(value)
+      @raw_value = value
+    end
 
     USE = 1
     SECURE = 2
@@ -68,7 +77,7 @@ class WebAgent
     HTTP_ONLY = 64
 
     def initialize
-      @name = @value = @domain = @path = nil
+      @name = @raw_value = @domain = @path = nil
       @expires = nil
       @url = nil
       @use = @secure = @http_only = @discard = @domain_orig = @path_orig = @override = nil
@@ -173,7 +182,7 @@ class WebAgent
         ## raise ArgumentError 'invalid cookie value'
       end
       @name = $1.strip
-      @value = normalize_cookie_value($3)
+      @raw_value = $3
       cookie_elem.each{|pair|
         key, value = pair.split(/=/, 2)  ## value may nil
         key.strip!
@@ -258,7 +267,7 @@ class WebAgent
               (!cookie.discard? or save_discarded)
               f.print(cookie.url.to_s,"\t",
                       cookie.name,"\t",
-                      cookie.value,"\t",
+                      cookie.raw_value,"\t",
                       cookie.expires.to_i,"\t",
                       cookie.domain,"\t",
                       cookie.path,"\t",
@@ -328,7 +337,7 @@ class WebAgent
       cookie.path = path
       cookie.url = given.url
       cookie.name = given.name
-      cookie.value = given.value
+      cookie.raw_value = given.raw_value
       cookie.expires = given.expires
       cookie.secure = given.secure?
       cookie.http_only = given.http_only?
@@ -354,7 +363,7 @@ class WebAgent
             col = line.chomp.split(/\t/)
             cookie.url = HTTPClient::Util.urify(col[0])
             cookie.name = col[1]
-            cookie.value = col[2]
+            cookie.raw_value = col[2]
             if col[3].empty? or col[3] == '0'
               cookie.expires = nil
             else
@@ -395,9 +404,9 @@ class WebAgent
 
       ret = ''
       c = cookie_list.shift
-      ret += "#{c.name}=#{c.value}"
+      ret += "#{c.name}=#{c.raw_value}"
       cookie_list.each{|cookie|
-        ret += "; #{cookie.name}=#{cookie.value}"
+        ret += "; #{cookie.name}=#{cookie.raw_value}"
       }
       return ret
     end
