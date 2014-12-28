@@ -440,4 +440,13 @@ class TestAuth < Test::Unit::TestCase
     assert(str.index(%q(POST /photos)))
     assert(str.index(%q(Authorization: OAuth realm="http://photos.example.net/", oauth_consumer_key="dpf43f3p2l4k3l03", oauth_nonce="kllo9940pd9333jh", oauth_signature="wPkvxykrw%2BBTdCcGqKr%2B3I%2BPsiM%3D", oauth_signature_method="HMAC-SHA1", oauth_timestamp="1191242096", oauth_token="nnch734d00sl2jdk", oauth_version="1.0")))
   end
+
+  def test_basic_auth_post_with_multipart
+    c = HTTPClient.new
+    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+    File.open(__FILE__) do |f|
+      # read 'f' twice for authorization negotiation
+      assert_equal('basic_auth OK', c.post("http://localhost:#{serverport}/basic_auth", :file => f).content)
+    end
+  end
 end

@@ -954,19 +954,24 @@ private
     end
     retry_count = @session_manager.protocol_retry_count
     proxy = no_proxy?(uri) ? nil : @proxy
-    previous = nil
+    previous_request = previous_response = nil
     while retry_count > 0
       body.pos = pos if pos
       req = create_request(method, uri, query, body, header)
+      if previous_request
+        # to remember IO positions to read
+        req.http_body.positions = previous_request.http_body.positions
+      end
       begin
         protect_keep_alive_disconnected do
           do_get_block(req, proxy, conn, &block)
         end
         res = conn.pop
-        res.previous = previous
+        res.previous = previous_response
         break
       rescue RetryableResponse
-        res = previous = conn.pop
+        previous_request = req
+        res = previous_response = conn.pop
         retry_count -= 1
       end
     end

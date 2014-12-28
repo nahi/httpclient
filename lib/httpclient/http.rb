@@ -443,6 +443,8 @@ module HTTP
       attr_reader :size
       # maxbytes of IO#read for streaming request.  See DEFAULT_CHUNK_SIZE.
       attr_accessor :chunk_size
+      # Hash that keeps IO positions
+      attr_accessor :positions
 
       # Default value for chunk_size
       DEFAULT_CHUNK_SIZE = 1024 * 16
