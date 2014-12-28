@@ -118,8 +118,15 @@ class TestAuth < Test::Unit::TestCase
   # TODO: monkey patching for rack-ntlm-test-services's incompat.
   module ::Net
     module NTLM
+      # ruby-ntlm 0.3.0 -> 0.4.0
       def self.decode_utf16le(*arg)
         EncodeUtil.decode_utf16le(*arg)
+      end
+      # Make it work if @value == nil
+      class SecurityBuffer < FieldSet
+        def data_size
+          @active && @value ? @value.size : 0
+        end
       end
     end
   end
