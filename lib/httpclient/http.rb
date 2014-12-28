@@ -198,6 +198,7 @@ module HTTP
         @request_uri = uri || NIL_URI
         @request_query = query
         @request_absolute_uri = false
+        self
       end
 
       # Initialize this instance as a response.
@@ -209,6 +210,7 @@ module HTTP
           @request_uri = req.request_uri
           @request_query = req.request_query
         end
+        self
       end
 
       # Sets status code and reason phrase.
@@ -460,6 +462,7 @@ module HTTP
         @positions = {}
         set_content(body, boundary)
         @chunk_size = DEFAULT_CHUNK_SIZE
+        self
       end
 
       # Initialize this instance as a response.
@@ -472,6 +475,7 @@ module HTTP
         else
           @size = nil
         end
+        self
       end
 
       # Dumps message body to given dev.
@@ -908,12 +912,17 @@ module HTTP
     #                              used for retrieving the response.
     attr_accessor :peer_cert
 
+    # The other Message object when this Message is generated instead of
+    # the Message because of redirection, negotiation, or format conversion.
+    attr_accessor :previous
+
     # Creates a Message.  This method should be used internally.
     # Use Message.new_connect_request, Message.new_request or
     # Message.new_response instead.
     def initialize # :nodoc:
       @http_header = Headers.new
       @http_body = @peer_cert = nil
+      @previous = nil
     end
 
     # Dumps message (header and body) to given dev.
