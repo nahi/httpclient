@@ -115,14 +115,18 @@ class TestAuth < Test::Unit::TestCase
     res.body = 'digest_sess_auth OK' + req.query_string.to_s
   end
 
-  # TODO: disables this test; it causes an exception because it seems
-  # that there's version incompatibility between
-  # rack-ntlm and rack-ntlm-test-services.
-  def __test_ntlm_auth
+  # TODO: monkey patching for rack-ntlm-test-services's incompat.
+  module ::Net
+    module NTLM
+      def self.decode_utf16le(*arg)
+        EncodeUtil.decode_utf16le(*arg)
+      end
+    end
+  end
+  def test_ntlm_auth
     c = HTTPClient.new
     c.set_auth("http://localhost:#{serverport}/ntlm_auth", 'admin', 'admin')
     assert_equal('ntlm_auth OK', c.get_content("http://localhost:#{serverport}/ntlm_auth"))
-    puts c.inspect
   end
 
   def test_basic_auth
