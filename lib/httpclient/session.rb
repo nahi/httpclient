@@ -17,7 +17,7 @@ require 'thread'
 require 'stringio'
 require 'zlib'
 
-require 'httpclient/timeout'
+require 'httpclient/timeout' # TODO: remove this once we drop 1.8 support
 require 'httpclient/ssl_config'
 require 'httpclient/http'
 
