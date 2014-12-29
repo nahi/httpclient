@@ -95,6 +95,13 @@ class HTTPClient
       @authenticator.each do |auth|
         next unless auth.set? # hasn't be set, don't use it
         if cred = auth.get(req)
+          if cred == :skip
+            # some authenticator (NTLM and Negotiate) does not
+            # need to send extra header after authorization. In such case
+            # it should block other authenticators to respond and :skip is
+            # the marker for such case.
+            return
+          end
           req.header.set('Authorization', auth.scheme + " " + cred)
           return
         end
@@ -179,6 +186,13 @@ class HTTPClient
       @authenticator.each do |auth|
         next unless auth.set? # hasn't be set, don't use it
         if cred = auth.get(req)
+          if cred == :skip
+            # some authenticator (NTLM and Negotiate) does not
+            # need to send extra header after authorization. In such case
+            # it should block other authenticators to respond and :skip is
+            # the marker for such case.
+            return
+          end
           req.header.set('Proxy-Authorization', auth.scheme + " " + cred)
           return
         end
@@ -541,19 +555,19 @@ class HTTPClient
         when :init
           t1 = Net::NTLM::Message::Type1.new
           t1.domain = domain if domain
-          return t1.encode64
+          t1.encode64
         when :response
           t2 = Net::NTLM::Message.decode64(authphrase)
           param = {:user => user, :password => passwd}
           param[:domain] = domain if domain
           t3 = t2.response(param, @ntlm_opt.dup)
-          # challenge should be deleted here, since this authentication is
-          # for connection, not http requests.  Auth is valid as long as
-          # the connection is alive.
-          @challenge.delete(domain_uri)
-          return t3.encode64
+          @challenge[target_uri][:state] = :done
+          t3.encode64
+        when :done
+          :skip
+        else
+          nil
         end
-        nil
       }
     end
 
@@ -616,21 +630,24 @@ class HTTPClient
         when :init
           if defined?(Win32::SSPI)
             authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
-            return authenticator.get_initial_token(@scheme)
+            authenticator.get_initial_token(@scheme)
           else # use GSSAPI
             authenticator = param[:authenticator] = GSSAPI::Simple.new(domain_uri.host, 'HTTP')
             # Base64 encode the context token
-            return [authenticator.init_context].pack('m').gsub(/\n/,'')
+            [authenticator.init_context].pack('m').gsub(/\n/,'')
           end
         when :response
-          @challenge.delete(domain_uri)
+          @challenge[target_uri][:state] = :done
           if defined?(Win32::SSPI)
-            return authenticator.complete_authentication(authphrase)
+            authenticator.complete_authentication(authphrase)
           else # use GSSAPI
-            return authenticator.init_context(authphrase.unpack('m').pop)
+            authenticator.init_context(authphrase.unpack('m').pop)
           end
+        when :done
+          :skip
+        else
+          nil
         end
-        nil
       }
     end
 

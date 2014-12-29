@@ -449,4 +449,25 @@ class TestAuth < Test::Unit::TestCase
       assert_equal('basic_auth OK', c.post("http://localhost:#{serverport}/basic_auth", :file => f).content)
     end
   end
+
+  def test_negotiate_and_basic
+    c = HTTPClient.new
+    c.test_loopback_http_response << %Q(HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: NTLM\r\nWWW-Authenticate: Basic realm="foo"\r\nConnection: Keep-Alive\r\nContent-Length: 0\r\n\r\n)
+    c.test_loopback_http_response << %Q(HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: NTLM TlRMTVNTUAACAAAAAAAAACgAAAABAAAAAAAAAAAAAAA=\r\nConnection: Keep-Alive\r\nContent-Length: 0\r\n\r\n)
+    c.test_loopback_http_response << %Q(HTTP/1.0 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 1\r\n\r\na)
+    c.test_loopback_http_response << %Q(HTTP/1.0 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 1\r\n\r\nb)
+    c.debug_dev = str = ''
+    c.set_auth('http://www.example.org/', 'admin', 'admin')
+    # Do NTLM negotiation
+    c.get('http://www.example.org/foo')
+    # BasicAuth authenticator should not respond to it because NTLM
+    # negotiation has been finished.
+    assert_match(%r(Authorization: NTLM), str)
+    assert_not_match(%r(Authorization: Basic), str)
+    # ditto for other resource that is protected with NTLM
+    c.debug_dev = str = ''
+    c.get('http://www.example.org/foo/subdir')
+    assert_not_match(%r(Authorization: NTLM), str)
+    assert_not_match(%r(Authorization: Basic), str)
+  end
 end
