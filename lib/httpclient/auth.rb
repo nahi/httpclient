@@ -208,34 +208,41 @@ class HTTPClient
     end
   end
 
-  # Authentication filter for handling BasicAuth negotiation.
-  # Used in WWWAuth and ProxyAuth.
-  class BasicAuth
+  # Authentication filter base class.
+  class AuthBase
     include HTTPClient::Util
-    include Mutex_m
 
     # Authentication scheme.
     attr_reader :scheme
+
+    def initialize(scheme)
+      @scheme = scheme
+      @challenge = {}
+    end
+
+    # Resets challenge state.  Do not send '*Authorization' header until the
+    # server sends '*Authentication' again.
+    def reset_challenge
+      synchronize do
+        @challenge.clear
+      end
+    end
+  end
+
+  # Authentication filter for handling BasicAuth negotiation.
+  # Used in WWWAuth and ProxyAuth.
+  class BasicAuth < AuthBase
+    include Mutex_m
 
     # Send Authorization Header without receiving 401
     attr_accessor :force_auth
 
     # Creates new BasicAuth filter.
     def initialize
-      super
+      super('Basic')
       @cred = nil
       @auth = {}
-      @challenge = {}
-      @scheme = "Basic"
       @force_auth = false
-    end
-
-    # Resets challenge state.  Do not send '*Authorization' header until the
-    # server sends '*Authentication' again.
-    def reset_challenge
-      synchronize {
-        @challenge.clear
-      }
     end
 
     # Set authentication credential.
@@ -283,7 +290,6 @@ class HTTPClient
   end
 
   class ProxyBasicAuth < BasicAuth
-
     def set(uri, user, passwd)
       synchronize do
         @cred = ["#{user}:#{passwd}"].pack('m').tr("\n", '')
@@ -308,27 +314,14 @@ class HTTPClient
 
   # Authentication filter for handling DigestAuth negotiation.
   # Used in WWWAuth.
-  class DigestAuth
+  class DigestAuth < AuthBase
     include Mutex_m
-
-    # Authentication scheme.
-    attr_reader :scheme
 
     # Creates new DigestAuth filter.
     def initialize
-      super
+      super('Digest')
       @auth = {}
-      @challenge = {}
       @nonce_count = 0
-      @scheme = "Digest"
-    end
-
-    # Resets challenge state.  Do not send '*Authorization' header until the
-    # server sends '*Authentication' again.
-    def reset_challenge
-      synchronize do
-        @challenge.clear
-      end
     end
 
     # Set authentication credential.
@@ -483,39 +476,26 @@ class HTTPClient
         true
       }
     end
-
   end
 
   # Authentication filter for handling Negotiate/NTLM negotiation.
   # Used in WWWAuth and ProxyAuth.
   #
   # NegotiateAuth depends on 'ruby/ntlm' module.
-  class NegotiateAuth
+  class NegotiateAuth < AuthBase
     include Mutex_m
 
-    # Authentication scheme.
-    attr_reader :scheme
     # NTLM opt for ruby/ntlm.  {:ntlmv2 => true} by default.
     attr_reader :ntlm_opt
 
     # Creates new NegotiateAuth filter.
     def initialize(scheme = "Negotiate")
-      super()
+      super(scheme)
       @auth = {}
       @auth_default = nil
-      @challenge = {}
-      @scheme = scheme
       @ntlm_opt = {
         :ntlmv2 => true
       }
-    end
-
-    # Resets challenge state.  Do not send '*Authorization' header until the
-    # server sends '*Authentication' again.
-    def reset_challenge
-      synchronize do
-        @challenge.clear
-      end
     end
 
     # Set authentication credential.
@@ -567,6 +547,9 @@ class HTTPClient
           param = {:user => user, :password => passwd}
           param[:domain] = domain if domain
           t3 = t2.response(param, @ntlm_opt.dup)
+          # challenge should be deleted here, since this authentication is
+          # for connection, not http requests.  Auth is valid as long as
+          # the connection is alive.
           @challenge.delete(domain_uri)
           return t3.encode64
         end
@@ -596,25 +579,12 @@ class HTTPClient
   # Used in ProxyAuth.
   #
   # SSPINegotiateAuth depends on 'win32/sspi' module.
-  class SSPINegotiateAuth
+  class SSPINegotiateAuth < AuthBase
     include Mutex_m
-
-    # Authentication scheme.
-    attr_reader :scheme
 
     # Creates new SSPINegotiateAuth filter.
     def initialize
-      super
-      @challenge = {}
-      @scheme = "Negotiate"
-    end
-
-    # Resets challenge state.  Do not send '*Authorization' header until the
-    # server sends '*Authentication' again.
-    def reset_challenge
-      synchronize do
-        @challenge.clear
-      end
+      super('Negotiate')
     end
 
     # Set authentication credential.
@@ -692,12 +662,8 @@ class HTTPClient
   # CAUTION: This impl does NOT support OAuth Request Body Hash spec for now.
   # http://oauth.googlecode.com/svn/spec/ext/body_hash/1.0/oauth-bodyhash.html
   #
-  class OAuth
-    include HTTPClient::Util
+  class OAuth < AuthBase
     include Mutex_m
-
-    # Authentication scheme.
-    attr_reader :scheme
 
     class Config
       include HTTPClient::Util
@@ -768,23 +734,13 @@ class HTTPClient
 
     # Creates new DigestAuth filter.
     def initialize
-      super
+      super('OAuth')
       @config = nil # common config
       @auth = {} # configs for each site
-      @challenge = {}
       @nonce_count = 0
       @signature_handler = {
         'HMAC-SHA1' => method(:sign_hmac_sha1)
       }
-      @scheme = "OAuth"
-    end
-
-    # Resets challenge state.  Do not send '*Authorization' header until the
-    # server sends '*Authentication' again.
-    def reset_challenge
-      synchronize do
-        @challenge.clear
-      end
     end
 
     # Set authentication credential.
