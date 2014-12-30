@@ -719,6 +719,10 @@ EOS
     assert_equal(nil, res.previous.previous.previous)
   end
 
+  def test_get_follow_redirect_with_query
+    assert_equal('hello?1=2&3=4', @client.get(serverurl + 'redirect1', :query => {1 => 2, 3 => 4}, :follow_redirect => true).body)
+  end
+
   def test_get_async
     param = {'1'=>'2', '3'=>'4'}
     conn = @client.get_async(serverurl + 'servlet', param)
@@ -965,7 +969,6 @@ EOS
     end
     @client.debug_dev = str = StringIO.new
     res = @client.post(serverurl + 'servlet', { :file1 => myio1, :file2 => myio2 })
-    puts str.string
     assert_match(/\r\n45\r\n/, str.string)
   end
 
@@ -1264,14 +1267,14 @@ EOS
 
   def test_receive_timeout
     # this test takes 2 sec
-    assert_equal('hello', @client.get_content(serverurl + 'sleep?sec=2'))
+    assert_equal('hello?sec=2', @client.get_content(serverurl + 'sleep?sec=2'))
     @client.receive_timeout = 1
-    assert_equal('hello', @client.get_content(serverurl + 'sleep?sec=0'))
+    assert_equal('hello?sec=0', @client.get_content(serverurl + 'sleep?sec=0'))
     assert_raise(HTTPClient::ReceiveTimeoutError) do
       @client.get_content(serverurl + 'sleep?sec=2')
     end
     @client.receive_timeout = 3
-    assert_equal('hello', @client.get_content(serverurl + 'sleep?sec=2'))
+    assert_equal('hello?sec=2', @client.get_content(serverurl + 'sleep?sec=2'))
   end
 
   def test_receive_timeout_post
@@ -1847,45 +1850,53 @@ private
     HTTPClient::NO_PROXY_HOSTS.replace(backup)
   end
 
+  def add_query_string(req)
+    if req.query_string
+      '?' + req.query_string
+    else
+      ''
+    end
+  end
+
   def do_hello(req, res)
     res['content-type'] = 'text/html'
-    res.body = "hello"
+    res.body = "hello" + add_query_string(req)
   end
 
   def do_sleep(req, res)
     sec = req.query['sec'].to_i
     sleep sec
     res['content-type'] = 'text/html'
-    res.body = "hello"
+    res.body = "hello" + add_query_string(req)
   end
 
   def do_servlet_redirect(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "servlet")
+    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "servlet" + add_query_string(req))
   end
 
   def do_redirect1(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, serverurl + "hello")
+    res.set_redirect(WEBrick::HTTPStatus::MovedPermanently, serverurl + "hello" + add_query_string(req))
   end
 
   def do_redirect2(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, serverurl + "redirect3")
+    res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, serverurl + "redirect3" + add_query_string(req))
   end
 
   def do_redirect3(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "hello")
+    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "hello" + add_query_string(req))
   end
 
   def do_redirect_self(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "redirect_self")
+    res.set_redirect(WEBrick::HTTPStatus::Found, serverurl + "redirect_self" + add_query_string(req))
   end
 
   def do_relative_redirect(req, res)
-    res.set_redirect(WEBrick::HTTPStatus::Found, "hello")
+    res.set_redirect(WEBrick::HTTPStatus::Found, "hello" + add_query_string(req))
   end
 
   def do_redirect_see_other(req, res)
     if req.request_method == 'POST'
-      res.set_redirect(WEBrick::HTTPStatus::SeeOther, serverurl + "redirect_see_other") # self
+      res.set_redirect(WEBrick::HTTPStatus::SeeOther, serverurl + "redirect_see_other" + add_query_string(req)) # self
     else
       res.body = 'hello'
     end

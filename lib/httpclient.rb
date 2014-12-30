@@ -1037,9 +1037,10 @@ private
     end
     retry_number = 0
     previous = nil
+    request_query = query
     while retry_number < @follow_redirect_count
       body.pos = pos if pos
-      res = do_request(method, uri, query, body, header, &filtered_block)
+      res = do_request(method, uri, request_query, body, header, &filtered_block)
       res.previous = previous
       if res.redirect?
         if res.header['location'].empty?
@@ -1047,6 +1048,8 @@ private
         end
         method = :get if res.see_other? # See RFC2616 10.3.4
         uri = urify(@redirect_uri_callback.call(uri, res))
+        # To avoid duped query parameter. 'location' must include query part.
+        request_query = nil
         previous = res
         retry_number += 1
       else
