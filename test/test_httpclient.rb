@@ -1311,19 +1311,17 @@ EOS
   def test_cookies
     cookiefile = File.join(File.dirname(File.expand_path(__FILE__)), 'test_cookies_file')
     File.open(cookiefile, "wb") do |f|
-      f << "http://rubyforge.org/account/login.php\tsession_ser\tLjEwMy45Ni40Ni0q%2A-fa0537de8cc31\t2000000000\t.rubyforge.org\t/\t13\n"
+      f << "http://rubyforge.org/account/login.php\tsession_ser\tLjEwMy45Ni40Ni0q%2A-fa0537de8cc31\t2000000000\trubyforge.org\t/account/\t9\n"
     end
     @client.set_cookie_store(cookiefile)
-    cookie = @client.cookie_manager.cookies.first
-    url = cookie.url
-    assert(cookie.domain_match(url.host, cookie.domain))
     #
     @client.reset_all
-    @client.test_loopback_http_response << "HTTP/1.0 200 OK\nSet-Cookie: foo=bar; expires=#{Time.at(1924873200).gmtime.httpdate}\n\nOK"
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\nSet-Cookie: session_ser=bar; expires=#{Time.at(1924873200).gmtime.httpdate}\n\nOK"
     @client.get_content('http://rubyforge.org/account/login.php')
     @client.save_cookie_store
     str = File.read(cookiefile)
-    assert_match(%r(http://rubyforge.org/account/login.php\tfoo\tbar\t1924873200\trubyforge.org\t/account\t1), str)
+    puts str
+    assert_match(%r(http://rubyforge.org/account/login.php\tsession_ser\tbar\t1924873200\trubyforge.org\t/account/\t9), str)
     File.unlink(cookiefile)
   end
 
@@ -1550,6 +1548,7 @@ EOS
     res = HTTP::Message.new_response('response')
     res.contenttype = 'text/plain'
     res.header.body_date = Time.at(946652400)
+    res.header.request_uri = 'http://www.example.com/'
     assert_nil(res.cookies)
     #
     res.header['Set-Cookie'] = [

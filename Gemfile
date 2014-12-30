@@ -5,6 +5,8 @@ platform :rbx do
   gem 'rubinius-developer_tools'
 end
 
+gem 'http-cookie', '~> 1.0'
+
 group :development do
   gem 'rake', :require => false
   gem 'rdoc'
