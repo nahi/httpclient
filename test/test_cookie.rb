@@ -285,17 +285,17 @@ EOF
     @cm.parse("bar=\"2\"; path=/", uri)
     c = @cm.cookies.first
     assert_equal('2', c.value)
-    assert_equal('bar="2"', @cm.find(uri))
+    assert_equal('bar=2', @cm.find(uri))
 
     @cm.parse("bar=; path=/", uri)
     c = @cm.cookies.first
-    assert_equal(nil, c.value)
+    assert_equal('', c.value)
     assert_equal('bar=', @cm.find(uri))
 
     @cm.parse("bar=\"\"; path=/", uri)
     c = @cm.cookies.first
-    assert_equal(nil, c.value)
-    assert_equal('bar=""', @cm.find(uri))
+    assert_equal('', c.value)
+    assert_equal('bar=', @cm.find(uri))
   end
 
   def test_load_cookies_escaped
@@ -311,14 +311,10 @@ EOF
     @cm.cookies_file = f.path
     @cm.load_cookies
     c0, c1, c2 = @cm.cookies
-    assert_equal('value', c0.value)
-    assert_equal(nil, c1.value)
-    assert_equal(nil, c2.value)
-    assert_equal('key="value"', @cm.find(uri))
-    c0.value = ''
-    assert_equal('key=', @cm.find(uri))
-    c0.value = '""'
-    assert_equal('key=""', @cm.find(uri))
+    assert_equal('"value"', c0.value)
+    assert_equal('""', c1.value)
+    assert_equal('', c2.value)
+    assert_equal('key1="\\"value\\""; key2="\\"\\""; key3=', @cm.find(uri))
   end
 
 end
