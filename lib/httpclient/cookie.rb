@@ -57,6 +57,7 @@ class HTTPClient
     end
 
     def find(uri)
+      warn('CookieManager#find is deprecated and will be removed in near future. Use HTTP::Cookie.cookie_value(CookieManager#cookies) instead')
       if cookie = cookies(uri)
         HTTP::Cookie.cookie_value(cookie)
       end
@@ -162,10 +163,7 @@ class WebAgent
   CookieManager = ::HTTPClient::CookieManager
 
   class Cookie < HTTP::Cookie
-    def initialize(*args)
-      super
-      @warned = false
-    end
+    @@warned = false
 
     def url
       deprecated('url', 'origin')
@@ -190,9 +188,9 @@ class WebAgent
   private
 
     def deprecated(old, new)
-      unless @warned
+      unless @@warned
         warn("WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie##{new} instead of Cookie##{old} for the replacement.")
-        @warned = true
+        @@warned = true
       end
     end
   end
