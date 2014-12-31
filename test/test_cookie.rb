@@ -217,7 +217,7 @@ EOF
       File.open("tmp_test2.tmp","r") {|f|
         str2 = f.read()
       }
-      assert_equal(str, str2)
+      assert_equal(str.split.sort, str2.split.sort)
       #
       assert(File.exist?('tmp_test2.tmp'))
       File.unlink("tmp_test2.tmp")
