@@ -1054,7 +1054,7 @@ module HTTP
       unless set_cookies.empty?
         uri = http_header.request_uri
         set_cookies.map { |str|
-          HTTP::Cookie.parse(str, uri)
+          WebAgent::Cookie.parse(str, uri)
         }.flatten
       end
     end

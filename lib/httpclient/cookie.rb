@@ -25,6 +25,20 @@ class HTTPClient
 
     def cookies(uri = nil)
       cookies = @jar.cookies(uri)
+      # TODO: it returns HTTP::Cookie in the future
+      cookies = cookies.map { |cookie|
+        WebAgent::Cookie.new(
+          :name => cookie.name,
+          :value => cookie.value,
+          :domain => cookie.domain,
+          :path => cookie.path,
+          :origin => cookie.origin,
+          :for_domain => cookie.for_domain,
+          :expires => cookie.expires,
+          :httponly => cookie.httponly,
+          :secure => cookie.secure
+        )
+      }
       cookies.empty? ? nil : cookies
     end
 
@@ -49,10 +63,6 @@ class HTTPClient
       end
     end
 
-    def flag(cookie)
-      WebAgentSaver.flag(cookie)
-    end
-
   private
 
     def check_cookies_file
@@ -63,10 +73,12 @@ class HTTPClient
   end
 
   class WebAgentSaver < HTTP::CookieJar::AbstractSaver
+    # no option
     def default_options
-      {} # TODO
+      {}
     end
 
+    # same as HTTP::CookieJar::CookiestxtSaver
     def save(io, jar)
       jar.each { |cookie|
         next if !@session && cookie.session?
@@ -74,6 +86,7 @@ class HTTPClient
       }
     end
 
+    # same as HTTP::CookieJar::CookiestxtSaver
     def load(io, jar)
       io.each_line { |line|
         cookie = parse_record(line) and jar.add(cookie)
@@ -111,11 +124,12 @@ class HTTPClient
       domain = col[4]
       path = col[5]
 
-      cookie = HTTP::Cookie.new(name, value,
+      cookie = WebAgent::Cookie.new(name, value,
         :origin => origin,
         :domain => domain,
         :path => path,
-        :expires => expires)
+        :expires => expires
+      )
       self.class.set_flag(cookie, col[6].to_i)
       cookie
     end
@@ -147,4 +161,40 @@ end
 # for backward compatibility
 class WebAgent
   CookieManager = ::HTTPClient::CookieManager
+
+  class Cookie < HTTP::Cookie
+    def initialize(*args)
+      super
+      @warned = false
+    end
+
+    def url
+      deprecated('url', 'origin')
+      self.origin
+    end
+
+    def url=(url)
+      deprecated('url=', 'origin=')
+      self.origin = url
+    end
+
+    def http_only?
+      deprecated('http_only?', 'httponly?')
+      httponly
+    end
+
+    def flag
+      deprecated('flag', 'secure, for_domain, etc.')
+      HTTPClient::WebAgentSaver.flag(self)
+    end
+
+  private
+
+    def deprecated(old, new)
+      unless @warned
+        warn("WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie##{new} instead of Cookie##{old} for the replacement.")
+        @warned = true
+      end
+    end
+  end
 end

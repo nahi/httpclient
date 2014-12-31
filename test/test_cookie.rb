@@ -9,11 +9,11 @@ class TestCookie < Test::Unit::TestCase
   include HTTPClient::Util
 
   def setup()
-    @c = HTTP::Cookie.new('hoge', 'funi')
+    @c = WebAgent::Cookie.new('hoge', 'funi')
   end
 
   def test_s_new()
-    assert_instance_of(HTTP::Cookie, @c)
+    assert_instance_of(WebAgent::Cookie, @c)
   end
 end
 
@@ -21,7 +21,7 @@ class TestCookieManager < Test::Unit::TestCase
   include HTTPClient::Util
 
   def setup()
-    @cm = HTTPClient::CookieManager.new()
+    @cm = WebAgent::CookieManager.new()
   end
 
   def teardown()
@@ -31,7 +31,7 @@ class TestCookieManager < Test::Unit::TestCase
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=Wed, 01-Dec-2999 00:00:00 GMT; path=/"
     @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
-    assert_instance_of(HTTP::Cookie, cookie)
+    assert_instance_of(WebAgent::Cookie, cookie)
     assert_equal("inkid", cookie.name)
     assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
     assert_equal(Time.gm(2999, 12, 1, 0,0,0), cookie.expires)
@@ -42,7 +42,7 @@ class TestCookieManager < Test::Unit::TestCase
     str = "xmen=off,0,0,1; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str, urify('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
-    assert_instance_of(HTTP::Cookie, cookie)
+    assert_instance_of(WebAgent::Cookie, cookie)
     assert_equal("xmen", cookie.name)
     assert_equal("off,0,0,1", cookie.value)
     assert_equal("/", cookie.path)
@@ -55,7 +55,7 @@ class TestCookieManager < Test::Unit::TestCase
     str = "xmen=off,0,0,1; path=/; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT;Secure;HTTPOnly"
     @cm.parse(str, urify('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
-    assert_instance_of(HTTP::Cookie, cookie)
+    assert_instance_of(WebAgent::Cookie, cookie)
     assert_equal("xmen", cookie.name)
     assert_equal("off,0,0,1", cookie.value)
     assert_equal("/", cookie.path)
@@ -63,14 +63,14 @@ class TestCookieManager < Test::Unit::TestCase
     assert_equal(".excite.co.jp", cookie.dot_domain)
     assert_equal(Time.gm(2037,12,31,12,0,0), cookie.expires)
     assert_equal(true, cookie.secure?)
-    assert_equal(true, cookie.httponly?)
+    assert_equal(true, cookie.http_only?)
   end
   
   def test_parse_double_semicolon()
     str = "xmen=off,0,0,1;; path=\"/;;\"; domain=.excite.co.jp; expires=Wednesday, 31-Dec-2037 12:00:00 GMT"
     @cm.parse(str, urify('http://www.excite.co.jp'))
     cookie = @cm.cookies[0]
-    assert_instance_of(HTTP::Cookie, cookie)
+    assert_instance_of(WebAgent::Cookie, cookie)
     assert_equal("xmen", cookie.name)
     assert_equal("off,0,0,1", cookie.value)
     assert_equal("/;;", cookie.path)
@@ -86,17 +86,21 @@ class TestCookieManager < Test::Unit::TestCase
 #  end
 
   def test_check_expired_cookies()
-    c1 = HTTP::Cookie.new('hoge', 'funi', :domain => 'http://www.example.com/', :path => '/')
-    c2 = c1.dup
-    c3 = c1.dup
-    c4 = c1.dup
-    c1.expires = Time.now.gmtime - 100
-    c2.expires = Time.now.gmtime + 100
-    c3.expires = Time.now.gmtime - 10
+    format = "%a, %d-%b-%Y %H:%M:%S GMT"
+    c1 = WebAgent::Cookie.new('hoge1', 'funi', :domain => 'http://www.example.com/', :path => '/')
+    c2 = WebAgent::Cookie.new('hoge2', 'funi', :domain => 'http://www.example.com/', :path => '/')
+    c3 = WebAgent::Cookie.new('hoge3', 'funi', :domain => 'http://www.example.com/', :path => '/')
+    c4 = WebAgent::Cookie.new('hoge4', 'funi', :domain => 'http://www.example.com/', :path => '/')
+    c1.expires = (Time.now - 100).gmtime.strftime(format)
+    c2.expires = (Time.now + 100).gmtime.strftime(format)
+    c3.expires = (Time.now - 10).gmtime.strftime(format)
     c4.expires = nil
     cookies = [c1,c2,c3,c4]
     @cm.cookies = cookies
-    assert_equal([c2], @cm.cookies)
+    assert_equal(c2.name, @cm.cookies[0].name)
+    assert_equal(c2.expires, @cm.cookies[0].expires)
+    assert_equal(c4.name, @cm.cookies[1].name)
+    assert_equal(c4.expires, @cm.cookies[1].expires)
   end
 
   def test_parse_expires
@@ -129,7 +133,7 @@ class TestCookieManager < Test::Unit::TestCase
     str = "inkid=n92b0ADOgACIgUb9lsjHqAAAHu2a; expires=Wed, 01-Dec-2999 00:00:00 GMT; path=/"
     @cm.parse(str, urify('http://www.test.jp'))
     cookie = @cm.cookies[0]
-    assert_instance_of(HTTP::Cookie, cookie)
+    assert_instance_of(WebAgent::Cookie, cookie)
     assert_equal("inkid", cookie.name)
     assert_equal("n92b0ADOgACIgUb9lsjHqAAAHu2a", cookie.value)
     assert_equal(Time.gm(2999, 12, 1, 0,0,0), cookie.expires)
@@ -172,22 +176,22 @@ EOF
       @cm.cookies_file = 'tmp_test.tmp'
       @cm.load_cookies()
       c0, c1, c2 = @cm.cookies
-      assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c0.origin.to_s)
+      assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c0.url.to_s)
       assert_equal('NGUserID', c0.name)
       assert_equal('d29b8f49-10875-992421294-1', c0.value)
       assert_equal(Time.at(2145801600), c0.expires)
       assert_equal('www.zdnet.co.jp', c0.domain)
       assert_equal('/', c0.path)
-      assert_equal(9, @cm.flag(c0))
+      assert_equal(9, c0.flag)
       #
-      assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c1.origin.to_s)
+      assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c1.url.to_s)
       assert_equal('PACK', c1.name)
       assert_equal('zd3-992421294-7436', c1.value)
       assert_equal(Time.at(2293839999), c1.expires)
       assert_equal('zdnet.co.jp', c1.domain)
       assert_equal('.zdnet.co.jp', c1.dot_domain)
       assert_equal('/', c1.path)
-      assert_equal(13, @cm.flag(c1))
+      assert_equal(13, c1.flag)
       #
       assert_equal(nil, c2.expires)
     ensure
@@ -245,8 +249,8 @@ EOF
   end
 
   def test_add()
-    c = HTTP::Cookie.new('hoge', 'funi')
-    c.origin = urify("http://www.inac.co.jp/hoge")
+    c = WebAgent::Cookie.new('hoge', 'funi')
+    c.url = urify("http://www.inac.co.jp/hoge")
     @cm.add(c)
     c = @cm.cookies[0]
     assert_equal('hoge', c.name)
@@ -255,14 +259,14 @@ EOF
   end
 
   def test_add2()
-    c = HTTP::Cookie.new('hoge', 'funi')
+    c = WebAgent::Cookie.new('hoge', 'funi')
     c.path = ''
-    c.origin = urify("http://www.inac.co.jp/hoge/hoge2/hoge3")
+    c.url = urify("http://www.inac.co.jp/hoge/hoge2/hoge3")
     @cm.add(c)
     #
-    c = HTTP::Cookie.new('hoge', 'funi')
+    c = WebAgent::Cookie.new('hoge', 'funi')
     #c.path = '' NO path given -> same as URL
-    c.origin = urify("http://www.inac.co.jp/hoge/hoge2/hoge3")
+    c.url = urify("http://www.inac.co.jp/hoge/hoge2/hoge3")
     @cm.add(c)
     #
     c1, c2 = @cm.cookies

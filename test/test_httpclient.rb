@@ -1320,7 +1320,6 @@ EOS
     @client.get_content('http://rubyforge.org/account/login.php')
     @client.save_cookie_store
     str = File.read(cookiefile)
-    puts str
     assert_match(%r(http://rubyforge.org/account/login.php\tsession_ser\tbar\t1924873200\trubyforge.org\t/account/\t9), str)
     File.unlink(cookiefile)
   end
