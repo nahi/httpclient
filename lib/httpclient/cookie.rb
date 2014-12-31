@@ -25,8 +25,8 @@ class HTTPClient
 
     def cookies(uri = nil)
       cookies = @jar.cookies(uri)
-      # TODO: it returns HTTP::Cookie in the future
-      cookies = cookies.map { |cookie|
+      # TODO: return HTTP::Cookie in the future
+      cookies.map { |cookie|
         WebAgent::Cookie.new(
           :name => cookie.name,
           :value => cookie.value,
@@ -39,7 +39,6 @@ class HTTPClient
           :secure => cookie.secure
         )
       }
-      cookies.empty? ? nil : cookies
     end
 
     def parse(value, uri)

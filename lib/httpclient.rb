@@ -1116,8 +1116,11 @@ private
     header.each do |key, value|
       req.header.add(key.to_s, value)
     end
-    if @cookie_manager && cookie = @cookie_manager.cookies(uri)
-      req.header.add('Cookie', HTTP::Cookie.cookie_value(cookie))
+    if @cookie_manager
+      cookies = @cookie_manager.cookies(uri)
+      unless cookies.empty?
+        req.header.add('Cookie', HTTP::Cookie.cookie_value(cookies))
+      end
     end
     req
   end
