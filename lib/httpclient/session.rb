@@ -839,7 +839,7 @@ class HTTPClient
         filter.filter_response(req, res)
       }
       if commands.find { |command| command == :retry }
-        raise RetryableResponse.new
+        raise RetryableResponse.new(res)
       end
       unless @status == 200
         raise BadResponseError.new("connect to ssl proxy failed with status #{@status} #{@reason}", res)
