@@ -39,7 +39,7 @@ module HTTPAccess2
   Site = ::HTTPClient::Site
   Connection = ::HTTPClient::Connection
   SessionManager = ::HTTPClient::SessionManager
-  SSLSocketWrap = ::HTTPClient::SSLSocketWrap
+  SSLSocketWrap = ::HTTPClient::SSLSocket
   DebugSocket = ::HTTPClient::DebugSocket
 
   class Session < ::HTTPClient::Session
