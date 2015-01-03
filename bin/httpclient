@@ -22,7 +22,7 @@ if method && url
     client.debug_dev = STDERR
     $DEBUG = true
     require 'pp'
-    pp client.send(*ARGV)
+    pp client.send(method, url, *ARGV)
   end
   exit
 end
