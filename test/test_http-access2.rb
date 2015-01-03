@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 require 'http-access2'
 require File.expand_path('helper', File.dirname(__FILE__))
+require 'tempfile'
 
 
 module HTTPAccess2
@@ -356,13 +357,12 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_cookies
-    cookiefile = File.join(File.dirname(File.expand_path(__FILE__)),
-      'test_cookies_file')
+    cookiefile = Tempfile.new('test_cookies_file')
     # from [ruby-talk:164079]
-    File.open(cookiefile, "wb") do |f|
+    File.open(cookiefile.path, "wb") do |f|
       f << "http://rubyforge.org//account/login.php	session_ser	LjEwMy45Ni40Ni0q%2A-fa0537de8cc31	2131676286	.rubyforge.org	/	13\n"
     end
-    cm = WebAgent::CookieManager::new(cookiefile)
+    cm = WebAgent::CookieManager::new(cookiefile.path)
     cm.load_cookies
     assert_equal(1, cm.cookies.size)
   end

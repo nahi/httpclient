@@ -163,40 +163,37 @@ class TestCookieManager < Test::Unit::TestCase
   end
 
   def test_load_cookies()
-    begin
-      File.open("tmp_test.tmp","w") {|f|
-    f.write <<EOF
+    cookiefile = Tempfile.new('test_cookie')
+    File.open(cookiefile.path, 'w') do |f|
+      f.write <<EOF
 http://www.zdnet.co.jp/news/0106/08/e_gibson.html	NGUserID	d29b8f49-10875-992421294-1	2145801600	www.zdnet.co.jp	/	9	0			
 http://www.zdnet.co.jp/news/0106/08/e_gibson.html	PACK	zd3-992421294-7436	2293839999	.zdnet.co.jp	/	13	0			
 http://example.org/	key	value	0	.example.org	/	13	0			
 http://example.org/	key	value		.example.org	/	13	0			
 EOF
-      }
-
-      @cm.cookies_file = 'tmp_test.tmp'
-      @cm.load_cookies()
-      c0, c1, c2 = @cm.cookies
-      assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c0.url.to_s)
-      assert_equal('NGUserID', c0.name)
-      assert_equal('d29b8f49-10875-992421294-1', c0.value)
-      assert_equal(Time.at(2145801600), c0.expires)
-      assert_equal('www.zdnet.co.jp', c0.domain)
-      assert_equal('/', c0.path)
-      assert_equal(9, c0.flag)
-      #
-      assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c1.url.to_s)
-      assert_equal('PACK', c1.name)
-      assert_equal('zd3-992421294-7436', c1.value)
-      assert_equal(Time.at(2293839999), c1.expires)
-      assert_equal('zdnet.co.jp', c1.domain)
-      assert_equal('.zdnet.co.jp', c1.dot_domain)
-      assert_equal('/', c1.path)
-      assert_equal(13, c1.flag)
-      #
-      assert_equal(nil, c2.expires)
-    ensure
-      File.unlink("tmp_test.tmp")
     end
+
+    @cm.cookies_file = cookiefile.path
+    @cm.load_cookies()
+    c0, c1, c2 = @cm.cookies
+    assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c0.url.to_s)
+    assert_equal('NGUserID', c0.name)
+    assert_equal('d29b8f49-10875-992421294-1', c0.value)
+    assert_equal(Time.at(2145801600), c0.expires)
+    assert_equal('www.zdnet.co.jp', c0.domain)
+    assert_equal('/', c0.path)
+    assert_equal(9, c0.flag)
+    #
+    assert_equal('http://www.zdnet.co.jp/news/0106/08/e_gibson.html', c1.url.to_s)
+    assert_equal('PACK', c1.name)
+    assert_equal('zd3-992421294-7436', c1.value)
+    assert_equal(Time.at(2293839999), c1.expires)
+    assert_equal('zdnet.co.jp', c1.domain)
+    assert_equal('.zdnet.co.jp', c1.dot_domain)
+    assert_equal('/', c1.path)
+    assert_equal(13, c1.flag)
+    #
+    assert_equal(nil, c2.expires)
   end
 
   def test_save_cookie()
@@ -204,48 +201,40 @@ EOF
 http://www.zdnet.co.jp/news/0106/08/e_gibson.html	NGUserID	d29b8f49-10875-992421294-1	2145801600	www.zdnet.co.jp	/	9
 http://www.zdnet.co.jp/news/0106/08/e_gibson.html	PACK	zd3-992421294-7436	2145801600	.zdnet.co.jp	/	13
 EOF
-    begin
-      File.open("tmp_test.tmp","w") {|f|
-        f.write str
-      }
-      @cm.cookies_file = 'tmp_test.tmp'
-      @cm.load_cookies()
-      @cm.instance_eval{@is_saved = false}
-      @cm.cookies_file = 'tmp_test2.tmp'
-      @cm.save_cookies()
-      str2 = ''
-      File.open("tmp_test2.tmp","r") {|f|
-        str2 = f.read()
-      }
-      assert_equal(str.split.sort, str2.split.sort)
-      #
-      assert(File.exist?('tmp_test2.tmp'))
-      File.unlink("tmp_test2.tmp")
-      @cm.save_cookies()
-      assert(File.exist?('tmp_test2.tmp'))
-    ensure
-      File.unlink("tmp_test.tmp")
-      if FileTest.exist?("tmp_test2.tmp")
-        File.unlink("tmp_test2.tmp")
-      end
+    cookiefile = Tempfile.new('test_cookie')
+    cookiefile2 = Tempfile.new('test_cookie2')
+    File.open(cookiefile.path, 'w') do |f|
+      f.write str
     end
+
+    @cm.cookies_file = cookiefile.path
+    @cm.load_cookies()
+    @cm.instance_eval{@is_saved = false}
+    @cm.cookies_file = cookiefile2.path
+    @cm.save_cookies()
+    str2 = ''
+    File.open(cookiefile2.path, 'r') do |f|
+      str2 = f.read
+    end
+    assert_equal(str.split.sort, str2.split.sort)
+    assert(File.exist?(cookiefile2.path))
+    File.unlink(cookiefile2.path)
+    @cm.save_cookies()
+    assert(File.exist?(cookiefile2.path))
   end
 
   def test_not_saved_expired_cookies
-    begin
-      @cm.cookies_file = 'tmp_test.tmp'
-      uri = urify('http://www.example.org')
-      @cm.parse("foo=1; path=/", uri)
-      @cm.parse("bar=2; path=/; expires=", uri)
-      @cm.parse("baz=3; path=/; expires=\"\"", uri)
-      @cm.parse("qux=4; path=/; expires=#{(Time.now.gmtime + 10).asctime}", uri)
-      @cm.parse("quxx=5; path=/; expires=#{(Time.now.gmtime - 10).asctime}", uri)
-      @cm.save_cookies
-      @cm.load_cookies
-      assert_equal(1, @cm.cookies.size) # +10 cookies only
-    ensure
-      File.unlink("tmp_test.tmp") if File.exist?("tmp_test.tmp")
-    end
+    cookiefile = Tempfile.new('test_cookie')
+    @cm.cookies_file = cookiefile.path
+    uri = urify('http://www.example.org')
+    @cm.parse("foo=1; path=/", uri)
+    @cm.parse("bar=2; path=/; expires=", uri)
+    @cm.parse("baz=3; path=/; expires=\"\"", uri)
+    @cm.parse("qux=4; path=/; expires=#{(Time.now.gmtime + 10).asctime}", uri)
+    @cm.parse("quxx=5; path=/; expires=#{(Time.now.gmtime - 10).asctime}", uri)
+    @cm.save_cookies
+    @cm.load_cookies
+    assert_equal(1, @cm.cookies.size) # +10 cookies only
   end
 
   def test_add()

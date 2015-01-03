@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 require File.expand_path('helper', File.dirname(__FILE__))
+require 'tempfile'
 
 
 class TestHTTPClient < Test::Unit::TestCase
@@ -1309,19 +1310,18 @@ EOS
   end
 
   def test_cookies
-    cookiefile = File.join(File.dirname(File.expand_path(__FILE__)), 'test_cookies_file')
-    File.open(cookiefile, "wb") do |f|
+    cookiefile = Tempfile.new('test_cookies_file')
+    File.open(cookiefile.path, "wb") do |f|
       f << "http://rubyforge.org/account/login.php\tsession_ser\tLjEwMy45Ni40Ni0q%2A-fa0537de8cc31\t2000000000\trubyforge.org\t/account/\t9\n"
     end
-    @client.set_cookie_store(cookiefile)
+    @client.set_cookie_store(cookiefile.path)
     #
     @client.reset_all
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\nSet-Cookie: session_ser=bar; expires=#{Time.at(1924873200).gmtime.httpdate}\n\nOK"
     @client.get_content('http://rubyforge.org/account/login.php')
     @client.save_cookie_store
-    str = File.read(cookiefile)
+    str = File.read(cookiefile.path)
     assert_match(%r(http://rubyforge.org/account/login.php\tsession_ser\tbar\t1924873200\trubyforge.org\t/account/\t9), str)
-    File.unlink(cookiefile)
   end
 
   def test_eof_error_length
