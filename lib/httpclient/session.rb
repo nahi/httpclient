@@ -308,20 +308,20 @@ class HTTPClient
       @socket.eof?
     end
 
-    def gets(*args)
-      @socket.gets(*args)
+    def gets(rs)
+      @socket.gets(rs)
     end
 
-    def read(*args)
-      @socket.read(*args)
+    def read(size, buf = nil)
+      @socket.read(size, buf)
     end
 
-    def readpartial(*args)
+    def readpartial(size, buf = nil)
       # StringIO doesn't support :readpartial
       if @socket.respond_to?(:readpartial)
-        @socket.readpartial(*args)
+        @socket.readpartial(size, buf)
       else
-        @socket.read(*args)
+        @socket.read(size, buf)
       end
     end
 
@@ -357,19 +357,19 @@ class HTTPClient
       debug("! CONNECTION CLOSED\n")
     end
 
-    def gets(*args)
+    def gets(rs)
       str = super
       debug(str)
       str
     end
 
-    def read(*args)
+    def read(size, buf = nil)
       str = super
       debug(str)
       str
     end
 
-    def readpartial(*args)
+    def readpartial(size, buf = nil)
       str = super
       debug(str)
       str
@@ -408,6 +408,10 @@ class HTTPClient
 
     def <<(str)
       # ignored
+    end
+
+    def peer_cert
+      nil
     end
   end
 
@@ -579,6 +583,71 @@ class HTTPClient
       nil
     end
 
+    def create_socket(host, port)
+      socket = nil
+      begin
+        @debug_dev << "! CONNECT TO #{host}:#{port}\n" if @debug_dev
+        clean_host = host.delete("[]")
+        if @socket_local == Site::EMPTY
+          socket = TCPSocket.new(clean_host, port)
+        else
+          clean_local = @socket_local.host.delete("[]")
+          socket = TCPSocket.new(clean_host, port, clean_local, @socket_local.port)
+        end
+        if @debug_dev
+          @debug_dev << "! CONNECTION ESTABLISHED\n"
+          socket.extend(DebugSocket)
+          socket.debug_dev = @debug_dev
+        end
+      rescue SystemCallError => e
+        e.message << " (#{host}:#{port})"
+        raise
+      rescue SocketError => e
+        e.message << " (#{host}:#{port})"
+        raise
+      end
+      socket
+    end
+
+    def create_loopback_socket(host, port, str)
+      @debug_dev << "! CONNECT TO #{host}:#{port}\n" if @debug_dev
+      socket = LoopBackSocket.new(host, port, str)
+      if @debug_dev
+        @debug_dev << "! CONNECTION ESTABLISHED\n"
+        socket.extend(DebugSocket)
+        socket.debug_dev = @debug_dev
+      end
+      if https?(@dest) && @proxy
+        connect_ssl_proxy(socket, Util.urify(@dest.to_s))
+      end
+      socket
+    end
+
+    def connect_ssl_proxy(socket, uri)
+      req = HTTP::Message.new_connect_request(uri)
+      @client.request_filter.each do |filter|
+        filter.filter_request(req)
+      end
+      set_header(req)
+      req.dump(socket)
+      socket.flush unless @socket_sync
+      res = HTTP::Message.new_response('')
+      parse_header(socket)
+      res.http_version, res.status, res.reason = @version, @status, @reason
+      @headers.each do |key, value|
+        res.header.set(key.to_s, value)
+      end
+      commands = @client.request_filter.collect { |filter|
+        filter.filter_response(req, res)
+      }
+      if commands.find { |command| command == :retry }
+        raise RetryableResponse.new(res)
+      end
+      unless @status == 200
+        raise BadResponseError.new("connect to ssl proxy failed with status #{@status} #{@reason}", res)
+      end
+    end
+
   private
 
     # This inflater allows deflate compression with/without zlib header
@@ -659,29 +728,14 @@ class HTTPClient
       retry_number = 0
       begin
         timeout(@connect_timeout, ConnectTimeoutError) do
-          @socket = create_socket(site)
-          if https?(@dest)
-            if @socket.is_a?(LoopBackSocket)
-              connect_ssl_proxy(@socket, urify(@dest.to_s)) if @proxy
-            else
-              @socket = create_ssl_socket(@socket)
-              connect_ssl_proxy(@socket, urify(@dest.to_s)) if @proxy
-              begin
-                @socket.ssl_connect(@dest.host)
-              ensure
-                if $DEBUG
-                  warn("Protocol version: #{@socket.ssl_version}")
-                  warn("Cipher: #{@socket.ssl_cipher.inspect}")
-                  warn("State: #{@socket.ssl_state}")
-                end
-              end
-              @socket.post_connection_check(@dest)
-              @ssl_peer_cert = @socket.peer_cert
-            end
+          if str = @test_loopback_http_response.shift
+            @socket = create_loopback_socket(site.host, site.port, str)
+          elsif https?(@dest)
+            @socket = SSLSocket.create_socket(self)
+            @ssl_peer_cert = @socket.peer_cert
+          else
+            @socket = create_socket(site.host, site.port)
           end
-          # Use Ruby internal buffering instead of passing data immediately
-          # to the underlying layer
-          # => we need to to call explicitly flush on the socket
           @socket.sync = @socket_sync
         end
       rescue RetryableResponse
@@ -703,70 +757,13 @@ class HTTPClient
       @state = :WAIT
     end
 
-    def create_socket(site)
-      socket = nil
-      begin
-        @debug_dev << "! CONNECT TO #{site.host}:#{site.port}\n" if @debug_dev
-        clean_host = site.host.delete("[]")
-        if str = @test_loopback_http_response.shift
-          socket = LoopBackSocket.new(clean_host, site.port, str)
-        elsif @socket_local == Site::EMPTY
-          socket = TCPSocket.new(clean_host, site.port)
-        else
-          clean_local = @socket_local.host.delete("[]")
-          socket = TCPSocket.new(clean_host, site.port, clean_local, @socket_local.port)
-        end
-        if @debug_dev
-          @debug_dev << "! CONNECTION ESTABLISHED\n"
-          socket.extend(DebugSocket)
-          socket.debug_dev = @debug_dev
-        end
-      rescue SystemCallError => e
-        e.message << " (#{site})"
-        raise
-      rescue SocketError => e
-        e.message << " (#{site})"
-        raise
-      end
-      socket
-    end
-
-    def create_ssl_socket(raw_socket)
-      HTTPClient::SSLSocket.new(raw_socket, @ssl_config, @debug_dev)
-    end
-
-    def connect_ssl_proxy(socket, uri)
-      req = HTTP::Message.new_connect_request(uri)
-      @client.request_filter.each do |filter|
-        filter.filter_request(req)
-      end
-      set_header(req)
-      req.dump(@socket)
-      @socket.flush unless @socket_sync
-      res = HTTP::Message.new_response('')
-      parse_header
-      res.http_version, res.status, res.reason = @version, @status, @reason
-      @headers.each do |key, value|
-        res.header.set(key.to_s, value)
-      end
-      commands = @client.request_filter.collect { |filter|
-        filter.filter_response(req, res)
-      }
-      if commands.find { |command| command == :retry }
-        raise RetryableResponse.new(res)
-      end
-      unless @status == 200
-        raise BadResponseError.new("connect to ssl proxy failed with status #{@status} #{@reason}", res)
-      end
-    end
-
     # Read status block.
     def read_header
       @content_length = nil
       @chunked = false
       @content_encoding = nil
       @chunk_length = 0
-      parse_header
+      parse_header(@socket)
       # Header of the request has been parsed.
       @state = :DATA
       req = @requests.shift
@@ -782,12 +779,12 @@ class HTTPClient
     end
 
     StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d\d\d)\s*([^\r\n]+)?\r?\n\z)
-    def parse_header
+    def parse_header(socket)
       timeout(@receive_timeout, ReceiveTimeoutError) do
         initial_line = nil
         begin
           begin
-            initial_line = @socket.gets("\n")
+            initial_line = socket.gets("\n")
             if initial_line.nil?
               close
               raise KeepAliveDisconnected.new(self)
@@ -810,7 +807,7 @@ class HTTPClient
           @next_connection = HTTP::Message.keep_alive_enabled?(@version)
           @headers = []
           while true
-            line = @socket.gets("\n")
+            line = socket.gets("\n")
             unless line
               raise BadResponseError.new('unexpected EOF')
             end

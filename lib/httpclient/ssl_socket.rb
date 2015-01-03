@@ -13,12 +13,28 @@ class HTTPClient
 
   # Wraps up OpenSSL::SSL::SSLSocket and offers debugging features.
   class SSLSocket
+    def self.create_socket(session)
+      site = session.proxy || session.dest
+      socket = session.create_socket(site.host, site.port)
+      begin
+        if session.proxy
+          session.connect_ssl_proxy(socket, Util.urify(session.dest.to_s))
+        end
+        ssl_socket = new(socket, session.ssl_config, session.debug_dev)
+        ssl_socket.ssl_connect(session.dest.host)
+        ssl_socket
+      rescue
+        socket.close
+        raise
+      end
+    end
+
     def initialize(socket, context, debug_dev = nil)
       unless SSLEnabled
         raise ConfigurationError.new('Ruby/OpenSSL module is required')
       end
-      @context = context
       @socket = socket
+      @context = context
       @ssl_socket = create_openssl_socket(@socket)
       @debug_dev = debug_dev
     end
@@ -28,34 +44,14 @@ class HTTPClient
         @ssl_socket.hostname = hostname
       end
       @ssl_socket.connect
-    end
-
-    def post_connection_check(host)
-      verify_mode = @context.verify_mode || OpenSSL::SSL::VERIFY_NONE
-      if verify_mode == OpenSSL::SSL::VERIFY_NONE
-        return
-      elsif @ssl_socket.peer_cert.nil? and
-        check_mask(verify_mode, OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT)
-        raise OpenSSL::SSL::SSLError.new('no peer cert')
+      if $DEBUG
+        if @ssl_socket.respond_to?(:ssl_version)
+          warn("Protocol version: #{@ssl_socket.ssl_version}")
+        end
+        warn("Cipher: #{@ssl_socket.cipher.inspect}")
+        warn("State: #{@ssl_socket.state}")
       end
-      hostname = host.host
-      if @ssl_socket.respond_to?(:post_connection_check) and RUBY_VERSION > "1.8.4"
-        @ssl_socket.post_connection_check(hostname)
-      else
-        @context.post_connection_check(@ssl_socket.peer_cert, hostname)
-      end
-    end
-
-    def ssl_version
-      @ssl_socket.ssl_version if @ssl_socket.respond_to?(:ssl_version)
-    end
-
-    def ssl_cipher
-      @ssl_socket.cipher
-    end
-
-    def ssl_state
-      @ssl_socket.state
+      post_connection_check(hostname)
     end
 
     def peer_cert
@@ -75,20 +71,20 @@ class HTTPClient
       @ssl_socket.eof?
     end
 
-    def gets(*args)
-      str = @ssl_socket.gets(*args)
+    def gets(rs)
+      str = @ssl_socket.gets(rs)
       debug(str)
       str
     end
 
-    def read(*args)
-      str = @ssl_socket.read(*args)
+    def read(size, buf = nil)
+      str = @ssl_socket.read(size, buf)
       debug(str)
       str
     end
 
-    def readpartial(*args)
-      str = @ssl_socket.readpartial(*args)
+    def readpartial(size, buf = nil)
+      str = @ssl_socket.readpartial(size, buf)
       debug(str)
       str
     end
@@ -113,6 +109,21 @@ class HTTPClient
 
   private
 
+    def post_connection_check(hostname)
+      verify_mode = @context.verify_mode || OpenSSL::SSL::VERIFY_NONE
+      if verify_mode == OpenSSL::SSL::VERIFY_NONE
+        return
+      elsif @ssl_socket.peer_cert.nil? and
+        check_mask(verify_mode, OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT)
+        raise OpenSSL::SSL::SSLError.new('no peer cert')
+      end
+      if @ssl_socket.respond_to?(:post_connection_check) and RUBY_VERSION > "1.8.4"
+        @ssl_socket.post_connection_check(hostname)
+      else
+        @context.post_connection_check(@ssl_socket.peer_cert, hostname)
+      end
+    end
+
     def check_mask(value, mask)
       value & mask == mask
     end
@@ -134,6 +145,5 @@ class HTTPClient
       @debug_dev << str if @debug_dev && str
     end
   end
-
 
 end
