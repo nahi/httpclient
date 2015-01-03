@@ -1,5 +1,136 @@
 ## Changes
 
+### Changes in 2.6.0
+
+This release includes internal CookieManager implementation change. It
+involves compatibility layer but for the case your library depends on internal
+implementation it also provides a way to restore the implementation. See below
+for more details.
+
+ * Changes
+
+   * feat: use http-cookie if available for better Cookies spec compliance.
+
+     Instead of WebAgent 0.6.2 that is not maintained over 10 years. To omit
+     maintaining that library use http-cookie for better spec compliance and
+     healthy development.
+
+     This introduces following incompatibility from existing cookies
+     implementation.
+
+     * Expired cookies are not saved. With the old implementation expired
+       cookies are saved in file and not be sent to the server. With the new
+       implementation the expired cookies are not saved to the file and not
+       be sent to the server.
+     * Cookie#domain returns dot-less domain for domain cookies. Instead,
+       Cookie#dot_domain returns with dot.
+
+     http-cookie is used by default if available but you can restore original
+     CookieManager behavior by loading 'httpclient/webagent-cookie' feature
+     before 'httpclient' like this;
+
+     ```ruby
+     require 'httpclient/webagent-cookie'
+     require 'httpclient'
+     ```
+
+     The new implementation dumps warnings to help you migrate to http-cookie.
+     Please follow the suggestion to avoid future compatibility.
+
+     ```ruby
+     e.g.
+      WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie#origin= instead of Cookie#url= for the replacement.
+      Cookie#domain returns dot-less domain name now. Use Cookie#dot_domain if you need "." at the beginning.
+      CookieManager#find is deprecated and will be removed in near future. Use HTTP::Cookie.cookie_value(CookieManager#cookies) instead
+     ```
+
+   * feat: Message#previous to get responses in negotiation
+
+     HTTP::Message#previous keeps previous response in negotiation.  For
+     redirection, authorization negotiation and retry from custom filter.
+     Closes #234.
+
+   * feat: Add JSONClient
+
+     JSONClient auto-converts Hash <-> JSON in request and response.
+     * For POST or PUT request, convert Hash body to JSON String with
+       'application/json; charset=utf-8' header.
+     * For response, convert JSON String to Hash when content-type is
+       '(application|text)/(x-)?json'
+
+     This commit include bin/jsonclient that works as same as bin/httpclient
+     not with HTTPClient but with JSONClient.
+
+   * feat: Add download command
+
+     ```
+     % httpclient download http://host/path > file
+     ```
+
+ * Bug fixes
+
+   * fix: duplicated query params by follow_redirect
+
+     When the original request has query and the server returns redirection
+     response with Location, HTTPClient wrongly adds query to the new URI. In
+     such case the Location header could include query part;
+
+     ```
+     e.g.
+      http://originalhost/api/call?limit=10
+      -> Location: http://otherhost/api/call?limit=10
+     ```
+
+     HTTPClient should just hit the new location '/api/call?limit=10' not
+     '/api/call?limit=10&limit=10'. Closes #236.
+
+   * fix: NTLM & Basic dual auth
+
+     When a server returns two or more WWW-Authenticate headers and the first
+     one is NTLM, say WWW-Authenticate: NTLM and WWW-Authenticate: Basic in
+     this order, HTTPClient sent Basic Authorization header after finishing
+     NTLM auth negotiation.
+
+     NTLM auth is a connection authentication scheme so HTTPClient deleted
+     the internal auth negotiation state so that NTLM authenticator does not
+     do anything after the negotiation has completed. In such case, for the
+     subsequent requests, NTLM authenticator does nothing but Basic
+     authenticator sends Basic Authorization header to the server that is
+     already negotiated via NTLM authenticator. This can cause authentication
+     failure.
+
+     This commit changes the internal state handling not to delete the state
+     but introduce :done state. NTLM authenticator returns :skip for the
+     request to the server that auth negotiation has completed. WWWAuth skips
+     other authenticator to avoid above issue.  Closes #157.
+
+   * fix: transplant IO positions to new request in negotiation
+
+     In authorization negotiation HTTP::Message for request is generated for
+     each request, of course, but HTTPClient did not care the IO position
+     recorded in the previous requests in the subsequent requests.  Closes #130.
+
+   * fix: avoid inconsistent Content-Length and actual body
+
+     If lengths of all posted arguments are known HTTPClient sends
+     'Content-Length' as a sum length of all arguments. But the length of
+     actual body was wrong because it read as much as possible regardless of
+     what IO#size returned. So if the file is getting bigger while HTTPClient
+     is processing a request the request has inconsistent Content-Length and
+     body.
+
+     This bug is found, and the fix is proposed both by @Teshootub7. Thank
+     you very much for patient trouble shooting!  Fixes #117.
+
+   * fix: KeepAliveDisconnected race condition
+
+     As details explained in #84, current HTTPClient's KeepAliveDisconnected
+     handling has a race condition bug that allows a client to have
+     invalidated connection two or more times. This could be a cause of #185.
+
+     To avoid this, make HTTPClient acquire new connection for retry of
+     KeepAliveDisconnected.  Closes #84. Closes #185.
+
 ### Changes in 2.5.3
 
 This release includes behavior changes of POST and PUT requests that has
@@ -10,7 +141,7 @@ nil as a body. See changes below. Emtpty String as a body is not affected.
    * Update cacert. "Certificate data from Mozilla as of: Tue Oct 28 22:03:58 2014"
      -> Reverted in 2.5.3.3 because it caused unexpected SSLError. See
      https://github.com/nahi/httpclient/issues/230
- 
+
    * Allow no content POST and PUT.
      Previously POST or PUT with :body => nil meant that 'POST or PUT with 0
      length entity body'. But sometimes you need to POST or PUT actually no
@@ -195,7 +326,7 @@ February 24, 2013 - version 2.3.3
 January 5, 2013 - version 2.3.2
 
 ```
-  * Changes 
+  * Changes
 
     * #138 Revert Timeout change unintentionally included in v2.3.1.  It's
       reported that the change causes background processes not terminated
@@ -306,7 +437,7 @@ August 14, 2012 - version 2.2.6
 
 ```
     * Bug fixes
-    
+
       * Added Magic encoding comment to hexdump.rb to avoid encoding error.
       * Add workaround for JRuby issue on Windows (JRUBY-6136)
         On Windows, calling File#size fails with an Unknown error (20047).
@@ -341,7 +472,7 @@ August 14, 2012 - version 2.2.6
 
       Bugs are reported by Seamus Abshere. Thanks!
 ```
-  
+
 ### Changes in 2.2.3
 
   Oct 28, 2011 - version 2.2.3
@@ -351,7 +482,7 @@ August 14, 2012 - version 2.2.6
 
       * Ruby 1.8.6 support.  It's broken from 2.2.0.
 ```
-  
+
 ### Changes in 2.2.2
 
   Oct 17, 2011 - version 2.2.2
@@ -373,7 +504,7 @@ August 14, 2012 - version 2.2.6
         not in LRU.  MRU is more server friendly than LRU because it reduces
         number of cached sessions when a number of requests drops after an
         usaage spike.
-    
+
         With reusing sessions in LRU order, all sessions are equally checked if
         it's closed or not, as far as there's a request to the same site.  With
         reusing sessions in MRU order, old cold sessions are kept in cache long
@@ -381,7 +512,7 @@ August 14, 2012 - version 2.2.6
         this version adds keep_alive_timeout property and let SessionManager
         scrub all sessions with checking the timeout for each session.  When the
         session expires against the last used time, it's closed and collected.
-    
+
         keep_alive_timeout is 15[sec] by default. The value is from the default
         value for KeepAliveTimeout of Apache httpd 2.  #68 #69
 ```
@@ -395,18 +526,18 @@ August 14, 2012 - version 2.2.6
 
       * For Lighttpd + PUT/POST support, do not send a request using chunked
         encoding when IO respond to :size, File for example.
-    
+
         - There is no need to send query with Transfer-Encoding: chuncked when
           IO respond to :size.
         - Lighttpd does not support PUT, POST with Transfer-Encoding: chuncked.
           You will see that the lighty respond with 200 OK, but there is a file
           whose size is zero.
-    
+
         LIMITATION:
           timeout occurs certainly when you send very large file and
           @send_timeout is default since HTTPClient::Session#query() assumes
           that *all* write are finished in @send_timeout sec not each write.
-    
+
         WORKAROUND:
           increment @send_timeout and @receive_timeout or set @send_timeout and
           @receive_timeout to 0 not to be timeout.
@@ -424,7 +555,7 @@ August 14, 2012 - version 2.2.6
 
       * Updated trusted CA certificates file (cacert.p7s and cacert_sha1.p7s).
         CA certs are imported from
-        'Java(TM) SE Runtime Environment (build 1.6.0_25-b06)'. 
+        'Java(TM) SE Runtime Environment (build 1.6.0_25-b06)'.
 
       * Changed default chunk size from 4K to 16K. It's used for reading size
         at a time.
@@ -498,7 +629,7 @@ August 14, 2012 - version 2.2.6
         you're on such an environment.
       * Updated trusted CA certificates file (cacert.p7s and cacert_sha1.p7s).
         CA certs are imported from
-        'Java(TM) SE Runtime Environment (build 1.6.0_22-b04)'. 
+        'Java(TM) SE Runtime Environment (build 1.6.0_22-b04)'.
 
     * IMPORTANT bug fix for persistent connection
       * #29 Resource Leak: If httpclient establishes two connections to the
@@ -567,7 +698,7 @@ August 14, 2012 - version 2.2.6
         Nov 2009. Please update to 2.1.5 by Oct 2009 if your application
         depends on trusted CA bundle file.
       * Updated trusted CA certificates file (cacert.p7s). CA certs are
-        imported from 'Java(TM) SE Runtime Environment (build 1.6.0_13-b03)'. 
+        imported from 'Java(TM) SE Runtime Environment (build 1.6.0_13-b03)'.
       * Updated a cacert distribution certificate.
         RSA 2048 bit + SHA512 + notAfter:2037/12/31. (#215)
 
@@ -617,7 +748,7 @@ August 14, 2012 - version 2.2.6
         this bug. (#197)
       * httpclient/2.1.3 cannot handle Cookie header with 'expires=' and
         'expires=""'.  Empty String for Time.parse returns Time.now unlike
-        ParseDate.parsedate. Thanks to Mark for the patch. (#200) 
+        ParseDate.parsedate. Thanks to Mark for the patch. (#200)
 ```
 
 ### Changes in 2.1.3
@@ -645,7 +776,7 @@ August 14, 2012 - version 2.2.6
       * Full RDoc. Please tell me any English problem. Thanks in advance.
       * Do multipart file upload when a given body includes a File. You don't
         need to set 'Content-Type' and boundary String any more.
-      * Added propfind and proppatch methods. 
+      * Added propfind and proppatch methods.
 
     * Changes
       * Avoid unnecessary memory consuming for get_content/post_content with
@@ -658,7 +789,7 @@ August 14, 2012 - version 2.2.6
           (trying to do SSL without openssl installed for example)
         * Raises HTTPClient::BadResponse? for HTTP response problem.  You can
           get the response HTTPMessage returned via $!.res.
-        * Raises SocketError? for connection problem (as same as before). 
+        * Raises SocketError? for connection problem (as same as before).
 
     * Bug fixes
       * Avoid unnecessary negotiation cycle for Negotiate(NTLM) authentication.
@@ -670,7 +801,7 @@ August 14, 2012 - version 2.2.6
       * Avoid unnecessary timeout waiting when no message body returned such as
         '204 No Content' for DAV.
       * Avoid blocking on socket closing when the socket is already closed by
-        foreign host and the client runs under MT-condition. 
+        foreign host and the client runs under MT-condition.
 ```
 
 ### Changes in 2.1.2
@@ -712,7 +843,7 @@ August 14, 2012 - version 2.2.6
 
     * misc
       * added HTTPClient#test_loopback_http_response which accepts test
-        loopback response which contains HTTP header. 
+        loopback response which contains HTTP header.
 ```
 
 ### Changes in 2.1.0

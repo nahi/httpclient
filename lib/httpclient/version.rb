@@ -1,3 +1,3 @@
 class HTTPClient
-  VERSION = '2.6.0.pre'
+  VERSION = '2.6.0'
 end
