@@ -308,7 +308,7 @@ class HTTPClient
 
   # HTTPClient::SSLConfig:: SSL configurator.
   attr_reader :ssl_config
-  # WebAgent::CookieManager:: Cookies configurator.
+  # HTTPClient::CookieManager:: Cookies configurator.
   attr_accessor :cookie_manager
   # An array of response HTTP message body String which is used for loop-back
   # test.  See test/* to see how to use it.  If you want to do loop-back test
@@ -415,7 +415,7 @@ class HTTPClient
     @session_manager.agent_name = agent_name || DEFAULT_AGENT_NAME
     @session_manager.from = from
     @session_manager.ssl_config = @ssl_config = SSLConfig.new(self)
-    @cookie_manager = WebAgent::CookieManager.new
+    @cookie_manager = CookieManager.new
     @follow_redirect_count = 10
     load_environment
     self.proxy = proxy if proxy
@@ -576,7 +576,6 @@ class HTTPClient
 
   # Try to save Cookies to the file specified in set_cookie_store.  Unexpected
   # error will be raised if you don't call set_cookie_store first.
-  # (interface mismatch between WebAgent::CookieManager implementation)
   def save_cookie_store
     @cookie_manager.save_cookies
   end
@@ -1123,8 +1122,11 @@ private
     header.each do |key, value|
       req.header.add(key.to_s, value)
     end
-    if @cookie_manager && cookie = @cookie_manager.find(uri)
-      req.header.add('Cookie', cookie)
+    if @cookie_manager
+      cookie_value = @cookie_manager.cookie_value(uri)
+      if cookie_value
+        req.header.add('Cookie', cookie_value)
+      end
     end
     req
   end

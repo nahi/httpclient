@@ -360,13 +360,11 @@ class TestClient < Test::Unit::TestCase
       'test_cookies_file')
     # from [ruby-talk:164079]
     File.open(cookiefile, "wb") do |f|
-      f << "http://rubyforge.org//account/login.php	session_ser	LjEwMy45Ni40Ni0q%2A-fa0537de8cc31	1131676286	.rubyforge.org	/	13\n"
+      f << "http://rubyforge.org//account/login.php	session_ser	LjEwMy45Ni40Ni0q%2A-fa0537de8cc31	2131676286	.rubyforge.org	/	13\n"
     end
     cm = WebAgent::CookieManager::new(cookiefile)
     cm.load_cookies
-    cookie = cm.cookies.first
-    url = cookie.url
-    assert(cookie.domain_match(url.host, cookie.domain))
+    assert_equal(1, cm.cookies.size)
   end
 
 private

@@ -5,6 +5,11 @@ platform :rbx do
   gem 'rubinius-developer_tools'
 end
 
+# Bundle optional libraries for devel and test
+group :development do
+  gem 'http-cookie', '~> 1.0'
+end
+
 group :development do
   gem 'rake', :require => false
   gem 'rdoc'
