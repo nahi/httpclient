@@ -1,4 +1,4 @@
-httpclient - HTTP accessing library.
+httpclient - HTTP accessing library.  [![Gem Version](https://badge.fury.io/rb/httpclient.svg)](http://badge.fury.io/rb/httpclient)
 
 Copyright (C) 2000-2014  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 
