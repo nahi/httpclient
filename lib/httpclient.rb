@@ -1117,9 +1117,9 @@ private
       req.header.add(key.to_s, value)
     end
     if @cookie_manager
-      cookies = @cookie_manager.cookies(uri)
-      unless cookies.empty?
-        req.header.add('Cookie', HTTP::Cookie.cookie_value(cookies))
+      cookie_value = @cookie_manager.cookie_value(uri)
+      if cookie_value
+        req.header.add('Cookie', cookie_value)
       end
     end
     req

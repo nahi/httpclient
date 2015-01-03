@@ -1,3 +1,7 @@
+# do not override if httpclient/webagent-cookie is loaded already
+unless defined?(HTTPClient::CookieManager)
+begin # for catching LoadError and load webagent-cookie instead
+
 require 'http-cookie'
 
 class HTTPClient
@@ -39,6 +43,13 @@ class HTTPClient
           :secure => cookie.secure
         )
       }
+    end
+
+    def cookie_value(uri)
+      cookies = self.cookies(uri)
+      unless cookies.empty?
+        HTTP::Cookie.cookie_value(cookies)
+      end
     end
 
     def parse(value, uri)
@@ -201,4 +212,9 @@ class WebAgent
       end
     end
   end
+end
+
+rescue LoadError
+  require 'httpclient/webagent-cookie'
+end
 end
