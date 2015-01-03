@@ -926,11 +926,6 @@ class HTTPClient
 private
 
   class RetryableResponse < StandardError # :nodoc:
-    attr_reader :res
-
-    def initialize(res = nil)
-      @res = res
-    end
   end
 
   class KeepAliveDisconnected < StandardError # :nodoc:
@@ -951,6 +946,7 @@ private
   end
 
   def do_request(method, uri, query, body, header, &block)
+    conn = Connection.new
     res = nil
     if HTTP::Message.file?(body)
       pos = body.pos rescue nil
@@ -967,16 +963,14 @@ private
       end
       begin
         protect_keep_alive_disconnected do
-          # TODO: remove Connection.new
-          # We want to delete Connection usage in do_get_block but Newrelic gem depends on it.
-          # https://github.com/newrelic/rpm/blob/master/lib/new_relic/agent/instrumentation/httpclient.rb#L34-L36
-          res = do_get_block(req, proxy, Connection.new, &block)
+          do_get_block(req, proxy, conn, &block)
         end
+        res = conn.pop
         res.previous = previous_response
         break
-      rescue RetryableResponse => e
+      rescue RetryableResponse
         previous_request = req
-        previous_response = res = e.res
+        res = previous_response = conn.pop
         retry_count -= 1
       end
     end
@@ -1176,9 +1170,8 @@ private
     end
     if str = @test_loopback_response.shift
       dump_dummy_request_response(req.http_body.dump, str) if @debug_dev
-      res = HTTP::Message.new_response(str, req.header)
-      conn.push(res)
-      return res
+      conn.push(HTTP::Message.new_response(str, req.header))
+      return
     end
     content = block ? nil : ''
     res = HTTP::Message.new_response(content, req.header)
@@ -1203,9 +1196,8 @@ private
       filter.filter_response(req, res)
     }
     if commands.find { |command| command == :retry }
-      raise RetryableResponse.new(res)
+      raise RetryableResponse.new
     end
-    res
   end
 
   def do_get_stream(req, proxy, conn)
@@ -1235,7 +1227,6 @@ private
       filter.filter_response(req, res)
     }
     # ignore commands (not retryable in async mode)
-    res
   end
 
   def do_get_header(req, res, sess)
