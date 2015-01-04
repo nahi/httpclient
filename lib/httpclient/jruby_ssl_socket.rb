@@ -19,6 +19,8 @@ unless defined?(SSLSocket)
     java_import 'java.io.ByteArrayInputStream'
     java_import 'java.io.InputStreamReader'
     java_import 'java.security.KeyStore'
+    java_import 'java.security.cert.Certificate'
+    java_import 'java.security.cert.CertificateFactory'
     java_import 'javax.net.ssl.KeyManagerFactory'
     java_import 'javax.net.ssl.SSLContext'
     java_import 'javax.net.ssl.SSLSocketFactory'
@@ -26,7 +28,6 @@ unless defined?(SSLSocket)
     java_import 'javax.net.ssl.TrustManagerFactory'
     java_import 'javax.net.ssl.X509TrustManager'
     java_import 'org.jruby.ext.openssl.x509store.PEMInputOutput'
-    java_import 'org.jruby.ext.openssl.x509store.X509AuxCertificate'
 
     class JavaCertificate
       def initialize(cert)
@@ -160,11 +161,11 @@ unless defined?(SSLSocket)
     end
 
     module PEMUtils
-      def self.read(pem, password)
-        if password
-          password = password.unpack('C*').to_java(:char)
-        end
-        PEMInputOutput.readPEM(InputStreamReader.new(ByteArrayInputStream.new(pem.to_java_bytes)), password)
+      def self.read_certificate(pem)
+        pem = pem.sub(/-----BEGIN CERTIFICATE-----/, '').sub(/-----END CERTIFICATE-----/, '')
+        der = pem.unpack('m*').first
+        cf = CertificateFactory.getInstance('X.509')
+        cf.generateCertificate(ByteArrayInputStream.new(der.to_java_bytes))
       end
 
       def self.read_private_key(pem, password)
@@ -176,6 +177,7 @@ unless defined?(SSLSocket)
     end
 
     class KeyStoreLoader
+      # TODO
       PASSWORD = 'secret'.unpack('C*').to_java(:char)
 
       def initialize
@@ -185,11 +187,11 @@ unless defined?(SSLSocket)
 
       def add(cert_file, key_file)
         cert_str = cert_file.respond_to?(:to_pem) ? cert_file.to_pem : File.read(cert_file.to_s)
-        cert = PEMUtils.read(cert_str, nil)
+        cert = PEMUtils.read_certificate(cert_str)
         @keystore.setCertificateEntry('client_cert', cert)
         key_str = key_file.respond_to?(:to_pem) ? key_file.to_pem : File.read(key_file.to_s)
         key_pair = PEMUtils.read_private_key(key_str, nil)
-        @keystore.setKeyEntry('client_key', key_pair.getPrivate, PASSWORD, [cert].to_java(X509AuxCertificate))
+        @keystore.setKeyEntry('client_key', key_pair.getPrivate, PASSWORD, [cert].to_java(Certificate))
       end
 
       def keystore
@@ -217,7 +219,7 @@ unless defined?(SSLSocket)
             when /-----BEGIN CERTIFICATE-----/
               pem = ''
             when /-----END CERTIFICATE-----/
-              cert = PEMUtils.read(pem, nil)
+              cert = PEMUtils.read_certificate(pem)
               @size += 1
               @trust_store.setCertificateEntry("cert_#{@size}", cert)
             else
@@ -241,7 +243,6 @@ unless defined?(SSLSocket)
     def self.create_socket(session)
       # TODO proxy
       # TODO post_connection_check
-      # TODO client_cert/client_key -> keyStore(key, cert)
 
       # TODO OpenSSL specific options are ignored;
       # ssl_config.verify_depth
@@ -270,7 +271,7 @@ unless defined?(SSLSocket)
       if config.client_cert && config.client_key
         loader = KeyStoreLoader.new
         loader.add(config.client_cert, config.client_key)
-        kmf = KeyManagerFactory.getInstance('SunX509')
+        kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
         kmf.init(loader.keystore, KeyStoreLoader::PASSWORD)
         km = kmf.getKeyManagers
       end
@@ -286,7 +287,6 @@ unless defined?(SSLSocket)
           loader.add(item)
         end
         trust_store = loader.trust_store
-        p loader.size
       end
       tmf.init(trust_store)
       tm = tmf.getTrustManagers
