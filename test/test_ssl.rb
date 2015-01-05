@@ -41,6 +41,8 @@ class TestSSL < Test::Unit::TestCase
     assert_instance_of(OpenSSL::X509::Store, cfg.cert_store)
   end
 
+unless defined?(HTTPClient::JRubySSLSocket)
+  # JRubySSLSocket does not support sync mode.
   def test_sync
     cfg = @client.ssl_config
     cfg.set_client_cert_file(path('client.cert'), path('client.key'))
@@ -52,6 +54,7 @@ class TestSSL < Test::Unit::TestCase
     @client.reset_all
     assert_equal("hello", @client.get_content(@url))
   end
+end
 
   def test_debug_dev
     str = @client.debug_dev = ''
@@ -72,7 +75,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_match(/certificate verify failed/, ssle.message)
+      assert_match(/(certificate verify failed|unable to find valid certification path to requested target)/, ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -83,7 +86,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_match(/certificate verify failed/, ssle.message)
+      assert_match(/(certificate verify failed|unable to find valid certification path to requested target)/, ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -93,7 +96,7 @@ class TestSSL < Test::Unit::TestCase
       @client.get(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_match(/certificate verify failed/, ssle.message)
+      assert_match(/(certificate verify failed|unable to find valid certification path to requested target)/, ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -102,16 +105,16 @@ class TestSSL < Test::Unit::TestCase
     assert_equal("hello", @client.get_content(@url))
     assert(@verify_callback_called)
     #
-unless ENV['TRAVIS']
-# On travis environment, verify_depth seems to not work properly.
-# Ubuntu 10.04 + OpenSSL 0.9.8k issue?
+if false
+  # JRubySSLSocket does not support depth.
+  # Also on travis environment, verify_depth seems to not work properly.
     cfg.verify_depth = 1 # 2 required: root-sub
     @verify_callback_called = false
     begin
       @client.get(@url)
       assert(false, "verify_depth is not supported? #{OpenSSL::OPENSSL_VERSION}")
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_match(/certificate verify failed/, ssle.message)
+      assert_match(/(certificate verify failed|unable to find valid certification path to requested target)/, ssle.message)
       assert(@verify_callback_called)
     end
     #
@@ -128,13 +131,15 @@ end
       @client.get_content(@url)
       assert(false)
     rescue OpenSSL::SSL::SSLError => ssle
-      assert_match(/certificate verify failed/, ssle.message)
+      assert_match(/(certificate verify failed|unable to find valid certification path to requested target)/, ssle.message)
     end
     #
     cfg.verify_mode = nil
     assert_equal("hello", @client.get_content(@url))
   end
 
+unless defined?(HTTPClient::JRubySSLSocket)
+  # TODO: JRubySSLSocket does not support ciphers so far.
   def test_ciphers
     cfg = @client.ssl_config
     cfg.set_client_cert_file(path('client.cert'), path('client-pass.key'), 'pass4key')
@@ -157,6 +162,7 @@ end
     cfg.ciphers = "DEFAULT"
     assert_equal("hello", @client.get_content(@url))
   end
+end
 
   # SSL_CERT_FILE does not work with recent jruby-openssl.
   # You should not depend on SSL_CERT_FILE on JRuby

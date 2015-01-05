@@ -158,7 +158,7 @@ class HTTPClient
       @cacerts_loaded = true # avoid lazy override
       @cert_store = X509::Store.new
       @cert_store.set_default_paths
-      @cert_store_items = [:default]
+      @cert_store_items = [ENV['SSL_CERT_FILE'] || :default]
       change_notify
     end
 

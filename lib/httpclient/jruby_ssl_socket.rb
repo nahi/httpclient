@@ -244,13 +244,13 @@ unless defined?(SSLSocket)
       # TODO proxy
       # TODO post_connection_check
 
-      # TODO OpenSSL specific options are ignored;
+      # TODO README: OpenSSL specific options are ignored;
       # ssl_config.verify_depth
       # ssl_config.options
       # ssl_config.ciphers
       # ssl_config.client_ca
 
-      # TODO revocation is performed by -Dcom.sun.security.enableCRLDP=true -Dcom.sun.net.ssl.checkRevocation=true
+      # TODO README: revocation is performed by -Dcom.sun.security.enableCRLDP=true -Dcom.sun.net.ssl.checkRevocation=true
       # example: https://test-sspev.verisign.com:2443/test-SSPEV-revoked-verisign.html
       new(session.dest, session.ssl_config, session.debug_dev)
     end
@@ -259,7 +259,7 @@ unless defined?(SSLSocket)
       @debug_dev = debug_dev
 
       if config.ssl_version == :auto
-        ssl_version = 'TLS'
+        ssl_version = 'TLSv1'
       else
         ssl_version = config.to_s.gsub(/_/, '.')
       end
@@ -300,6 +300,7 @@ unless defined?(SSLSocket)
       factory = ctx.getSocketFactory
       begin
         @ssl_socket = factory.createSocket(dest.host, dest.port)
+        @ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String))
         @ssl_socket.startHandshake
         @peer_cert = JavaCertificate.new(@ssl_socket.getSession.getPeerCertificateChain.first)
         @outstr = @ssl_socket.getOutputStream
@@ -387,7 +388,7 @@ unless defined?(SSLSocket)
 
     def sync=(sync)
       unless sync
-        raise "sync = false is not supported"
+        raise "sync = false is not supported. This option was introduced for backward compatibility just in case, so no longer supported."
       end
     end
 
