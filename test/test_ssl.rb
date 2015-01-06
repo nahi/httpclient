@@ -59,8 +59,8 @@ end
   def test_debug_dev
     str = @client.debug_dev = ''
     cfg = @client.ssl_config
-    cfg.client_cert = cert("client.cert")
-    cfg.client_key = key("client.key")
+    cfg.client_cert = path("client.cert")
+    cfg.client_key = path("client.key")
     cfg.add_trust_ca(path('ca.cert'))
     cfg.add_trust_ca(path('subca.cert'))
     assert_equal("hello", @client.get_content(@url))
@@ -79,8 +79,8 @@ end
       assert(@verify_callback_called)
     end
     #
-    cfg.client_cert = cert("client.cert")
-    cfg.client_key = key("client.key")
+    cfg.client_cert = path("client.cert")
+    cfg.client_key = path("client.key")
     @verify_callback_called = false
     begin
       @client.get(@url)

@@ -138,8 +138,7 @@ class HTTPClient
     #
     # Calling this method resets all existing sessions.
     def set_client_cert_file(cert_file, key_file, pass = nil)
-      @client_cert = X509::Certificate.new(File.open(cert_file) { |f| f.read })
-      @client_key = PKey::RSA.new(File.open(key_file) { |f| f.read }, pass)
+      @client_cert, @client_key, @client_key_pass = cert_file, key_file, pass
       change_notify
     end
 
@@ -296,8 +295,14 @@ class HTTPClient
       ctx.verify_depth = @verify_depth if @verify_depth
       ctx.verify_callback = @verify_callback || method(:default_verify_callback)
       # SSL config
-      ctx.cert = @client_cert
-      ctx.key = @client_key
+      if @client_cert
+        ctx.cert = @client_cert.is_a?(X509::Certificate) ?  @client_cert :
+          X509::Certificate.new(File.open(@client_cert) { |f| f.read })
+      end
+      if @client_key
+        ctx.key = @client_key.is_a?(PKey::PKey) ? @client_key :
+          PKey::RSA.new(File.open(@client_key) { |f| f.read }, @client_key_pass)
+      end
       ctx.client_ca = @client_ca
       ctx.timeout = @timeout
       ctx.options = @options
