@@ -179,8 +179,7 @@ unless defined?(SSLSocket)
     end
 
     class KeyStoreLoader
-      # TODO
-      PASSWORD = 'secret'.unpack('C*').to_java(:char)
+      PASSWORD = 16.times.map { rand(256) }.to_java(:char)
 
       def initialize
         @keystore = KeyStore.getInstance('JKS')
