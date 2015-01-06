@@ -30,6 +30,8 @@ unless defined?(SSLSocket)
     java_import 'org.jruby.ext.openssl.x509store.PEMInputOutput'
 
     class JavaCertificate
+      attr_reader :cert
+
       def initialize(cert)
         @cert = cert
       end
@@ -133,7 +135,7 @@ unless defined?(SSLSocket)
           end
           is_ok = @verify_callback.call(is_ok, chain, error_depth, error, error_message)
           unless is_ok
-            excn ||= RuntimeError.new('verifycallback failed')
+            excn ||= OpenSSL::SSL::SSLError.new('verifycallback failed')
             raise excn
           end
         end
@@ -240,9 +242,92 @@ unless defined?(SSLSocket)
       end
     end
 
+    # Ported from commons-httpclient 'BrowserCompatHostnameVerifier'
+    class BrowserCompatHostnameVerifier
+      BAD_COUNTRY_2LDS = %w(ac co com ed edu go gouv gov info lg ne net or org).sort
+      require 'ipaddr'
+
+      def extract_sans(cert, subject_type)
+        sans = cert.getSubjectAlternativeNames rescue nil
+        if sans.nil?
+          return nil
+        end
+        sans.find_all { |san|
+          san.first.to_i == subject_type
+        }.map { |san|
+          san[1]
+        }
+      end
+
+      def extract_cn(cert)
+        subject = cert.getSubjectX500Principal()
+        if subject
+          subject_dn = javax.naming.ldap.LdapName.new(subject.toString)
+          subject_dn.getRdns.to_a.reverse.each do |rdn|
+            attributes = rdn.toAttributes
+            cn = attributes.get('cn')
+            if cn
+              if value = cn.get
+                return value.to_s
+              end
+            end
+          end
+        end
+      end
+
+      def ipaddr?(addr)
+        !(IPAddr.new(addr) rescue nil).nil?
+      end
+
+      def verify(hostname, cert)
+        is_ipaddr = ipaddr?(hostname)
+        sans = extract_sans(cert, is_ipaddr ? 7 : 2)
+        cn = extract_cn(cert)
+        if sans
+          sans.each do |san|
+            return true if match_identify(hostname, san)
+          end
+          raise OpenSSL::SSL::SSLError.new("Certificate for <#{hostname}> doesn't match any of the subject alternative names: #{sans}")
+        elsif cn
+          return true if match_identify(hostname, cn)
+          raise OpenSSL::SSL::SSLError.new("Certificate for <#{hostname}> doesn't match common name of the certificate subject: #{cn}")
+        end
+        raise OpenSSL::SSL::SSLError.new("Certificate subject for for <#{hostname}> doesn't contain a common name and does not have alternative names")
+      end
+
+      def match_identify(hostname, identity)
+        if hostname.nil?
+          return false
+        end
+        hostname = hostname.downcase
+        identity = identity.downcase
+        parts = identity.split('.')
+        if parts.length >= 3 && parts.first.end_with?('*') && valid_country_wildcard(parts)
+          create_wildcard_regexp(identity) =~ hostname
+        else
+          hostname == identity
+        end
+      end
+
+      def create_wildcard_regexp(value)
+        # Escape first then search '\*' for meta-char interpolation
+        labels = value.split('.').map { |e| Regexp.escape(e) }
+        # Handle '*'s only at the left-most label, exclude A-label and U-label
+        labels[0].gsub!(/\\\*/, '[^.]+') if !labels[0].start_with?('xn\-\-') and labels[0].ascii_only?
+        /\A#{labels.join('\.')}\z/i
+      end
+
+      def valid_country_wildcard(parts)
+        if parts.length != 3 || parts[2].length != 2
+          true
+        else
+          !BAD_COUNTRY_2LDS.include?(parts[1])
+        end
+      end
+    end
+
     def self.create_socket(session)
       # TODO proxy
-      # TODO post_connection_check
 
       # TODO README: OpenSSL specific options are ignored;
       # ssl_config.verify_depth
@@ -302,7 +387,8 @@ unless defined?(SSLSocket)
         @ssl_socket = factory.createSocket(dest.host, dest.port)
         @ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String))
         @ssl_socket.startHandshake
-        @peer_cert = JavaCertificate.new(@ssl_socket.getSession.getPeerCertificateChain.first)
+        @peer_cert = JavaCertificate.new(@ssl_socket.getSession.getPeerCertificates.first)
+        post_connection_check(dest.host, @peer_cert)
         @outstr = @ssl_socket.getOutputStream
         @instr = BufferedInputStream.new(@ssl_socket.getInputStream)
         @buf = (' ' * (1024 * 16)).to_java_bytes
@@ -393,6 +479,10 @@ unless defined?(SSLSocket)
     end
 
   private
+
+    def post_connection_check(hostname, wrap_cert)
+      BrowserCompatHostnameVerifier.new.verify(hostname, wrap_cert.cert)
+    end
 
     def fill
       size = @instr.read(@buf)
