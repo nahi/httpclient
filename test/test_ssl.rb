@@ -4,6 +4,7 @@ require 'webrick/https'
 
 class TestSSL < Test::Unit::TestCase
   include Helper
+
   DIR = File.dirname(File.expand_path(__FILE__))
 
   def setup
@@ -23,6 +24,20 @@ class TestSSL < Test::Unit::TestCase
 
   def path(filename)
     File.expand_path(filename, DIR)
+  end
+
+  def test_proxy_ssl
+    setup_proxyserver
+    escape_noproxy do
+      @client.proxy = proxyurl
+      @client.ssl_config.set_client_cert_file(path('client.cert'), path('client.key'))
+      @client.ssl_config.add_trust_ca(path('ca.cert'))
+      @client.ssl_config.add_trust_ca(path('subca.cert'))
+      @client.debug_dev = str = ""
+      assert_equal(200, @client.get(@url).status)
+      assert(/accept/ =~ @proxyio.string, 'proxy is not used')
+      assert(/Host: localhost:#{serverport}/ =~ str)
+    end
   end
 
   def test_options
