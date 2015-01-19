@@ -186,12 +186,12 @@ unless defined?(SSLSocket)
         @keystore.load(nil)
       end
 
-      def add(cert_file, key_file)
+      def add(cert_file, key_file, password)
         cert_str = cert_file.respond_to?(:to_pem) ? cert_file.to_pem : File.read(cert_file.to_s)
         cert = PEMUtils.read_certificate(cert_str)
         @keystore.setCertificateEntry('client_cert', cert)
         key_str = key_file.respond_to?(:to_pem) ? key_file.to_pem : File.read(key_file.to_s)
-        key_pair = PEMUtils.read_private_key(key_str, nil)
+        key_pair = PEMUtils.read_private_key(key_str, password)
         @keystore.setKeyEntry('client_key', key_pair.getPrivate, PASSWORD, [cert].to_java(Certificate))
       end
 
@@ -331,8 +331,6 @@ unless defined?(SSLSocket)
       # TODO README: OpenSSL specific options are ignored;
       # ssl_config.verify_depth
       # ssl_config.options
-      # ssl_config.ciphers
-      # ssl_config.client_ca
 
       # TODO README: revocation is performed by -Dcom.sun.security.enableCRLDP=true -Dcom.sun.net.ssl.checkRevocation=true
       # example: https://test-sspev.verisign.com:2443/test-SSPEV-revoked-verisign.html
@@ -354,7 +352,7 @@ unless defined?(SSLSocket)
       km = nil
       if config.client_cert && config.client_key
         loader = KeyStoreLoader.new
-        loader.add(config.client_cert, config.client_key)
+        loader.add(config.client_cert, config.client_key, config.client_key_pass)
         kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
         kmf.init(loader.keystore, KeyStoreLoader::PASSWORD)
         km = kmf.getKeyManagers
@@ -385,8 +383,12 @@ unless defined?(SSLSocket)
       begin
         @ssl_socket = factory.createSocket(dest.host, dest.port)
         @ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String))
+        if config.ciphers != SSLConfig::CIPHERS_DEFAULT
+          @ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
+        end
         @ssl_socket.startHandshake
         @peer_cert = JavaCertificate.new(@ssl_socket.getSession.getPeerCertificates.first)
+        @ciphersuite = @ssl_socket.getSession.getCipherSuite
         post_connection_check(dest.host, @peer_cert)
         @outstr = @ssl_socket.getOutputStream
         @instr = BufferedInputStream.new(@ssl_socket.getInputStream)
@@ -401,6 +403,10 @@ unless defined?(SSLSocket)
 
     def peer_cert
       @peer_cert
+    end
+
+    def ciphersuite
+      @ciphersuite
     end
 
     def close

@@ -31,6 +31,8 @@ class HTTPClient
   class SSLConfig
     include OpenSSL if SSLEnabled
 
+    CIPHERS_DEFAULT = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
+
     # Which TLS protocol version (also called method) will be used. Defaults
     # to :auto which means that OpenSSL decides (In my tests this resulted 
     # with always the highest available protocol being used).
@@ -45,6 +47,7 @@ class HTTPClient
     # OpenSSL::PKey::PKey:: private key for SSL client authentication.
     # nil by default. (no client authentication)
     attr_reader :client_key
+    attr_reader :client_key_pass
 
     # A number which represents OpenSSL's verify mode.  Default value is
     # OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT.
@@ -100,7 +103,7 @@ class HTTPClient
       @options |= OpenSSL::SSL::OP_NO_SSLv2 if defined?(OpenSSL::SSL::OP_NO_SSLv2)
       @options |= OpenSSL::SSL::OP_NO_SSLv3 if defined?(OpenSSL::SSL::OP_NO_SSLv3)
       # OpenSSL 0.9.8 default: "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
-      @ciphers = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
+      @ciphers = CIPHERS_DEFAULT
       @cacerts_loaded = false
     end
 

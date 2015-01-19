@@ -138,8 +138,32 @@ end
     assert_equal("hello", @client.get_content(@url))
   end
 
-unless defined?(HTTPClient::JRubySSLSocket)
-  # TODO: JRubySSLSocket does not support ciphers so far.
+if defined?(HTTPClient::JRubySSLSocket)
+  def test_ciphers
+    cfg = @client.ssl_config
+    cfg.set_client_cert_file(path('client.cert'), path('client-pass.key'), 'pass4key')
+    cfg.add_trust_ca(path('ca.cert'))
+    cfg.add_trust_ca(path('subca.cert'))
+    cfg.timeout = 123
+    assert_equal("hello", @client.get_content(@url))
+    #
+    cfg.ciphers = []
+    begin
+      @client.get(@url)
+      assert(false)
+    rescue OpenSSL::SSL::SSLError => ssle
+      assert_match(/No appropriate protocol/, ssle.message)
+    end
+    #
+    cfg.ciphers = %w(SSL_RSA_WITH_RC4_128_MD5)
+    assert_equal("hello", @client.get_content(@url))
+    #
+    cfg.ciphers = HTTPClient::SSLConfig::CIPHERS_DEFAULT
+    assert_equal("hello", @client.get_content(@url))
+  end
+
+else
+
   def test_ciphers
     cfg = @client.ssl_config
     cfg.set_client_cert_file(path('client.cert'), path('client-pass.key'), 'pass4key')
