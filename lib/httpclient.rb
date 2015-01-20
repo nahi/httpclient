@@ -396,7 +396,7 @@ class HTTPClient
   # HTTP client must send Authorization header after it gets 401 error
   # from server from security reason. But in some situation (e.g. API
   # client) you might want to send Authorization from the beginning.
-  def initialize(*args)
+  def initialize(*args, &block)
     proxy, agent_name, from, base_url, default_header, force_basic_auth =
       keyword_argument(args, :proxy, :agent_name, :from, :base_url, :default_header, :force_basic_auth)
     @proxy = nil        # assigned later.
@@ -420,6 +420,7 @@ class HTTPClient
     load_environment
     self.proxy = proxy if proxy
     keep_webmock_compat
+    instance_eval &block if block
   end
 
   # webmock 1.6.2 depends on HTTP::Message#body.content to work.
