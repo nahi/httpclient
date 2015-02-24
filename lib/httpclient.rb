@@ -830,7 +830,9 @@ class HTTPClient
     if follow_redirect
       follow_redirect(method, uri, query, body, header, &block)
     else
-      do_request(method, uri, query, body, header, &filtered_block)
+      res = do_request(method, uri, query, body, header, &filtered_block)
+      raise BadResponseError, "#{method} #{uri}: got response "\
+          "#{res.status} #{res.reason}" if res.status >= 400
     end
   end
 
