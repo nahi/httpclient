@@ -831,8 +831,8 @@ class HTTPClient
       follow_redirect(method, uri, query, body, header, &block)
     else
       res = do_request(method, uri, query, body, header, &filtered_block)
-      raise BadResponseError, "#{method.to_s.upcase} #{uri}: got response "\
-          "#{res.status} #{res.reason}" if res.status >= 400
+      raise BadResponseError.new("#{method.to_s.upcase} #{uri}: got response "\
+          "#{res.status} #{res.reason}", res) if res.status >= 400
       res
     end
   end
