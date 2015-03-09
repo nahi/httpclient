@@ -11,8 +11,12 @@
 # > get "https://www.google.co.jp/", :q => :ruby
 require 'httpclient'
 
-METHODS = ['head', 'get', 'post', 'put', 'delete', 'options', 'propfind', 'proppatch', 'trace']
 method = ARGV.shift
+if method == 'version'
+  puts HTTPClient::VERSION
+  exit
+end
+
 url = ARGV.shift
 if method && url
   client = HTTPClient.new
