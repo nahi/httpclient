@@ -679,18 +679,8 @@ class HTTPClient
       begin
         read_header if @state == :META
         return nil if @state != :DATA
-        if @gzipped and @transparent_gzip_decompression
-          # zlib itself has a functionality to decompress gzip stream.
-          # - zlib 1.2.5 Manual
-          #   http://www.zlib.net/manual.html#Advanced
-          # > windowBits can also be greater than 15 for optional gzip decoding. Add 32 to
-          # > windowBits to enable zlib and gzip decoding with automatic header detection,
-          # > or add 16 to decode only the gzip format
-          inflate_stream = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
-          original_block = block
-          block = Proc.new { |buf|
-            original_block.call(inflate_stream.inflate(buf))
-          }
+        if @transparent_gzip_decompression
+          block = content_inflater_block(@content_encoding, block)
         end
         if @chunked
           read_body_chunked(&block)
@@ -714,6 +704,55 @@ class HTTPClient
     end
 
   private
+
+    # This inflater allows deflate compression with/without zlib header
+    class LenientInflater
+      def initialize
+        @inflater = Zlib::Inflate.new(Zlib::MAX_WBITS)
+        @first = true
+      end
+
+      def inflate(body)
+        if @first
+          first_inflate(body)
+        else
+          @inflater.inflate(body)
+        end
+      end
+
+    private
+
+      def first_inflate(body)
+        @first = false
+        begin
+          @inflater.inflate(body)
+        rescue Zlib::DataError
+          # fallback to deflate without zlib header
+          @inflater = Zlib::Inflate.new(-Zlib::MAX_WBITS)
+          @inflater.inflate(body)
+        end
+      end
+    end
+
+    def content_inflater_block(content_encoding, block)
+      case content_encoding
+      when 'gzip', 'x-gzip'
+        # zlib itself has a functionality to decompress gzip stream.
+        # - zlib 1.2.5 Manual
+        #   http://www.zlib.net/manual.html#Advanced
+        # > windowBits can also be greater than 15 for optional gzip decoding. Add 32 to
+        # > windowBits to enable zlib and gzip decoding with automatic header detection,
+        # > or add 16 to decode only the gzip format
+        inflate_stream = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
+      when 'deflate'
+        inflate_stream = LenientInflater.new
+      else
+        return block
+      end
+      Proc.new { |buf|
+        block.call(inflate_stream.inflate(buf))
+      }
+    end
 
     def set_header(req)
       if @requested_version
@@ -850,7 +889,7 @@ class HTTPClient
     def read_header
       @content_length = nil
       @chunked = false
-      @gzipped = false
+      @content_encoding = nil
       @chunk_length = 0
       parse_header
       # Header of the request has been parsed.
@@ -908,7 +947,7 @@ class HTTPClient
               last << line.strip
             else
               key, value = line.strip.split(/\s*:\s*/, 2)
-              parse_keepalive_header(key, value)
+              parse_content_header(key, value)
               @headers << [key, value]
             end
           end
@@ -921,18 +960,20 @@ class HTTPClient
         ((status >= 100 && status < 200) || status == 204 || status == 304)
     end
 
-    def parse_keepalive_header(key, value)
+    def parse_content_header(key, value)
       key = key.downcase
-      if key == 'content-length'
+      case key
+      when 'content-length'
         @content_length = value.to_i
-      elsif key == 'content-encoding' and ( value.downcase == 'gzip' or
-                                            value.downcase == 'x-gzip' or value.downcase == 'deflate' )
-        @gzipped = true
-      elsif key == 'transfer-encoding' and value.downcase == 'chunked'
-        @chunked = true
-        @chunk_length = 0
-        @content_length = nil
-      elsif key == 'connection' or key == 'proxy-connection'
+      when 'content-encoding'
+        @content_encoding = value.downcase
+      when 'transfer-encoding'
+        if value.downcase == 'chunked'
+          @chunked = true
+          @chunk_length = 0
+          @content_length = nil
+        end
+      when 'connection', 'proxy-connection'
         if value.downcase == 'keep-alive'
           @next_connection = true
         else
