@@ -714,16 +714,6 @@ class HTTPClient
     request(:get, uri, argument_to_hash(args, :query, :header, :follow_redirect), &block)
   end
 
-  # Sends PATCH request to the specified URL.  See request for arguments.
-  def patch(uri, *args, &block)
-    if hashy_argument_has_keys(args, :query, :body)
-      new_args = args[0]
-    else
-      new_args = argument_to_hash(args, :body, :header)
-    end
-    request(:patch, uri, new_args, &block)
-  end
-
   # Sends POST request to the specified URL.  See request for arguments.
   # You should not depend on :follow_redirect => true for POST method.  It
   # sends the same POST method to the new location which is prohibited in HTTP spec.
@@ -830,10 +820,7 @@ class HTTPClient
     if follow_redirect
       follow_redirect(method, uri, query, body, header, &block)
     else
-      res = do_request(method, uri, query, body, header, &filtered_block)
-      raise BadResponseError.new("#{method.to_s.upcase} #{uri}: got response "\
-          "#{res.status} #{res.reason}", res) if res.status >= 400
-      res
+      do_request(method, uri, query, body, header, &filtered_block)
     end
   end
 
@@ -847,17 +834,6 @@ class HTTPClient
   # It immediately returns a HTTPClient::Connection instance as a result.
   def get_async(uri, *args)
     request_async2(:get, uri, argument_to_hash(args, :query, :header))
-  end
-
-  # Sends PATCH request in async style.  See request_async2 for arguments.
-  # It immediately returns a HTTPClient::Connection instance as a result.
-  def patch_async(uri, *args)
-    if hashy_argument_has_keys(args, :query, :body)
-      new_args = args[0]
-    else
-      new_args = argument_to_hash(args, :body, :header)
-    end
-    request_async2(:patch, uri, new_args)
   end
 
   # Sends POST request in async style.  See request_async for arguments.

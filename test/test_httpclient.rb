@@ -1032,36 +1032,6 @@ EOS
     end
   end
 
-  def test_patch
-    assert_equal("patch", @client.patch(serverurl + 'servlet', '').content)
-    param = {'1'=>'2', '3'=>'4'}
-    @client.debug_dev = str = ''
-    res = @client.put(serverurl + 'servlet', param)
-    assert_equal(param, params(res.header["x-query"][0]))
-    assert_equal('Content-Type: application/x-www-form-urlencoded', str.split(/\r?\n/)[5])
-  end
-
-  def test_patch_with_query_and_body
-    res = @client.patch(serverurl + 'servlet', :query => {:query => 'query'}, :body => {:body => 'body'})
-    assert_equal("patch", res.content)
-    assert_equal("body=body", res.headers["X-Query"])
-    assert_equal("query=query", res.headers["X-Request-Query"])
-  end
-
-  def test_patch_bytesize
-    res = @client.patch(serverurl + 'servlet', 'txt' => 'あいうえお')
-    assert_equal('txt=%E3%81%82%E3%81%84%E3%81%86%E3%81%88%E3%81%8A', res.header["x-query"][0])
-    assert_equal('15', res.header["x-size"][0])
-  end
-
-  def test_patch_async
-    param = {'1'=>'2', '3'=>'4'}
-    conn = @client.patch_async(serverurl + 'servlet', param)
-    Thread.pass while !conn.finished?
-    res = conn.pop
-    assert_equal(param, params(res.header["x-query"][0]))
-  end
-
   def test_put
     assert_equal("put", @client.put(serverurl + 'servlet', '').content)
     param = {'1'=>'2', '3'=>'4'}
@@ -1993,14 +1963,6 @@ private
       res["content-type"] = "text/plain" # iso-8859-1, not US-ASCII
       res.body = 'post,' + req.body.to_s
       res["x-query"] = body_response(req)
-      res["x-request-query"] = req.query_string
-    end
-
-    def do_PATCH(req, res)
-      res["x-query"] = body_response(req)
-      param = WEBrick::HTTPUtils.parse_query(req.body) || {}
-      res["x-size"] = (param['txt'] || '').size
-      res.body = param['txt'] || 'patch'
       res["x-request-query"] = req.query_string
     end
 

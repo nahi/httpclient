@@ -5,9 +5,6 @@ Copyright (C) 2000-2014  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 'httpclient' gives something like the functionality of libwww-perl (LWP) in
 Ruby.  'httpclient' formerly known as 'http-access2'.
 
-This fork raises HTTPClient::BadResponseError for responses with a status of
-400 or greater.
-
 See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentation.
 
 
