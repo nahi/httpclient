@@ -1039,7 +1039,7 @@ EOS
     assert_equal("patch", @client.patch(serverurl + 'servlet', '').content)
     param = {'1'=>'2', '3'=>'4'}
     @client.debug_dev = str = ''
-    res = @client.put(serverurl + 'servlet', param)
+    res = @client.patch(serverurl + 'servlet', param)
     assert_equal(param, params(res.header["x-query"][0]))
     assert_equal('Content-Type: application/x-www-form-urlencoded', str.split(/\r?\n/)[5])
   end
