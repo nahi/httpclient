@@ -535,7 +535,7 @@ class HTTPClient
     def get(req)
       target_uri = req.header.request_uri
       synchronize {
-        domain_uri, param = @challenge.find { |uri, v|
+        _domain_uri, param = @challenge.find { |uri, v|
           Util.uri_part_of(target_uri, uri)
         }
         return nil unless param

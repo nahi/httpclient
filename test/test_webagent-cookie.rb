@@ -440,8 +440,8 @@ EOF
   def test_load_cookies_escaped
     uri = urify('http://example.org/')
     f = Tempfile.new('test_cookie')
-    File.open(f.path, 'w') do |f|
-      f.write <<EOF
+    File.open(f.path, 'w') do |out|
+      out.write <<EOF
 http://example.org/	key	"value"	0	.example.org	/	13	0			
 http://example.org/	key	""		.example.org	/	13	0			
 http://example.org/	key			.example.org	/	13	0			
