@@ -206,7 +206,7 @@ class WebAgent
   private
 
     def deprecated(old, new)
-      unless @@warned && log_http_cookie_warnings?
+      unless @@warned || !log_http_cookie_warnings?
         warn("WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie##{new} instead of Cookie##{old} for the replacement.")
         @@warned = true
       end
@@ -214,10 +214,9 @@ class WebAgent
   end
 end
 
-private
-  def log_http_cookie_warnings?
-    ENV['HTTPCLIENT_LOG_HTTP_COOKIE_WARNING'] != false
-  end
+def log_http_cookie_warnings?
+  ENV['HTTPCLIENT_LOG_HTTP_COOKIE_WARNING'] != "disabled"
+end
 rescue LoadError
   require 'httpclient/webagent-cookie'
 end
