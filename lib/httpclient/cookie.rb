@@ -174,6 +174,7 @@ class WebAgent
   CookieManager = ::HTTPClient::CookieManager
 
   class Cookie < HTTP::Cookie
+    @@domain_warned = false
     @@warned = false
 
     def url
@@ -194,7 +195,7 @@ class WebAgent
     alias original_domain domain
 
     def domain
-      warn('Cookie#domain returns dot-less domain name now. Use Cookie#dot_domain if you need "." at the beginning.')
+      domain_warning
       self.original_domain
     end
 
@@ -204,6 +205,13 @@ class WebAgent
     end
 
   private
+
+    def domain_warning
+      unless @@domain_warned
+        warn('Cookie#domain returns dot-less domain name now. Use Cookie#dot_domain if you need "." at the beginning.')
+        @@domain_warned = true
+      end
+    end
 
     def deprecated(old, new)
       unless @@warned
