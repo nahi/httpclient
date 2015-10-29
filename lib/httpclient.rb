@@ -326,7 +326,7 @@ class HTTPClient
   attr_accessor :follow_redirect_count
   # Base url of resources.
   attr_accessor :base_url
-  # Defalut request header.
+  # Default request header.
   attr_accessor :default_header
 
   # Set HTTP version as a String:: 'HTTP/1.0' or 'HTTP/1.1'
