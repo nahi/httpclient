@@ -24,6 +24,28 @@ if RUBY_VERSION < "1.9.3"
   end
 end
 
+# With recent JRuby 1.7 + jruby-openssl, X509CRL#extentions_to_text causes
+# StringIndexOOBException when we try to dump SSL Server Certificate.
+# when one of extensions has "" as value.
+if defined?(JRUBY_VERSION)
+  require 'openssl'
+  require 'java'
+  module OpenSSL
+    module X509
+      class Certificate
+        java_import 'java.security.cert.Certificate'
+        java_import 'java.security.cert.CertificateFactory'
+        java_import 'java.io.ByteArrayInputStream'
+        def to_text
+          cf = CertificateFactory.getInstance('X.509')
+          cf.generateCertificate(ByteArrayInputStream.new(self.to_der.to_java_bytes)).toString
+        end
+      end
+    end
+  end
+end
+
+
 class HTTPClient
 
 
