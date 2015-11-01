@@ -42,11 +42,11 @@ class HTTPClient
     # See {OpenSSL::SSL::SSLContext::METHODS} for a list of available versions
     # in your specific Ruby environment.
     attr_reader :ssl_version
-    # OpenSSL::X509::Certificate:: certificate for SSL client authenticateion.
-    # nil by default. (no client authenticateion)
+    # OpenSSL::X509::Certificate:: certificate for SSL client authentication.
+    # nil by default. (no client authentication)
     attr_reader :client_cert
     # OpenSSL::PKey::PKey:: private key for SSL client authentication.
-    # nil by default. (no client authenticateion)
+    # nil by default. (no client authentication)
     attr_reader :client_key
 
     # A number which represents OpenSSL's verify mode.  Default value is
