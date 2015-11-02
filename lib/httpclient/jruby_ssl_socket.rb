@@ -14,10 +14,113 @@ class HTTPClient
 
 unless defined?(SSLSocket)
 
-  class JRubySSLSocket
+  class JavaSocketWrap
     java_import 'java.io.BufferedInputStream'
+    BUF_SIZE = 1024 * 16
+
+    def initialize(socket, debug_dev = nil)
+      @socket = socket
+      @debug_dev = debug_dev
+      @outstr = @socket.getOutputStream
+      @instr = BufferedInputStream.new(@socket.getInputStream)
+      @buf = (' ' * BUF_SIZE).to_java_bytes
+      @bufstr = ''
+    end
+
+    def close
+      @socket.close
+    end
+
+    def closed?
+      @socket.isClosed
+    end
+
+    def eof?
+      @socket.isClosed
+    end
+
+
+    def gets(rs)
+      while (size = @bufstr.index(rs)).nil?
+        if fill() == -1
+          size = @bufstr.size
+          break
+        end
+      end
+      str = @bufstr.slice!(0, size + rs.size)
+      debug(str)
+      str
+    end
+
+    def read(size, buf = nil)
+      while @bufstr.size < size
+        if fill() == -1
+          break
+        end
+      end
+      str = @bufstr.slice!(0, size)
+      debug(str)
+      if buf
+        buf.replace(str)
+      else
+        str
+      end
+    end
+
+    def readpartial(size, buf = nil)
+      while @bufstr.size == 0
+        if fill() == -1
+          raise EOFError.new('end of file reached')
+        end
+      end
+      str = @bufstr.slice!(0, size)
+      debug(str)
+      if buf
+        buf.replace(str)
+      else
+        str
+      end
+    end
+
+    def <<(str)
+      rv = @outstr.write(str.to_java_bytes)
+      debug(str)
+      rv
+    end
+
+    def flush
+      @socket.flush
+    end
+
+    def sync
+      true
+    end
+
+    def sync=(sync)
+      unless sync
+        raise "sync = false is not supported. This option was introduced for backward compatibility just in case."
+      end
+    end
+
+  private
+
+    def fill
+      size = @instr.read(@buf)
+      if size > 0
+        @bufstr << String.from_java_bytes(@buf, Encoding::BINARY)[0, size]
+      end
+      size
+    end
+
+    def debug(str)
+      @debug_dev << str if @debug_dev && str
+    end
+  end
+
+  class JRubySSLSocket < JavaSocketWrap
     java_import 'java.io.ByteArrayInputStream'
     java_import 'java.io.InputStreamReader'
+    java_import 'java.net.Socket'
     java_import 'java.security.KeyStore'
     java_import 'java.security.cert.Certificate'
     java_import 'java.security.cert.CertificateFactory'
@@ -325,21 +428,27 @@ unless defined?(SSLSocket)
       end
     end
 
+    # TODO README: OpenSSL specific options are ignored;
+    # ssl_config.verify_depth
+    # ssl_config.options
+
+    # TODO README: revocation is performed by -Dcom.sun.security.enableCRLDP=true -Dcom.sun.net.ssl.checkRevocation=true
+    # example: https://test-sspev.verisign.com:2443/test-SSPEV-revoked-verisign.html
     def self.create_socket(session)
-      # TODO proxy
-
-      # TODO README: OpenSSL specific options are ignored;
-      # ssl_config.verify_depth
-      # ssl_config.options
-
-      # TODO README: revocation is performed by -Dcom.sun.security.enableCRLDP=true -Dcom.sun.net.ssl.checkRevocation=true
-      # example: https://test-sspev.verisign.com:2443/test-SSPEV-revoked-verisign.html
-      new(session.dest, session.ssl_config, session.debug_dev)
+      site = session.proxy || session.dest
+      socket = Socket.new(site.host, site.port)
+      begin
+        if session.proxy
+          session.connect_ssl_proxy(JavaSocketWrap.new(socket), Util.urify(session.dest.to_s))
+        end
+      rescue
+        socket.close
+        raise
+      end
+      new(socket, session.dest, session.ssl_config, session.debug_dev)
     end
 
-    def initialize(dest, config, debug_dev = nil)
-      @debug_dev = debug_dev
-
+    def initialize(socket, dest, config, debug_dev = nil)
       if config.ssl_version == :auto
         ssl_version = 'TLSv1'
       else
@@ -381,24 +490,22 @@ unless defined?(SSLSocket)
 
       factory = ctx.getSocketFactory
       begin
-        @ssl_socket = factory.createSocket(dest.host, dest.port)
-        @ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String))
+        ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
+        ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String))
         if config.ciphers != SSLConfig::CIPHERS_DEFAULT
-          @ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
+          ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
         end
-        @ssl_socket.startHandshake
-        @peer_cert = JavaCertificate.new(@ssl_socket.getSession.getPeerCertificates.first)
-        @ciphersuite = @ssl_socket.getSession.getCipherSuite
+        ssl_socket.startHandshake
+        @peer_cert = JavaCertificate.new(ssl_socket.getSession.getPeerCertificates.first)
+        @ciphersuite = ssl_socket.getSession.getCipherSuite
         post_connection_check(dest.host, @peer_cert)
-        @outstr = @ssl_socket.getOutputStream
-        @instr = BufferedInputStream.new(@ssl_socket.getInputStream)
-        @buf = (' ' * (1024 * 16)).to_java_bytes
-        @bufstr = ''
       rescue java.security.GeneralSecurityException => e
         raise OpenSSL::SSL::SSLError.new(e.getMessage)
       rescue javax.net.ssl.SSLException => e
         raise OpenSSL::SSL::SSLError.new(e.getMessage)
       end
+
+      super(ssl_socket, debug_dev)
     end
 
     def peer_cert
@@ -409,96 +516,10 @@ unless defined?(SSLSocket)
       @ciphersuite
     end
 
-    def close
-      @ssl_socket.close
-    end
-
-    def closed?
-      @ssl_socket.isClosed
-    end
-
-    def eof?
-      @ssl_socket.isClosed
-    end
-
-    def gets(rs)
-      while (size = @bufstr.index(rs)).nil?
-        if fill() == -1
-          size = @bufstr.size
-          break
-        end
-      end
-      str = @bufstr.slice!(0, size + rs.size)
-      debug(str)
-      str
-    end
-
-    def read(size, buf = nil)
-      while @bufstr.size < size
-        if fill() == -1
-          break
-        end
-      end
-      str = @bufstr.slice!(0, size)
-      debug(str)
-      if buf
-        buf.replace(str)
-      else
-        str
-      end
-    end
-
-    def readpartial(size, buf = nil)
-      while @bufstr.size == 0
-        if fill() == -1
-          raise EOFError.new('end of file reached')
-        end
-      end
-      str = @bufstr.slice!(0, size)
-      debug(str)
-      if buf
-        buf.replace(str)
-      else
-        str
-      end
-    end
-
-    def <<(str)
-      rv = @outstr.write(str.to_java_bytes)
-      debug(str)
-      rv
-    end
-
-    def flush
-      @ssl_socket.flush
-    end
-
-    def sync
-      true
-    end
-
-    def sync=(sync)
-      unless sync
-        raise "sync = false is not supported. This option was introduced for backward compatibility just in case, so no longer supported."
-      end
-    end
-
   private
 
     def post_connection_check(hostname, wrap_cert)
       BrowserCompatHostnameVerifier.new.verify(hostname, wrap_cert.cert)
-    end
-
-    def fill
-      size = @instr.read(@buf)
-      if size > 0
-        @bufstr << String.from_java_bytes(@buf, Encoding::BINARY)[0, size]
-      end
-      size
-    end
-
-    def debug(str)
-      @debug_dev << str if @debug_dev && str
     end
   end
 
