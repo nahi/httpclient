@@ -6,13 +6,13 @@ require 'http-cookie'
 
 class HTTPClient
   class CookieManager
-    attr_reader :format
+    attr_reader :format, :jar
     attr_accessor :cookies_file
 
-    def initialize(cookies_file = nil, format = WebAgentSaver)
+    def initialize(cookies_file = nil, format = WebAgentSaver, jar = HTTP::CookieJar.new)
       @cookies_file = cookies_file
       @format = format
-      @jar = HTTP::CookieJar.new
+      @jar = jar
       load_cookies if @cookies_file
     end
 
