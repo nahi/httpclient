@@ -908,7 +908,7 @@ class HTTPClient
 
     StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d\d\d)\s*([^\r\n]+)?\r?\n\z)
     def parse_header
-      timeout(@receive_timeout, ReceiveTimeoutError) do
+     t = Thread.new {
         initial_line = nil
         begin
           begin
@@ -952,7 +952,12 @@ class HTTPClient
             end
           end
         end while (@version == '1.1' && @status == 100)
-      end
+
+     }
+     t.abort_on_exception = true
+     success = t.join(@receive_timeout)
+     raise ReceiveTimeoutError if success.nil?
+
     end
 
     def no_message_body?(status)
