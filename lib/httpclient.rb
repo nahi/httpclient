@@ -1289,7 +1289,7 @@ private
   def to_resource_url(uri)
     u = urify(uri)
     if @base_url && u.scheme.nil? && u.host.nil?
-      urify(@base_url + uri)
+      URI.join(@base_url, uri)
     else
       u
     end
