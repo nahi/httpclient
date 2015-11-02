@@ -568,7 +568,7 @@ EOS
   end
 
   def test_get_content_with_base_url
-    @client = HTTPClient.new(:base_url => serverurl[0..-1])
+    @client = HTTPClient.new(:base_url => serverurl)
     assert_equal('hello', @client.get_content('/hello'))
     assert_equal('hello', @client.get_content('/redirect1'))
     assert_equal('hello', @client.get_content('/redirect2'))
@@ -679,14 +679,14 @@ EOS
   end
 
   def test_get_with_base_url
-    @client = HTTPClient.new(:base_url => serverurl[0..-1])
+    @client = HTTPClient.new(:base_url => serverurl)
     assert_equal("get", @client.get('/servlet').content)
     param = {'1'=>'2', '3'=>'4'}
     res = @client.get('/servlet', param)
     assert_equal(param, params(res.header["x-query"][0]))
     assert_nil(res.contenttype)
     #
-    @client.base_url = serverurl[0..-1] + '/servlet'
+    @client.base_url = serverurl[0...-1] + '/servlet'
     url = '?5=6&7=8'
     res = @client.get(url, param)
     assert_equal(param.merge("5"=>"6", "7"=>"8"), params(res.header["x-query"][0]))
@@ -694,7 +694,7 @@ EOS
   end
 
   def test_get_with_default_header
-    @client = HTTPClient.new(:base_url => serverurl[0..-1], :default_header => {'x-header' => 'custom'})
+    @client = HTTPClient.new(:base_url => serverurl, :default_header => {'x-header' => 'custom'})
     assert_equal('custom', @client.get('/servlet').headers['X-Header'])
     @client.default_header = {'x-header' => 'custom2'}
     assert_equal('custom2', @client.get('/servlet').headers['X-Header'])
