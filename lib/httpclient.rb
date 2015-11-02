@@ -420,7 +420,7 @@ class HTTPClient
     load_environment
     self.proxy = proxy if proxy
     keep_webmock_compat
-    instance_eval &block if block
+    instance_eval(&block) if block
   end
 
   # webmock 1.6.2 depends on HTTP::Message#body.content to work.
@@ -1102,7 +1102,7 @@ private
   def protect_keep_alive_disconnected
     begin
       yield
-    rescue KeepAliveDisconnected => e
+    rescue KeepAliveDisconnected
       # Force to create new connection
       Thread.current[:HTTPClient_AcquireNewConnection] = true
       begin

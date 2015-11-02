@@ -770,8 +770,8 @@ EOS
 
   def test_get_with_block_arity_2
     called = false
-    res = @client.get(serverurl + 'servlet') { |res, str|
-      assert_equal(200, res.status)
+    res = @client.get(serverurl + 'servlet') { |blk_res, str|
+      assert_equal(200, blk_res.status)
       assert_equal('get', str)
       called = true
     }
@@ -783,7 +783,7 @@ EOS
   def test_get_with_block_string_recycle
     @client.read_block_size = 2
     body = []
-    res = @client.get(serverurl + 'servlet') { |str|
+    _res = @client.get(serverurl + 'servlet') { |str|
       body << str
     }
     assert_equal(2, body.size)
@@ -800,7 +800,7 @@ EOS
     url = "http://localhost:#{server.addr[1]}/"
     body = []
     begin
-      res = @client.get(url + 'chunked') { |str|
+      _res = @client.get(url + 'chunked') { |str|
         body << str
       }
     ensure
@@ -955,7 +955,7 @@ EOS
       1
     end
     @client.debug_dev = str = StringIO.new
-    res = @client.post(serverurl + 'servlet', { :file => myio })
+    _res = @client.post(serverurl + 'servlet', { :file => myio })
     assert_match(/\r\n4\r\n/, str.string, 'should send "4" not "45"')
   end
 
@@ -972,7 +972,7 @@ EOS
       end
     end
     @client.debug_dev = str = StringIO.new
-    res = @client.post(serverurl + 'servlet', { :file1 => myio1, :file2 => myio2 })
+    _res = @client.post(serverurl + 'servlet', { :file1 => myio1, :file2 => myio2 })
     assert_match(/\r\n45\r\n/, str.string)
   end
 
@@ -1273,7 +1273,7 @@ EOS
 
   def test_http_custom_date_header
     @client.debug_dev = (str = "")
-    res = @client.get(serverurl + 'hello', :header => {'Date' => 'foo'})
+    _res = @client.get(serverurl + 'hello', :header => {'Date' => 'foo'})
     lines = str.split(/(?:\r?\n)+/)
     assert_equal('Date: foo', lines[4])
   end

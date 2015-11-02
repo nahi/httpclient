@@ -124,6 +124,7 @@ class TestAuth < Test::Unit::TestCase
       end
       # Make it work if @value == nil
       class SecurityBuffer < FieldSet
+        remove_method(:data_size) if method_defined?(:data_size)
         def data_size
           @active && @value ? @value.size : 0
         end
@@ -230,7 +231,7 @@ class TestAuth < Test::Unit::TestCase
       c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
 
-      threads = 100.times.map { |idx|
+      100.times.map { |idx|
         Thread.new(idx) { |idx2|
           Thread.abort_on_exception = true
           Thread.pass
@@ -251,7 +252,7 @@ class TestAuth < Test::Unit::TestCase
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
     c.debug_dev = str = ''
     c.get_content("http://localhost:#{serverport}/basic_auth/sub/dir/")
-    assert_match /Authorization: Basic YWRtaW46YWRtaW4=/, str
+    assert_match(/Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
 
   def test_digest_auth
@@ -267,7 +268,7 @@ class TestAuth < Test::Unit::TestCase
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
     c.debug_dev = str = ''
     c.get_content("http://localhost:#{serverport}/digest_auth/sub/dir/")
-    assert_match /Authorization: Digest/, str
+    assert_match(/Authorization: Digest/, str)
   end
 
   def test_digest_auth_with_block
