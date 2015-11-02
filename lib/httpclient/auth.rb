@@ -312,7 +312,7 @@ class HTTPClient
 
     def get(req)
       synchronize {
-        return nil unless @challenge['challenged']
+        return nil if !@force_auth and !@challenge['challenged']
         @cred
       }
     end

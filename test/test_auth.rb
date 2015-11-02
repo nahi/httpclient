@@ -333,6 +333,16 @@ class TestAuth < Test::Unit::TestCase
     assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
 
+  def test_proxy_auth_force
+    c = HTTPClient.new
+    c.set_proxy_auth('admin', 'admin')
+    c.force_basic_auth = true
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.debug_dev = str = ''
+    c.get_content('http://example.com/')
+    assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
+  end
+
   def test_proxy_auth_reuses_credentials
     c = HTTPClient.new
     c.set_proxy_auth('admin', 'admin')
