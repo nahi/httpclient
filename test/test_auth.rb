@@ -462,7 +462,8 @@ class TestAuth < Test::Unit::TestCase
         assert_equal('basic_auth OK', c.post("http://localhost:#{serverport}/basic_auth", :file => f).content)
       end
     rescue Errno::ECONNRESET, HTTPClient::KeepAliveDisconnected
-      raise if retry_times > 2
+      # TODO: WEBrick server returns ECONNRESET/EPIPE before sending Unauthorized response to client?
+      raise if retry_times > 5
       retry_times += 1
       retry 
     end
