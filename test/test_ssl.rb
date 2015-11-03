@@ -229,7 +229,7 @@ end
 
   def test_allow_tlsv1
     teardown_server
-    setup_server#_with_ssl_version(:TLSv1)
+    setup_server_with_ssl_version(:TLSv1)
     assert_nothing_raised do
       @client.ssl_config.verify_mode = nil
       @client.get("https://localhost:#{serverport}/hello")

@@ -428,12 +428,6 @@ unless defined?(SSLSocket)
       end
     end
 
-    # TODO README: OpenSSL specific options are ignored;
-    # ssl_config.verify_depth
-    # ssl_config.options
-
-    # TODO README: revocation is performed by -Dcom.sun.security.enableCRLDP=true -Dcom.sun.net.ssl.checkRevocation=true
-    # example: https://test-sspev.verisign.com:2443/test-SSPEV-revoked-verisign.html
     def self.create_socket(session)
       site = session.proxy || session.dest
       socket = Socket.new(site.host, site.port)

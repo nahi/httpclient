@@ -54,6 +54,7 @@ class HTTPClient
     attr_reader :verify_mode
     # A number of verify depth.  Certification path which length is longer than
     # this depth is not allowed.
+    # CAUTION: this is OpenSSL specific option and ignored on JRuby.
     attr_reader :verify_depth
     # A callback handler for custom certificate verification.  nil by default.
     # If the handler is set, handler.call is invoked just after general
@@ -65,6 +66,8 @@ class HTTPClient
     attr_reader :timeout
     # A number of OpenSSL's SSL options.  Default value is
     # OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2
+    # CAUTION: this is OpenSSL specific option and ignored on JRuby.
+    # Use ssl_version to specify the TLS version you want to use.
     attr_reader :options
     # A String of OpenSSL's cipher configuration.  Default value is
     # ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH
@@ -219,6 +222,13 @@ class HTTPClient
     # Adds CRL for verification.
     # crl:: a OpenSSL::X509::CRL or a filename of a PEM/DER formatted
     #       OpenSSL::X509::CRL.
+    #
+    # On JRuby, instead of setting CRL by yourself you can set following
+    # options to let HTTPClient to perform revocation check with CRL and OCSP:
+    # -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true
+    # ex. jruby -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true app.rb
+    #
+    # Revoked cert example: https://test-sspev.verisign.com:2443/test-SSPEV-revoked-verisign.html
     #
     # Calling this method resets all existing sessions.
     def add_crl(crl)
