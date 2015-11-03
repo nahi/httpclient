@@ -18,6 +18,8 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def setup_server
+    @logger = Logger.new(STDERR)
+    @logger.level = Logger::INFO
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => @logger,
@@ -453,11 +455,18 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def test_basic_auth_post_with_multipart
-    c = HTTPClient.new
-    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
-    File.open(__FILE__) do |f|
-      # read 'f' twice for authorization negotiation
-      assert_equal('basic_auth OK', c.post("http://localhost:#{serverport}/basic_auth", :file => f).content)
+    retry_times = 0
+    begin
+      c = HTTPClient.new
+      c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+      File.open(__FILE__) do |f|
+        # read 'f' twice for authorization negotiation
+        assert_equal('basic_auth OK', c.post("http://localhost:#{serverport}/basic_auth", :file => f).content)
+      end
+    rescue Errno::ECONNRESET
+      raise if retry_times > 2
+      retry_times += 1
+      retry 
     end
   end
 
