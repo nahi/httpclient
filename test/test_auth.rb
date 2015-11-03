@@ -461,7 +461,7 @@ class TestAuth < Test::Unit::TestCase
         # read 'f' twice for authorization negotiation
         assert_equal('basic_auth OK', c.post("http://localhost:#{serverport}/basic_auth", :file => f).content)
       end
-    rescue Errno::ECONNRESET
+    rescue Errno::ECONNRESET, HTTPClient::KeepAliveDisconnected
       raise if retry_times > 2
       retry_times += 1
       retry 
