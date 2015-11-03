@@ -2,6 +2,8 @@
 
 ### Changes in 2.6.0
 
+Jan 3, 2015 - version 2.6.0
+
 This release includes internal CookieManager implementation change. It
 involves compatibility layer but for the case your library depends on internal
 implementation it also provides a way to restore the implementation. See below
