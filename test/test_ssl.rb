@@ -170,7 +170,7 @@ if defined?(HTTPClient::JRubySSLSocket)
       assert_match(/No appropriate protocol/, ssle.message)
     end
     #
-    cfg.ciphers = %w(SSL_RSA_WITH_RC4_128_MD5)
+    cfg.ciphers = %w(TLS_RSA_WITH_AES_128_CBC_SHA)
     assert_equal("hello", @client.get_content(@url))
     #
     cfg.ciphers = HTTPClient::SSLConfig::CIPHERS_DEFAULT
