@@ -20,14 +20,11 @@ class HTTPClient
   #
   # == Trust Anchor Control
   #
-  # SSLConfig loads 'httpclient/cacert.p7s' as a trust anchor
+  # SSLConfig loads 'httpclient/cacert.pem' as a trust anchor
   # (trusted certificate(s)) with add_trust_ca in initialization time.
   # This means that HTTPClient instance trusts some CA certificates by default,
-  # like Web browsers.  'httpclient/cacert.p7s' is created by the author and
-  # included in released package.
-  #
-  # 'cacert.p7s' is automatically generated from JDK 1.6.  Regardless its
-  # filename extension (p7s), HTTPClient doesn't verify the signature in it.
+  # like Web browsers.  'httpclient/cacert.pem' is downloaded from curl web
+  # site by the author and included in released package.
   #
   # You may want to change trust anchor by yourself.  Call clear_cert_store
   # then add_trust_ca for that purpose.
@@ -405,8 +402,18 @@ class HTTPClient
       nil
     end
 
+    # Use 2014 bit certs trust anchor if possible.
+    # CVE-2015-1793 requires: OpenSSL >= 1.0.2d or OpenSSL >= 1.0.1p
+    # OpenSSL before 1.0.1 does not have CVE-2015-1793 problem
     def load_cacerts(cert_store)
-      file = File.join(File.dirname(__FILE__), 'cacert.p7s')
+      ver = OpenSSL::OPENSSL_VERSION
+      if (ver.start_with?('OpenSSL 1.0.1') && ver >= 'OpenSSL 1.0.1p') ||
+          (ver.start_with?('OpenSSL ') && ver >= 'OpenSSL 1.0.2d')
+        filename = 'cacert.pem'
+      else
+        filename = 'cacert1024.pem'
+      end
+      file = File.join(File.dirname(__FILE__), filename)
       add_trust_ca_to_store(cert_store, file)
     end
   end
