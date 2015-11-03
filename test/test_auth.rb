@@ -18,6 +18,8 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def setup_server
+    @logger = Logger.new(STDERR)
+    @logger.level = Logger::INFO
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => @logger,
