@@ -497,6 +497,8 @@ unless defined?(SSLSocket)
         raise OpenSSL::SSL::SSLError.new(e.getMessage)
       rescue javax.net.ssl.SSLException => e
         raise OpenSSL::SSL::SSLError.new(e.getMessage)
+      rescue java.net.SocketException => e
+        raise OpenSSL::SSL::SSLError.new(e.getMessage)
       end
 
       super(ssl_socket, debug_dev)
