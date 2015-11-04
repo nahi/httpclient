@@ -149,6 +149,16 @@ require 'httpclient/cookie'
 #     clnt.ssl_config.set_client_cert_file(user_cert_file, user_key_file)
 #     clnt.get(https_url)
 #
+# 4. Revocation check. On JRuby you can set following options to let
+#    HTTPClient to perform revocation check with CRL and OCSP:
+#
+#     -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true
+#     ex. jruby -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true app.rb
+#     Revoked cert example: https://test-sspev.verisign.com:2443/test-SSPEV-revoked-verisign.html
+#
+#    On other platform you can download CRL by yourself and set it via
+#    SSLConfig#add_crl.
+#
 # === Handling Cookies
 #
 # 1. Using volatile Cookies.  Nothing to do.  HTTPClient handles Cookies.

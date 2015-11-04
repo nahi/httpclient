@@ -59,11 +59,13 @@ module Helper
     @client = HTTPClient.new
   end
 
-  #def setup_server
-    # override it
-    # @server = WEBrick::HTTPServer.new(...)
-    # @server_thread = start_server_thread(@server)
-  #end
+  def escape_noproxy
+    backup = HTTPClient::NO_PROXY_HOSTS.dup
+    HTTPClient::NO_PROXY_HOSTS.clear
+    yield
+  ensure
+    HTTPClient::NO_PROXY_HOSTS.replace(backup)
+  end
 
   def setup_proxyserver
     @proxyserver = WEBrick::HTTPProxyServer.new(

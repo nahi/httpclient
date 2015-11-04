@@ -1873,14 +1873,6 @@ private
     @server_thread = start_server_thread(@server)
   end
 
-  def escape_noproxy
-    backup = HTTPClient::NO_PROXY_HOSTS.dup
-    HTTPClient::NO_PROXY_HOSTS.clear
-    yield
-  ensure
-    HTTPClient::NO_PROXY_HOSTS.replace(backup)
-  end
-
   def add_query_string(req)
     if req.query_string
       '?' + req.query_string
