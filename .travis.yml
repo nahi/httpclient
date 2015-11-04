@@ -21,4 +21,3 @@ matrix:
   allow_failures:
     - rvm: rbx-2
     - rvm: jruby-18mode # NoMethodError: undefined method `world_writable?' for #<File::Stat:0x433e0608>
-    - rvm: jruby-head # https://github.com/jruby/jruby/pull/3442
