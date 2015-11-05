@@ -55,7 +55,7 @@ Nov 5, 2015 - version 2.7.0
 
      ```
      % httpclient version
-     2.6.0.1
+     2.7.0
      ```
 
    * Add patch() and patch_async() methods to support HTTP PATCH
