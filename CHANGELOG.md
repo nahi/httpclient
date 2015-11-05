@@ -1,5 +1,74 @@
 ## Changes
 
+### Changes in 2.7.0
+
+Nov 5, 2015 - version 2.7.0
+
+ * Changes
+
+   * Update trusted CA certificates
+
+     Issue #230 blocked updating trusted CA certificates to 2048 bit version
+     long time. But from OpenSSL 1.0.1m and 1.0.2a it changes their custom
+     chain building algorithm to find shortcut path when it fails to validate
+     the path SSL server returns so that we can migrate trusted CA
+     certificates to 2048bit version atop OpenSSL.
+
+     Unfortunately the new algorithm has CVE-2015-1793 problem so we can use
+     this new algorithm actually from OpenSSL >= 1.0.1p or >= 1.0.2d. (Jul
+     2015)
+
+     After this commit HTTPClient leverages 2048 bit version of trusted CA
+     certificates if ruby is compiled with proper version of OpenSSL.
+
+     ```ruby
+     ver = OpenSSL::OPENSSL_VERSION
+     if (ver.start_with?('OpenSSL 1.0.1') && ver >= 'OpenSSL 1.0.1p') ||
+         (ver.start_with?('OpenSSL ') && ver >= 'OpenSSL 1.0.2d')
+       filename = 'cacert.pem'
+     else
+       filename = 'cacert1024.pem'
+      end
+     ```
+
+   * New SSLSocket implementation for JRuby
+
+     Full rewrite of SSL implementation for JRuby with java.net.ssl.*.
+     HTTPClient no longer relies on SSL implementation in jruby-openssl.
+     Now it supports revocation check.
+
+     On JRuby, instead of setting CRL by yourself you can set following
+     options to let HTTPClient to perform revocation check with CRL and OCSP:
+
+     ```
+     -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true
+     ex. % jruby -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true app.rb
+     ```
+
+   * HTTPClient.new accepts initialization block
+
+     ```ruby
+     HTTPClient.new { |c| c.debug_dev = STDERR }.get("...")
+     ```
+
+   * Add 'version' command to httpclient CLI
+
+     ```
+     % httpclient version
+     2.6.0.1
+     ```
+
+   * Add patch() and patch_async() methods to support HTTP PATCH
+
+ * Bug fixes
+
+   * Support no header deflate compression
+
+     Some server returns deflate content without zlib header. Try to detect
+     it and fallback to plain deflate algorithm for
+     transparent_gzip_decompression.  Fixes #244.
+
+
 ### Changes in 2.6.0
 
 Jan 3, 2015 - version 2.6.0
