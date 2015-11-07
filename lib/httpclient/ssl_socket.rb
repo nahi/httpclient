@@ -49,7 +49,6 @@ class HTTPClient
           warn("Protocol version: #{@ssl_socket.ssl_version}")
         end
         warn("Cipher: #{@ssl_socket.cipher.inspect}")
-        warn("State: #{@ssl_socket.state}")
       end
       post_connection_check(hostname)
     end
