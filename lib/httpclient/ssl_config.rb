@@ -26,6 +26,12 @@ class HTTPClient
   # like Web browsers.  'httpclient/cacert.pem' is downloaded from curl web
   # site by the author and included in released package.
   #
+  # On JRuby, HTTPClient uses Java runtime's trusted CA certificates, not
+  # cacert.pem by default. You can load cacert.pem by calling
+  # SSLConfig#load_trust_ca manually like:
+  #
+  #   HTTPClient.new { self.ssl_config.load_trust_ca }.get("https://...")
+  #
   # You may want to change trust anchor by yourself.  Call clear_cert_store
   # then add_trust_ca for that purpose.
   class SSLConfig
@@ -437,9 +443,10 @@ class HTTPClient
     def load_cacerts(cert_store)
       ver = OpenSSL::OPENSSL_VERSION
       if (ver.start_with?('OpenSSL 1.0.1') && ver >= 'OpenSSL 1.0.1p') ||
-          (ver.start_with?('OpenSSL ') && ver >= 'OpenSSL 1.0.2d')
+          (ver.start_with?('OpenSSL ') && ver >= 'OpenSSL 1.0.2d') || defined?(JRuby)
         filename = 'cacert.pem'
       else
+        warn("RSA 1024 bit CA certificates are loaded due to old openssl compatibility")
         filename = 'cacert1024.pem'
       end
       file = File.join(File.dirname(__FILE__), filename)
