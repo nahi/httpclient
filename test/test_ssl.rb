@@ -237,13 +237,9 @@ end
   end
 
   def test_use_higher_TLS
+    omit('TODO: it does not pass with Java 7 or old openssl ')
     teardown_server
-    begin
-      setup_server_with_ssl_version(:TLSv1_2)
-    rescue ArgumentError
-      return
-      # TODO: TLSv1_2 is not supported in Travis environment - unknown SSL method `TLSv1_2'
-    end
+    setup_server_with_ssl_version(:TLSv1_2)
     assert_nothing_raised do
       @client.ssl_config.verify_mode = nil
       @client.get("https://localhost:#{serverport}/hello")
