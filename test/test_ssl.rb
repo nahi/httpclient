@@ -236,6 +236,18 @@ end
     end
   end
 
+  def test_use_higher_TLS
+    omit('TODO: it does not pass with Java 7 or old openssl ')
+    teardown_server
+    setup_server_with_ssl_version(:TLSv1_2)
+    assert_nothing_raised do
+      @client.ssl_config.verify_mode = nil
+      @client.get("https://localhost:#{serverport}/hello")
+      # TODO: should check JRubySSLSocket.ssl_socket.getSession.getProtocol
+      # but it's not thread safe. How can I return protocol version to the caller?
+    end
+  end
+
 private
 
   def cert(filename)

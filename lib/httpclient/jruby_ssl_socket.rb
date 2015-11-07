@@ -442,9 +442,10 @@ unless defined?(SSLSocket)
       new(socket, session.dest, session.ssl_config, session.debug_dev)
     end
 
+    DEFAULT_SSL_PROTOCOL = 'TLS'
     def initialize(socket, dest, config, debug_dev = nil)
       if config.ssl_version == :auto
-        ssl_version = 'TLSv1'
+        ssl_version = DEFAULT_SSL_PROTOCOL
       else
         ssl_version = config.to_s.gsub(/_/, '.')
       end
@@ -485,13 +486,17 @@ unless defined?(SSLSocket)
       factory = ctx.getSocketFactory
       begin
         ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
-        ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String))
+        ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
         if config.ciphers != SSLConfig::CIPHERS_DEFAULT
           ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
         end
         ssl_socket.startHandshake
-        @peer_cert = JavaCertificate.new(ssl_socket.getSession.getPeerCertificates.first)
-        @ciphersuite = ssl_socket.getSession.getCipherSuite
+        ssl_session = ssl_socket.getSession
+        @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
+        if $DEBUG
+          warn("Protocol version: #{ssl_session.getProtocol}")
+          warn("Cipher: #{ssl_socket.getSession.getCipherSuite}")
+        end
         post_connection_check(dest.host, @peer_cert)
       rescue java.security.GeneralSecurityException => e
         raise OpenSSL::SSL::SSLError.new(e.getMessage)
@@ -506,10 +511,6 @@ unless defined?(SSLSocket)
 
     def peer_cert
       @peer_cert
-    end
-
-    def ciphersuite
-      @ciphersuite
     end
 
   private
