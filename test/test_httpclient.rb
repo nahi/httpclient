@@ -1024,6 +1024,10 @@ EOS
   def test_post_with_custom_multipart_and_file
     STDOUT.sync = true
     File.open(__FILE__) do |file|
+      def file.original_filename
+        'file.txt'
+      end
+
       ext = { 'Content-Type' => 'multipart/alternative' }
       body = [{ 'Content-Type' => 'text/plain', :content => "this is only a test" },
               { 'Content-Type' => 'application/x-ruby', :content => file }]
@@ -1031,6 +1035,7 @@ EOS
       assert_match(/^Content-Type: text\/plain\r\n/m, res.content)
       assert_match(/^this is only a test\r\n/m, res.content)
       assert_match(/^Content-Type: application\/x-ruby\r\n/m, res.content)
+      assert_match(/Content-Disposition: form-data; name="3"; filename="file.txt"/, res.content)
       assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
     end
   end
