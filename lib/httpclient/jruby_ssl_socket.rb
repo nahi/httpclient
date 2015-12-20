@@ -447,7 +447,7 @@ unless defined?(SSLSocket)
       if config.ssl_version == :auto
         ssl_version = DEFAULT_SSL_PROTOCOL
       else
-        ssl_version = config.to_s.gsub(/_/, '.')
+        ssl_version = config.ssl_version.to_s.gsub(/_/, '.')
       end
       unless config.cert_store_crl_items.empty?
         raise NotImplementedError.new('Manual CRL configuration is not yet supported')
