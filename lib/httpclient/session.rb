@@ -14,6 +14,7 @@
 
 require 'socket'
 require 'thread'
+require 'timeout'
 require 'stringio'
 require 'zlib'
 
@@ -497,7 +498,7 @@ class HTTPClient
       # Use absolute URI (not absolute path) iif via proxy AND not HTTPS.
       req.header.request_absolute_uri = !@proxy.nil? && !https?(@dest)
       begin
-        timeout(@send_timeout, SendTimeoutError) do
+        ::Timeout.timeout(@send_timeout, SendTimeoutError) do
           set_header(req)
           req.dump(@socket)
           # flush the IO stream as IO::sync mode is false
@@ -731,7 +732,7 @@ class HTTPClient
       site = @proxy || @dest
       retry_number = 0
       begin
-        timeout(@connect_timeout, ConnectTimeoutError) do
+        ::Timeout.timeout(@connect_timeout, ConnectTimeoutError) do
           if str = @test_loopback_http_response.shift
             @socket = create_loopback_socket(site.host, site.port, str)
           elsif https?(@dest)
@@ -784,7 +785,7 @@ class HTTPClient
 
     StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d\d\d)\s*([^\r\n]+)?\r?\n\z)
     def parse_header(socket)
-      timeout(@receive_timeout, ReceiveTimeoutError) do
+      ::Timeout.timeout(@receive_timeout, ReceiveTimeoutError) do
         initial_line = nil
         begin
           begin
@@ -864,7 +865,7 @@ class HTTPClient
         buf = empty_bin_str
         maxbytes = @read_block_size
         maxbytes = @content_length if maxbytes > @content_length && @content_length > 0
-        timeout(@receive_timeout, ReceiveTimeoutError) do
+        ::Timeout.timeout(@receive_timeout, ReceiveTimeoutError) do
           begin
             @socket.readpartial(maxbytes, buf)
           rescue EOFError
