@@ -456,4 +456,4 @@ end
 
 class HTTPClient
   CookieManager = WebAgent::CookieManager
-end
+end unless defined?(HTTPClient::CookieManager)
