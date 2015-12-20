@@ -393,9 +393,24 @@ class HTTPClient
   #
   # After you set :base_url, all resources you pass to get, post and other
   # methods are recognized to be prefixed with base_url. Say base_url is
-  # 'https://api.example.com/v1, get('/users') is the same as
+  # 'https://api.example.com/v1/, get('users') is the same as
   # get('https://api.example.com/v1/users') internally. You can also pass
   # full URL from 'http://' even after setting base_url.
+  #
+  # The expected base_url and path behavior is the following. Please take
+  # care of '/' in base_url and path.
+  #
+  # The last '/' is important for base_url:
+  #   1. http://foo/bar/baz/ + path -> http://foo/bar/baz/path
+  #   2. http://foo/bar/baz + path -> http://foo/bar/path
+  # Relative path handling:
+  #   3. http://foo/bar/baz/ + ../path -> http://foo/bar/path
+  #   4. http://foo/bar/baz + ../path -> http://foo/path
+  #   5. http://foo/bar/baz/ + ./path -> http://foo/bar/baz/path
+  #   6. http://foo/bar/baz + ./path -> http://foo/bar/path
+  # The leading '/' of path means absolute path:
+  #   7. http://foo/bar/baz/ + /path -> http://foo/path
+  #   8. http://foo/bar/baz + /path -> http://foo/path
   #
   # :default_header is for providing default headers Hash that all HTTP
   # requests should have, such as custom 'Authorization' header in API.
