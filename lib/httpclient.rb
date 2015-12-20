@@ -1133,7 +1133,7 @@ private
     boundary = nil
     if body
       _, content_type = header.find { |key, value|
-        key.downcase == 'content-type'
+        key.to_s.downcase == 'content-type'
       }
       if content_type
         if /\Amultipart/ =~ content_type
@@ -1142,7 +1142,7 @@ private
           else
             boundary = create_boundary
             content_type = "#{content_type}; boundary=#{boundary}"
-            header = override_header(header, 'Content-Type', content_type)
+            header = override_header(header, 'content-type', content_type)
           end
         end
       else
@@ -1180,7 +1180,7 @@ private
   def override_header(header, key, value)
     result = []
     header.each do |k, v|
-      if k.downcase == key.downcase
+      if k.to_s.downcase == key
         result << [key, value]
       else
         result << [k, v]

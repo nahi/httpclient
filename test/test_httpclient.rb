@@ -115,6 +115,14 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("Accept: text/html", lines[4])
   end
 
+  def test_header_symbol
+    str = ""
+    @client.debug_dev = str
+    @client.post(serverurl + 'servlet', :header => {:'Content-Type' => 'application/json'}, :body => 'hello')
+    lines = str.split(/(?:\r?\n)+/).grep(/^Content-Type/)
+    assert_equal(2, lines.size) # 1 for both request and response
+  end
+
   def test_host_given
     str = ""
     @client.debug_dev = str
