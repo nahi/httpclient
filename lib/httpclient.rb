@@ -718,9 +718,9 @@ class HTTPClient
   def default_redirect_uri_callback(uri, res)
     newuri = urify(res.header['location'][0])
     if !http?(newuri) && !https?(newuri)
-      newuri = uri + newuri
-      warn("could be a relative URI in location header which is not recommended")
+      warn("#{newuri}: a relative URI in location header which is not recommended")
       warn("'The field value consists of a single absolute URI' in HTTP spec")
+      newuri = uri + newuri
     end
     if https?(uri) && !https?(newuri)
       raise BadResponseError.new("redirecting to non-https resource")

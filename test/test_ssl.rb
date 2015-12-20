@@ -11,7 +11,6 @@ class TestSSL < Test::Unit::TestCase
     super
     @serverpid = @client = nil
     @verify_callback_called = false
-    @verbose, $VERBOSE = $VERBOSE, nil
     setup_server
     setup_client
     @url = "https://localhost:#{serverport}/hello"
@@ -19,7 +18,6 @@ class TestSSL < Test::Unit::TestCase
 
   def teardown
     super
-    $VERBOSE = @verbose
   end
 
   def path(filename)

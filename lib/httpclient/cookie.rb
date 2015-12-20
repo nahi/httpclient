@@ -3,9 +3,12 @@ unless defined?(HTTPClient::CookieManager)
 begin # for catching LoadError and load webagent-cookie instead
 
 require 'http-cookie'
+require 'httpclient/util'
 
 class HTTPClient
   class CookieManager
+    include HTTPClient::Util
+
     attr_reader :format, :jar
     attr_accessor :cookies_file
 
@@ -68,7 +71,7 @@ class HTTPClient
     end
 
     def find(uri)
-      warn('CookieManager#find is deprecated and will be removed in near future. Use HTTP::Cookie.cookie_value(CookieManager#cookies) instead')
+      warning('CookieManager#find is deprecated and will be removed in near future. Use HTTP::Cookie.cookie_value(CookieManager#cookies) instead')
       if cookie = cookies(uri)
         HTTP::Cookie.cookie_value(cookie)
       end
@@ -174,8 +177,7 @@ class WebAgent
   CookieManager = ::HTTPClient::CookieManager
 
   class Cookie < HTTP::Cookie
-    @@domain_warned = false
-    @@warned = false
+    include HTTPClient::Util
 
     def url
       deprecated('url', 'origin')
@@ -195,7 +197,7 @@ class WebAgent
     alias original_domain domain
 
     def domain
-      domain_warning
+      warning('Cookie#domain returns dot-less domain name now. Use Cookie#dot_domain if you need "." at the beginning.')
       self.original_domain
     end
 
@@ -206,18 +208,8 @@ class WebAgent
 
   private
 
-    def domain_warning
-      unless @@domain_warned
-        warn('Cookie#domain returns dot-less domain name now. Use Cookie#dot_domain if you need "." at the beginning.')
-        @@domain_warned = true
-      end
-    end
-
     def deprecated(old, new)
-      unless @@warned
-        warn("WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie##{new} instead of Cookie##{old} for the replacement.")
-        @@warned = true
-      end
+      warning("WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie##{new} instead of Cookie##{old} for the replacement.")
     end
   end
 end

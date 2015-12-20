@@ -198,6 +198,16 @@ class HTTPClient
     end
     module_function :try_require
 
+    # show one warning message only once by caching message
+    #
+    # it cached all messages in memory so be careful not to show many kinds of warning message.
+    @@__warned = {}
+    def warning(message)
+      return if @@__warned.key?(message)
+      warn(message)
+      @@__warned[message] = true
+    end
+
     # Checks if the given URI is https.
     def https?(uri)
       uri.scheme && uri.scheme.downcase == 'https'

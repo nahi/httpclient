@@ -315,7 +315,7 @@ unless defined?(SSLSocket)
       def add(file_or_dir)
         return if file_or_dir == :default
         if File.directory?(file_or_dir)
-          warn('directory not yet supported')
+          warn("#{file_or_dir}: directory not yet supported")
         else
           pem = nil
           File.read(file_or_dir).each_line do |line|
