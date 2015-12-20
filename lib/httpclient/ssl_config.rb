@@ -450,7 +450,10 @@ class HTTPClient
         filename = 'cacert1024.pem'
       end
       file = File.join(File.dirname(__FILE__), filename)
-      add_trust_ca_to_store(cert_store, file)
+      unless defined?(JRuby)
+        # JRuby uses @cert_store_items
+        add_trust_ca_to_store(cert_store, file)
+      end
       @cert_store_items << file
     end
   end
