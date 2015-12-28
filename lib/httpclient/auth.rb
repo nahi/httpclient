@@ -102,6 +102,7 @@ class HTTPClient
             # the marker for such case.
             return
           end
+          auth.encrypt_payload(req) if auth.respond_to?(:encrypt_payload)
           req.header.set('Authorization', auth.scheme + " " + cred)
           return
         end
@@ -130,8 +131,21 @@ class HTTPClient
           end
           # ignore unknown authentication scheme
         end
+      elsif res.status == HTTP::Status::OK
+        decrypted_content = res.content
+        @authenticator.each do |auth|
+          next unless auth.set? # hasn't be set, don't use it
+          decrypted_content = auth.decrypt_payload(res.content) if auth.respond_to?(:encrypted_channel?) && auth.encrypted_channel? && encrypted_content?(res.content)
+        end
+        # update with decrypted content
+        res.content.replace(decrypted_content) if res.content and !res.content.empty?
       end
       command
+    end
+
+    private
+    def encrypted_content? content
+      content.start_with?('--Encrypted ')
     end
   end
 
@@ -596,52 +610,74 @@ class HTTPClient
   class SSPINegotiateAuth < AuthBase
     include Mutex_m
 
+    begin
+      require 'win32/sspi'
+      SSPIEnabled = true
+    rescue LoadError
+      SSPIEnabled = false
+    end
+
+    begin
+      require 'gssapi'
+      GSSAPIEnabled = true
+    rescue LoadError
+      GSSAPIEnabled = false
+    end
+
     # Creates new SSPINegotiateAuth filter.
     def initialize
       super('Negotiate')
     end
 
     # Set authentication credential.
-    # NOT SUPPORTED: username and necessary data is retrieved by win32/sspi.
-    # See win32/sspi for more details.
-    def set(*args)
-      # not supported
+    # CHECK: username and necessary data is retrieved by win32/sspi.
+    # Override to remember creds
+    def set(uri, user, passwd)
+      # Check if user has domain specified in it.
+      if user
+        creds = user.split("\\")
+        creds.length.eql?(2) ? (@domain,@user = creds) : @user = creds[0]
+      end
+      @passwd = passwd
     end
 
-    # Check always (not effective but it works)
+    # Check always
     def set?
-      !@challenge.empty?
+      SSPIEnabled || GSSAPIEnabled
     end
 
     # Response handler: returns credential.
     # See win32/sspi for negotiation state transition.
     def get(req)
+      return nil unless SSPIEnabled || GSSAPIEnabled
       target_uri = req.header.request_uri
       synchronize {
-        domain_uri, param = @challenge.find { |uri, v|
+          domain_uri, param = @challenge.find { |uri, v|
           Util.uri_part_of(target_uri, uri)
         }
         return nil unless param
-        Util.try_require('win32/sspi') || Util.try_require('gssapi') || return
         state = param[:state]
         authenticator = param[:authenticator]
         authphrase = param[:authphrase]
         case state
         when :init
-          if defined?(Win32::SSPI)
-            authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new
-            authenticator.get_initial_token(@scheme)
+          if SSPIEnabled
+            # Over-ride ruby win32 sspi to support encrypt/decrypt
+            require 'winrm/win32/sspi'
+            authenticator = param[:authenticator] = Win32::SSPI::NegotiateAuth.new(@user, @domain, @passwd)
+            @authenticator = authenticator #  **** Hacky remember as we need this for encrypt/decrypt
+            return authenticator.get_initial_token
           else # use GSSAPI
             authenticator = param[:authenticator] = GSSAPI::Simple.new(domain_uri.host, 'HTTP')
             # Base64 encode the context token
-            [authenticator.init_context].pack('m').gsub(/\n/,'')
+            return [authenticator.init_context].pack('m').gsub(/\n/,'')
           end
         when :response
-          @challenge[target_uri][:state] = :done
-          if defined?(Win32::SSPI)
-            authenticator.complete_authentication(authphrase)
+          @challenge.delete(domain_uri)
+          if SSPIEnabled
+            return authenticator.complete_authentication(authphrase)
           else # use GSSAPI
-            authenticator.init_context(authphrase.unpack('m').pop)
+            return authenticator.init_context(authphrase.unpack('m').pop)
           end
         when :done
           :skip
@@ -649,6 +685,29 @@ class HTTPClient
           nil
         end
       }
+    end
+
+    def encrypted_channel?
+      @encrypted_channel
+    end
+
+    def encrypt_payload(req)
+      if SSPIEnabled
+        body = @authenticator.encrypt_payload(req.body)
+        req.http_body = HTTP::Message::Body.new
+        req.http_body.init_request(body)
+        req.http_header.body_size = body.length if body
+        # if body is encrypted update the header
+        if body.include? "HTTP-SPNEGO-session-encrypted"
+          @encrypted_channel = true
+          req.header.set('Content-Type', "multipart/encrypted;protocol=\"application/HTTP-SPNEGO-session-encrypted\";boundary=\"Encrypted Boundary\"")
+        end
+      end
+    end
+
+    def decrypt_payload(body)
+      body = @authenticator.decrypt_payload(body) if SSPIEnabled
+      body
     end
 
     # Challenge handler: remember URL and challenge token for response.
