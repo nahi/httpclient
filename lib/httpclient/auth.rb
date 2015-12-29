@@ -131,7 +131,7 @@ class HTTPClient
           end
           # ignore unknown authentication scheme
         end
-      elsif res.status == HTTP::Status::OK
+      else
         decrypted_content = res.content
         @authenticator.each do |auth|
           next unless auth.set? # hasn't be set, don't use it
