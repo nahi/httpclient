@@ -898,7 +898,7 @@ class HTTPClient
           @socket.gets(RS)
           return
         end
-        timeout(@receive_timeout, ReceiveTimeoutError) do
+       ::Timeout.timeout(@receive_timeout, ReceiveTimeoutError) do
           @socket.read(@chunk_length, buf)
           @socket.read(2)
         end
@@ -915,7 +915,7 @@ class HTTPClient
       end
       while true
         buf = empty_bin_str
-        timeout(@receive_timeout, ReceiveTimeoutError) do
+        ::Timeout.timeout(@receive_timeout, ReceiveTimeoutError) do
           begin
             @socket.readpartial(@read_block_size, buf)
           rescue EOFError
