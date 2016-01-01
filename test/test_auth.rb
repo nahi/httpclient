@@ -465,6 +465,7 @@ class TestAuth < Test::Unit::TestCase
       # TODO: WEBrick server returns ECONNRESET/EPIPE before sending Unauthorized response to client?
       raise if retry_times > 5
       retry_times += 1
+      sleep 1
       retry 
     end
   end
