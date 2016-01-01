@@ -1,5 +1,28 @@
 ## Changes
 
+### Changes in 2.7.1
+
+Jan 1, 2016 - version 2.7.1
+
+ * Changes
+
+   * Symbol aware header key comparison
+
+     Normalizes symbol to String for header key.
+     https://github.com/nahi/httpclient/issues/278
+
+   * Show warning message only once
+
+     Added HTTPClient::Util.warning that cached warning message and supress the
+     message if it's already dumped.
+
+   * Use Timeout.timeout instead of Kernel.timeout that is deprecated from ruby 2.3.0.
+
+ * Bug fixes
+
+   * [JRuby] Set ssl_version properly
+
+
 ### Changes in 2.7.0
 
 Nov 5, 2015 - version 2.7.0
