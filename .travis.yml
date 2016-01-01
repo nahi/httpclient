@@ -21,5 +21,6 @@ notifications:
 
 matrix:
   allow_failures:
+    - jruby-head # https://github.com/jruby/jruby/issues/3577
     - rvm: rbx-2
     - rvm: jruby-18mode # NoMethodError: undefined method `world_writable?' for #<File::Stat:0x433e0608>
