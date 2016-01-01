@@ -6,7 +6,7 @@ rvm:
   - 2.0.0
   - 2.1.5
   - 2.2.3
-  - 2.3.0-preview1
+  - 2.3.0
   - ruby-head
   - jruby-18mode
   - jruby-19mode
@@ -21,6 +21,6 @@ notifications:
 
 matrix:
   allow_failures:
-    - jruby-head # https://github.com/jruby/jruby/issues/3577
+    - rvm: jruby-head # https://github.com/jruby/jruby/issues/3577
     - rvm: rbx-2
     - rvm: jruby-18mode # NoMethodError: undefined method `world_writable?' for #<File::Stat:0x433e0608>
