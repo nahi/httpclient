@@ -647,8 +647,8 @@ class HTTPClient
   # use get method.  get returns HTTP::Message as a response and you need to
   # follow HTTP redirect by yourself if you need.
   def get_content(uri, *args, &block)
-    query, header = keyword_argument(args, :query, :header)
-    success_content(follow_redirect(:get, uri, query, nil, header || {}, &block))
+    query, header, timeout = keyword_argument(args, :query, :header, :timeout)
+    success_content(follow_redirect(:get, uri, query, nil, header || {}, timeout || {}, &block))
   end
 
   # Posts a content.
@@ -685,12 +685,12 @@ class HTTPClient
   # use post method.
   def post_content(uri, *args, &block)
     if hashy_argument_has_keys(args, :query, :body)
-      query, body, header = keyword_argument(args, :query, :body, :header)
+      query, body, header, timeout = keyword_argument(args, :query, :body, :header, :timeout)
     else
       query = nil
-      body, header = keyword_argument(args, :body, :header)
+      body, header, timeout = keyword_argument(args, :body, :header, :timeout)
     end
-    success_content(follow_redirect(:post, uri, query, body, header || {}, &block))
+    success_content(follow_redirect(:post, uri, query, body, header || {}, timeout || {}, &block))
   end
 
   # A method for redirect uri callback.  How to use:
@@ -731,12 +731,12 @@ class HTTPClient
 
   # Sends HEAD request to the specified URL.  See request for arguments.
   def head(uri, *args)
-    request(:head, uri, argument_to_hash(args, :query, :header, :follow_redirect))
+    request(:head, uri, argument_to_hash(args, :query, :header, :follow_redirect, :timeout))
   end
 
   # Sends GET request to the specified URL.  See request for arguments.
   def get(uri, *args, &block)
-    request(:get, uri, argument_to_hash(args, :query, :header, :follow_redirect), &block)
+    request(:get, uri, argument_to_hash(args, :query, :header, :follow_redirect, :timeout), &block)
   end
 
   # Sends PATCH request to the specified URL.  See request for arguments.
@@ -744,7 +744,7 @@ class HTTPClient
     if hashy_argument_has_keys(args, :query, :body)
       new_args = args[0]
     else
-      new_args = argument_to_hash(args, :body, :header)
+      new_args = argument_to_hash(args, :body, :header, :timeout)
     end
     request(:patch, uri, new_args, &block)
   end
@@ -756,7 +756,7 @@ class HTTPClient
     if hashy_argument_has_keys(args, :query, :body)
       new_args = args[0]
     else
-      new_args = argument_to_hash(args, :body, :header, :follow_redirect)
+      new_args = argument_to_hash(args, :body, :header, :follow_redirect, :timeout)
     end
     request(:post, uri, new_args, &block)
   end
@@ -766,35 +766,35 @@ class HTTPClient
     if hashy_argument_has_keys(args, :query, :body)
       new_args = args[0]
     else
-      new_args = argument_to_hash(args, :body, :header)
+      new_args = argument_to_hash(args, :body, :header, :timeout, :timeout)
     end
     request(:put, uri, new_args, &block)
   end
 
   # Sends DELETE request to the specified URL.  See request for arguments.
   def delete(uri, *args, &block)
-    request(:delete, uri, argument_to_hash(args, :body, :header, :query), &block)
+    request(:delete, uri, argument_to_hash(args, :body, :header, :query, :timeout), &block)
   end
 
   # Sends OPTIONS request to the specified URL.  See request for arguments.
   def options(uri, *args, &block)
-    new_args = argument_to_hash(args, :header, :query, :body)
+    new_args = argument_to_hash(args, :header, :query, :body, :timeout)
     request(:options, uri, new_args, &block)
   end
 
   # Sends PROPFIND request to the specified URL.  See request for arguments.
   def propfind(uri, *args, &block)
-    request(:propfind, uri, argument_to_hash(args, :header), &block)
+    request(:propfind, uri, argument_to_hash(args, :header, :timeout), &block)
   end
   
   # Sends PROPPATCH request to the specified URL.  See request for arguments.
   def proppatch(uri, *args, &block)
-    request(:proppatch, uri, argument_to_hash(args, :body, :header), &block)
+    request(:proppatch, uri, argument_to_hash(args, :body, :header, :timeout), &block)
   end
   
   # Sends TRACE request to the specified URL.  See request for arguments.
   def trace(uri, *args, &block)
-    request('TRACE', uri, argument_to_hash(args, :query, :header), &block)
+    request('TRACE', uri, argument_to_hash(args, :query, :header, :timeout), &block)
   end
 
   # Sends a request to the specified URL.
@@ -836,7 +836,7 @@ class HTTPClient
   # respond to :size. Bear in mind that some server application does not support
   # chunked request.  At least cgi.rb does not support it.
   def request(method, uri, *args, &block)
-    query, body, header, follow_redirect = keyword_argument(args, :query, :body, :header, :follow_redirect)
+    query, body, header, follow_redirect, timeout = keyword_argument(args, :query, :body, :header, :follow_redirect, :timeout)
     if method == :propfind
       header ||= PROPFIND_DEFAULT_EXTHEADER
     else
@@ -853,22 +853,22 @@ class HTTPClient
       end
     end
     if follow_redirect
-      follow_redirect(method, uri, query, body, header, &block)
+      follow_redirect(method, uri, query, body, header, timeout, &block)
     else
-      do_request(method, uri, query, body, header, &filtered_block)
+      do_request(method, uri, query, body, header, timeout, &filtered_block)
     end
   end
 
   # Sends HEAD request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def head_async(uri, *args)
-    request_async2(:head, uri, argument_to_hash(args, :query, :header))
+    request_async2(:head, uri, argument_to_hash(args, :query, :header, :timeout))
   end
 
   # Sends GET request in async style.  See request_async for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def get_async(uri, *args)
-    request_async2(:get, uri, argument_to_hash(args, :query, :header))
+    request_async2(:get, uri, argument_to_hash(args, :query, :header, :timeout))
   end
 
   # Sends PATCH request in async style.  See request_async2 for arguments.
@@ -877,7 +877,7 @@ class HTTPClient
     if hashy_argument_has_keys(args, :query, :body)
       new_args = args[0]
     else
-      new_args = argument_to_hash(args, :body, :header)
+      new_args = argument_to_hash(args, :body, :header, :timeout)
     end
     request_async2(:patch, uri, new_args)
   end
@@ -888,7 +888,7 @@ class HTTPClient
     if hashy_argument_has_keys(args, :query, :body)
       new_args = args[0]
     else
-      new_args = argument_to_hash(args, :body, :header)
+      new_args = argument_to_hash(args, :body, :header, :timeout)
     end
     request_async2(:post, uri, new_args)
   end
@@ -899,7 +899,7 @@ class HTTPClient
     if hashy_argument_has_keys(args, :query, :body)
       new_args = args[0]
     else
-      new_args = argument_to_hash(args, :body, :header)
+      new_args = argument_to_hash(args, :body, :header, :timeout)
     end
     request_async2(:put, uri, new_args)
   end
@@ -907,31 +907,31 @@ class HTTPClient
   # Sends DELETE request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def delete_async(uri, *args)
-    request_async2(:delete, uri, argument_to_hash(args, :body, :header, :query))
+    request_async2(:delete, uri, argument_to_hash(args, :body, :header, :query, :timeout))
   end
 
   # Sends OPTIONS request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def options_async(uri, *args)
-    request_async2(:options, uri, argument_to_hash(args, :header, :query, :body))
+    request_async2(:options, uri, argument_to_hash(args, :header, :query, :body, :timeout))
   end
 
   # Sends PROPFIND request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def propfind_async(uri, *args)
-    request_async2(:propfind, uri, argument_to_hash(args, :body, :header))
+    request_async2(:propfind, uri, argument_to_hash(args, :body, :header, :timeout))
   end
   
   # Sends PROPPATCH request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def proppatch_async(uri, *args)
-    request_async2(:proppatch, uri, argument_to_hash(args, :body, :header))
+    request_async2(:proppatch, uri, argument_to_hash(args, :body, :header, :timeout))
   end
   
   # Sends TRACE request in async style.  See request_async2 for arguments.
   # It immediately returns a HTTPClient::Connection instance as a result.
   def trace_async(uri, *args)
-    request_async2(:trace, uri, argument_to_hash(args, :query, :header))
+    request_async2(:trace, uri, argument_to_hash(args, :query, :header, :timeout))
   end
 
   # Sends a request in async style.  request method creates new Thread for
@@ -945,7 +945,7 @@ class HTTPClient
 
   # new method that has same signature as 'request'
   def request_async2(method, uri, *args)
-    query, body, header = keyword_argument(args, :query, :body, :header)
+    query, body, header, timeout = keyword_argument(args, :query, :body, :header, :timeout)
     if [:post, :put].include?(method)
       body ||= ''
     end
@@ -955,7 +955,7 @@ class HTTPClient
       header ||= {}
     end
     uri = to_resource_url(uri)
-    do_request_async(method, uri, query, body, header)
+    do_request_async(method, uri, query, body, header, timeout)
   end
 
   # Resets internal session for the given URL.  Keep-alive connection for the
@@ -997,7 +997,7 @@ private
       key.all? { |e| args[0].key?(e) }
   end
 
-  def do_request(method, uri, query, body, header, &block)
+  def do_request(method, uri, query, body, header, timeout, &block)
     res = nil
     if HTTP::Message.file?(body)
       pos = body.pos rescue nil
@@ -1007,7 +1007,7 @@ private
     previous_request = previous_response = nil
     while retry_count > 0
       body.pos = pos if pos
-      req = create_request(method, uri, query, body, header)
+      req = create_request(method, uri, query, body, header, timeout)
       if previous_request
         # to remember IO positions to read
         req.http_body.positions = previous_request.http_body.positions
@@ -1035,7 +1035,7 @@ private
     res
   end
 
-  def do_request_async(method, uri, query, body, header)
+  def do_request_async(method, uri, query, body, header, timeout)
     conn = Connection.new
     t = Thread.new(conn) { |tconn|
       begin
@@ -1046,7 +1046,7 @@ private
         proxy = no_proxy?(uri) ? nil : @proxy
         while retry_count > 0
           body.pos = pos if pos
-          req = create_request(method, uri, query, body, header)
+          req = create_request(method, uri, query, body, header, timeout)
           begin
             protect_keep_alive_disconnected do
               do_get_stream(req, proxy, tconn)
@@ -1082,7 +1082,7 @@ private
     ENV[name.downcase] || ENV[name.upcase]
   end
 
-  def follow_redirect(method, uri, query, body, header, &block)
+  def follow_redirect(method, uri, query, body, header, timeout, &block)
     uri = to_resource_url(uri)
     if block
       filtered_block = proc { |r, str|
@@ -1097,7 +1097,7 @@ private
     request_query = query
     while retry_number < @follow_redirect_count
       body.pos = pos if pos
-      res = do_request(method, uri, request_query, body, header, &filtered_block)
+      res = do_request(method, uri, request_query, body, header, timeout, &filtered_block)
       res.previous = previous
       if res.redirect?
         if res.header['location'].empty?
@@ -1138,13 +1138,14 @@ private
     end
   end
 
-  def create_request(method, uri, query, body, header)
+  def create_request(method, uri, query, body, header, timeout)
     method = method.to_s.upcase
     if header.is_a?(Hash)
       header = @default_header.merge(header).to_a
     else
       header = @default_header.to_a + header.dup
     end
+    raise ArgumentError.new('timeout must be a hash') if timeout && !timeout.is_a?(Hash)
     boundary = nil
     if body
       _, content_type = header.find { |key, value|
@@ -1174,6 +1175,8 @@ private
     header.each do |key, value|
       req.header.add(key.to_s, value)
     end
+    req.http_send_timeout = timeout[:send] if timeout && timeout[:send]
+    req.http_receive_timeout = timeout[:receive] if timeout && timeout[:receive]
     if @cookie_manager
       cookie_value = @cookie_manager.cookie_value(uri)
       if cookie_value

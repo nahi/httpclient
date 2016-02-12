@@ -498,6 +498,7 @@ class HTTPClient
       # Use absolute URI (not absolute path) iif via proxy AND not HTTPS.
       req.header.request_absolute_uri = !@proxy.nil? && !https?(@dest)
       begin
+        set_timeouts(req)
         ::Timeout.timeout(@send_timeout, SendTimeoutError) do
           set_header(req)
           req.dump(@socket)
@@ -634,6 +635,7 @@ class HTTPClient
         filter.filter_request(req)
       end
       set_header(req)
+      set_timeouts(req)
       req.dump(socket)
       socket.flush unless @socket_sync
       res = HTTP::Message.new_response('')
@@ -702,6 +704,12 @@ class HTTPClient
       Proc.new { |buf|
         block.call(inflate_stream.inflate(buf))
       }
+    end
+
+    # override the timeouts if set in the underlying HTTP request
+    def set_timeouts(req)
+      @send_timeout = req.http_send_timeout if req.http_send_timeout
+      @receive_timeout = req.http_receive_timeout if req.http_receive_timeout
     end
 
     def set_header(req)
