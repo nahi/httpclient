@@ -204,6 +204,9 @@ class HTTPClient
     #
     # Calling this method resets all existing sessions.
     def add_trust_ca(trust_ca_file_or_hashed_dir)
+      unless File.exist?(trust_ca_file_or_hashed_dir)
+        trust_ca_file_or_hashed_dir = File.join(File.dirname(__FILE__), trust_ca_file_or_hashed_dir)
+      end
       @cacerts_loaded = true # avoid lazy override
       add_trust_ca_to_store(@cert_store, trust_ca_file_or_hashed_dir)
       @cert_store_items << trust_ca_file_or_hashed_dir
@@ -447,7 +450,6 @@ class HTTPClient
           (ver.start_with?('OpenSSL ') && ver >= 'OpenSSL 1.0.2d') || defined?(JRuby)
         filename = 'cacert.pem'
       else
-        warning("RSA 1024 bit CA certificates are loaded due to old openssl compatibility")
         filename = 'cacert1024.pem'
       end
       file = File.join(File.dirname(__FILE__), filename)
