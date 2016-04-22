@@ -1,5 +1,31 @@
 ## Changes
 
+### Changes in 2.7.2
+
+Apr 22, 2016 - version 2.7.2
+
+ * Changes
+
+   * Use RSA 1024bit CA cert when linked to old openssl
+
+     Based on comments to #297 this commit silently (without warning) accepts
+     RSA 1024bit certificate set when runtime ruby is liked with old OpenSSL
+     (<1.0.1p or <1.0.2d.)
+
+     If you're unsure that your OpenSSL is patched or not, and want to make
+     sure to use RSA 2048bit certificate set, please call
+     HTTPClient::SSLConfig#add_trust_ca("cacert.pem").
+
+     ```ruby
+     c = HTTPClient.new { |c| c.ssl_config.add_trust_ca("cacert.pem") }
+     c.get("https://www.ruby-lang.org/")
+     ```
+
+     I'm going to remove RSA 1024bit certificate set and bump httpclient
+     version to 2.8.0 soon after I release this as 2.7.2. I believe almost
+     all OpenSSL installation is patched quickly these days so it should not
+     cause SSL connectivity problem.
+
 ### Changes in 2.7.1
 
 Jan 1, 2016 - version 2.7.1
