@@ -18,7 +18,6 @@ require 'timeout'
 require 'stringio'
 require 'zlib'
 
-require 'httpclient/timeout' # TODO: remove this once we drop 1.8 support
 require 'httpclient/ssl_config'
 require 'httpclient/http'
 if defined?(JRuby)
@@ -141,7 +140,7 @@ class HTTPClient
       @send_timeout = 120
       @receive_timeout = 60        # For each read_block_size bytes
       @keep_alive_timeout = 15     # '15' is from Apache 2 default
-      @read_block_size = 1024 * 16 # follows net/http change in 1.8.7
+      @read_block_size = 1024 * 16
       @protocol_retry_count = 5
 
       @ssl_config = nil
@@ -423,7 +422,6 @@ class HTTPClient
 
   # Manages a HTTP session with a Site.
   class Session
-    include HTTPClient::Timeout
     include Util
 
     # Destination site

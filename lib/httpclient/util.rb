@@ -12,18 +12,6 @@ unless ''.respond_to?(:bytesize)
   end
 end
 
-if RUBY_VERSION < "1.9.3"
-  require 'uri'
-  module URI
-    class Generic
-      def hostname
-        v = self.host
-        /\A\[(.*)\]\z/ =~ v ? $1 : v
-      end
-    end
-  end
-end
-
 # With recent JRuby 1.7 + jruby-openssl, X509CRL#extentions_to_text causes
 # StringIndexOOBException when we try to dump SSL Server Certificate.
 # when one of extensions has "" as value.

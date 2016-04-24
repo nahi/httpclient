@@ -153,10 +153,6 @@ class TestAuth < Test::Unit::TestCase
     c = HTTPClient.new
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
     begin
-      # WEBrick in ruby 1.8.7 uses 'BASIC' instead of 'Basic'
-      @basic_auth.instance_eval { @auth_scheme = "BASIC" }
-      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
-      #
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
       res = c.get("http://localhost:#{serverport}/basic_auth")
       assert_equal('basic_auth OK', res.content)
@@ -172,10 +168,6 @@ class TestAuth < Test::Unit::TestCase
     c = HTTPClient.new
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
     begin
-      # WEBrick in ruby 1.8.7 uses 'BASIC' instead of 'Basic'
-      @basic_auth.instance_eval { @auth_scheme = "BASIC" }
-      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
-      #
       c.force_basic_auth = true
       c.debug_dev = str = ''
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
@@ -191,10 +183,6 @@ class TestAuth < Test::Unit::TestCase
     c = HTTPClient.new(:force_basic_auth => true)
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
     begin
-      # WEBrick in ruby 1.8.7 uses 'BASIC' instead of 'Basic'
-      @basic_auth.instance_eval { @auth_scheme = "BASIC" }
-      c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
-      #
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
       conn = c.get_async("http://localhost:#{serverport}/basic_auth")
       assert_equal('basic_auth OK', conn.pop.body.read)

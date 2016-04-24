@@ -37,14 +37,8 @@ module HexDump
   end
   module_function :encode
 
-  if RUBY_VERSION >= "1.9"
-    # raw must be in BINARY encoding in 1.9
-    def self.regex_quote_n(raw)
-      Regexp.quote(raw)
-    end
-  else
-    def self.regex_quote_n(raw)
-      Regexp.quote(raw, 'n')
-    end
+  # raw must be in BINARY encoding in 1.9
+  def self.regex_quote_n(raw)
+    Regexp.quote(raw)
   end
 end

@@ -1624,15 +1624,6 @@ EOS
     assert_equal(false, res.ok?)
   end
 
-  if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'
-    def test_timeout_scheduler
-      assert_equal('hello', @client.get_content(serverurl + 'hello'))
-      status =  HTTPClient.timeout_scheduler.instance_eval { @thread.kill; @thread.join; @thread.status }
-      assert(!status) # dead
-      assert_equal('hello', @client.get_content(serverurl + 'hello'))
-    end
-  end
-
   def test_session_manager
     mgr = HTTPClient::SessionManager.new(@client)
     assert_nil(mgr.instance_eval { @proxy })
@@ -1796,22 +1787,18 @@ EOS
     assert_equal("key2=b&key2=c&key2=d&key1=a&key3=z", HTTP::Message.escape_query(ary))
   end
 
-  if RUBY_VERSION > "1.9"
-    def test_charset
-      body = @client.get(serverurl + 'charset').body
-      assert_equal(Encoding::EUC_JP, body.encoding)
-      assert_equal('あいうえお'.encode(Encoding::EUC_JP), body)
-    end
+  def test_charset
+    body = @client.get(serverurl + 'charset').body
+    assert_equal(Encoding::EUC_JP, body.encoding)
+    assert_equal('あいうえお'.encode(Encoding::EUC_JP), body)
   end
 
-  if RUBY_VERSION >= "1.9.3"
-    def test_continue
-      @client.debug_dev = str = ''
-      res = @client.get(serverurl + 'continue', :header => {:Expect => '100-continue'})
-      assert_equal(200, res.status)
-      assert_equal('done!', res.body)
-      assert_match(/Expect: 100-continue/, str)
-    end
+  def test_continue
+    @client.debug_dev = str = ''
+    res = @client.get(serverurl + 'continue', :header => {:Expect => '100-continue'})
+    assert_equal(200, res.status)
+    assert_equal('done!', res.body)
+    assert_match(/Expect: 100-continue/, str)
   end
 
   def test_ipv6literaladdress_in_uri
@@ -1962,12 +1949,8 @@ private
   end
 
   def do_charset(req, res)
-    if RUBY_VERSION > "1.9"
-      res.body = 'あいうえお'.encode("euc-jp")
-      res['Content-Type'] = 'text/plain; charset=euc-jp'
-    else
-      res.body = 'this endpoint is for 1.9 or later'
-    end
+    res.body = 'あいうえお'.encode("euc-jp")
+    res['Content-Type'] = 'text/plain; charset=euc-jp'
   end
 
   def do_status(req, res)

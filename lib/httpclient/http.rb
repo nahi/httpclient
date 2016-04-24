@@ -429,12 +429,7 @@ module HTTP
       end
 
       def charset_label
-        # TODO: should handle response encoding for 1.9 correctly.
-        if RUBY_VERSION > "1.9"
-          CHARSET_MAP[@body_charset] || 'us-ascii'
-        else
-          CHARSET_MAP[@body_charset || $KCODE] || 'us-ascii'
-        end
+        CHARSET_MAP[@body_charset] || 'us-ascii'
       end
     end
 

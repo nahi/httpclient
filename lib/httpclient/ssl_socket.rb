@@ -116,11 +116,7 @@ class HTTPClient
         check_mask(verify_mode, OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT)
         raise OpenSSL::SSL::SSLError.new('no peer cert')
       end
-      if @ssl_socket.respond_to?(:post_connection_check) and RUBY_VERSION > "1.8.4"
-        @ssl_socket.post_connection_check(hostname)
-      else
-        @context.post_connection_check(@ssl_socket.peer_cert, hostname)
-      end
+      @ssl_socket.post_connection_check(hostname)
     end
 
     def check_mask(value, mask)

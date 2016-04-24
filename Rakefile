@@ -1,13 +1,12 @@
 require 'bundler/setup'
 require 'rake/testtask'
 require 'rdoc/task'
-require 'ci/reporter/rake/test_unit'
 require 'bundler/gem_tasks'
 
 task :default => :test
 
 ENV['CI_REPORTS'] = File.expand_path('./reports', File.dirname(__FILE__))
-task :test => ['ci:setup:testunit', 'test-run']
+task :test => ['test-run']
 
 Rake::TestTask.new('test-run') do |test|
   test.libs << 'lib'

@@ -333,35 +333,6 @@ class HTTPClient
       ctx.ssl_version = @ssl_version unless @ssl_version == :auto
     end
 
-    # post connection check proc for ruby < 1.8.5.
-    # this definition must match with the one in ext/openssl/lib/openssl/ssl.rb
-    def post_connection_check(peer_cert, hostname) # :nodoc:
-      check_common_name = true
-      cert = peer_cert
-      cert.extensions.each{|ext|
-        next if ext.oid != "subjectAltName"
-        ext.value.split(/,\s+/).each{|general_name|
-          if /\ADNS:(.*)/ =~ general_name
-            check_common_name = false
-            reg = Regexp.escape($1).gsub(/\\\*/, "[^.]+")
-            return true if /\A#{reg}\z/i =~ hostname
-          elsif /\AIP Address:(.*)/ =~ general_name
-            check_common_name = false
-            return true if $1 == hostname
-          end
-        }
-      }
-      if check_common_name
-        cert.subject.to_a.each{|oid, value|
-          if oid == "CN"
-            reg = Regexp.escape(value).gsub(/\\\*/, "[^.]+")
-            return true if /\A#{reg}\z/i =~ hostname
-          end
-        }
-      end
-      raise SSL::SSLError, "hostname was not match with the server certificate"
-    end
-
     # Default callback for verification: only dumps error.
     def default_verify_callback(is_ok, ctx)
       if $DEBUG
