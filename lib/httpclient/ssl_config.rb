@@ -441,18 +441,10 @@ class HTTPClient
       nil
     end
 
-    # Use 2014 bit certs trust anchor if possible.
-    # CVE-2015-1793 requires: OpenSSL >= 1.0.2d or OpenSSL >= 1.0.1p
-    # OpenSSL before 1.0.1 does not have CVE-2015-1793 problem
+    # Use 2048 bit certs trust anchor
     def load_cacerts(cert_store)
       ver = OpenSSL::OPENSSL_VERSION
-      if (ver.start_with?('OpenSSL 1.0.1') && ver >= 'OpenSSL 1.0.1p') ||
-          (ver.start_with?('OpenSSL ') && ver >= 'OpenSSL 1.0.2d') || defined?(JRuby)
-        filename = 'cacert.pem'
-      else
-        filename = 'cacert1024.pem'
-      end
-      file = File.join(File.dirname(__FILE__), filename)
+      file = File.join(File.dirname(__FILE__), 'cacert.pem')
       unless defined?(JRuby)
         # JRuby uses @cert_store_items
         add_trust_ca_to_store(cert_store, file)
