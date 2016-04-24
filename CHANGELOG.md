@@ -1,5 +1,30 @@
 ## Changes
 
+### Changes in 2.8.0
+
+Apr 24, 2016 - version 2.8.0
+
+ * Changes
+
+   * Force using RSA 2048bit CA cert set
+
+     Use RSA 204bit CA cert set every time if it runs with OpenSSL (== except
+     JRuby.)
+
+     Old openssl (<1.0.1p or <1.0.2d) cannot handle this CA set and causes
+     SSL connection failure against some SSL servers including AWS S3 API.
+     For such case you can manually specify RSA 1024bit CA cert set as a
+     workaround.
+
+     ```
+     c = HTTPClient.new { |c| c.ssl_config.add_trust_ca("cacert1024.pem") }
+     c.get("https://www.ruby-lang.org/")
+     ```
+
+     RSA 1024bit CA cert set is not maintained over years so you should
+     consider updating OpenSSL version so that HTTPClient uses RSA 2048 bit
+     CA cert set.
+
 ### Changes in 2.7.2
 
 Apr 22, 2016 - version 2.7.2
