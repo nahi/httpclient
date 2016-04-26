@@ -788,6 +788,29 @@ EOS
     assert_nil(res.content)
   end
 
+  def test_get_with_block_and_redirects
+    called = false
+    res = @client.get(serverurl + 'servlet', :follow_redirect => true) { |str|
+      assert_equal('get', str)
+      called = true
+    }
+    assert(called)
+    # res does not have a content
+    assert_nil(res.content)
+  end
+
+  def test_get_with_block_arity_2_and_redirects
+    called = false
+    res = @client.get(serverurl + 'servlet', :follow_redirect => true) { |blk_res, str|
+      assert_equal(200, blk_res.status)
+      assert_equal('get', str)
+      called = true
+    }
+    assert(called)
+    # res does not have a content
+    assert_nil(res.content)
+  end
+
   def test_get_with_block_string_recycle
     @client.read_block_size = 2
     body = []
