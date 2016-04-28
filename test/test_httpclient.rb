@@ -765,6 +765,22 @@ EOS
     assert_equal(1000*1000, res.content.read.length)
   end
 
+  if RUBY_VERSION > "1.9"
+    def test_post_async_with_default_internal
+      original_encoding = Encoding.default_internal
+      Encoding.default_internal = Encoding::UTF_8
+      begin
+        post_body = StringIO.new("こんにちは")
+        conn = @client.post_async(serverurl + 'servlet', post_body)
+        Thread.pass while !conn.finished?
+        res = conn.pop
+        assert_equal 'post,こんにちは', res.content.read
+      ensure
+        Encoding.default_internal = original_encoding
+      end
+    end
+  end
+
   def test_get_with_block
     called = false
     res = @client.get(serverurl + 'servlet') { |str|

@@ -1270,6 +1270,7 @@ private
       return
     end
     piper, pipew = IO.pipe
+    pipew.binmode
     res = HTTP::Message.new_response(piper, req.header)
     @debug_dev << "= Request\n\n" if @debug_dev
     sess = @session_manager.query(req, proxy)
