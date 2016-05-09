@@ -887,18 +887,18 @@ class HTTPClient
     def read_body_chunked(&block)
       buf = empty_bin_str
       while true
-        len = @socket.gets(RS)
-        if len.nil? # EOF
-          close
-          return
-        end
-        @chunk_length = len.hex
-        if @chunk_length == 0
-          @content_length = 0
-          @socket.gets(RS)
-          return
-        end
        ::Timeout.timeout(@receive_timeout, ReceiveTimeoutError) do
+          len = @socket.gets(RS)
+          if len.nil? # EOF
+            close
+            return
+          end
+          @chunk_length = len.hex
+          if @chunk_length == 0
+            @content_length = 0
+            @socket.gets(RS)
+            return
+          end
           @socket.read(@chunk_length, buf)
           @socket.read(2)
         end
