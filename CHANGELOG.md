@@ -8,7 +8,7 @@ Apr 24, 2016 - version 2.8.0
 
    * Force using RSA 2048bit CA cert set
 
-     Use RSA 204bit CA cert set every time if it runs with OpenSSL (== except
+     Use RSA 2048bit CA cert set every time if it runs with OpenSSL (== except
      JRuby.)
 
      Old openssl (<1.0.1p or <1.0.2d) cannot handle this CA set and causes
