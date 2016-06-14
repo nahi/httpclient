@@ -574,6 +574,9 @@ module HTTP
       end
 
       def dump_file(io, dev, sz)
+
+        return if io.eof?
+
         buf = ''
         rest = sz
         while rest > 0
@@ -585,6 +588,7 @@ module HTTP
       end
 
       def dump_chunks(io, dev)
+
         buf = ''
         while !io.read(@chunk_size, buf).nil?
           dev << dump_chunk(buf)
