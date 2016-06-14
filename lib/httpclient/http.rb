@@ -575,13 +575,11 @@ module HTTP
 
       def dump_file(io, dev, sz)
 
-        return if io.eof?
-
         buf = ''
         rest = sz
         while rest > 0
           n = io.read([rest, @chunk_size].min, buf)
-          raise ArgumentError.new("Illegal size value: #size returns #{sz} but cannot read") if n.nil?
+          return if n.nil?
           dev << buf
           rest -= n.bytesize
         end
