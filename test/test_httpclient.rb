@@ -1486,6 +1486,7 @@ EOS
     assert_equal('text/plain', HTTP::Message.mime_type('foo.txt'))
     assert_equal('text/html', HTTP::Message.mime_type('foo.html'))
     assert_equal('text/html', HTTP::Message.mime_type('foo.htm'))
+    assert_equal('text/xml', HTTP::Message.mime_type('foo.xml'))
     assert_equal('application/msword', HTTP::Message.mime_type('foo.doc'))
     assert_equal('image/png', HTTP::Message.mime_type('foo.png'))
     assert_equal('image/gif', HTTP::Message.mime_type('foo.gif'))
