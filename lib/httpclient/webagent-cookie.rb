@@ -342,7 +342,7 @@ class WebAgent
       cookie.domain_orig = given.domain
       cookie.path_orig = given.path
 
-      if cookie.discard? || cookie.expires == nil
+      if cookie.discard? || cookie.expires.nil?
         cookie.discard = true
       else
         cookie.discard = false
