@@ -309,7 +309,6 @@ class HTTPClient
       if assignable
         aname = name + '='
         define_method(aname) { |rhs|
-          reset_all
           @session_manager.__send__(aname, rhs)
         }
       end
@@ -556,29 +555,22 @@ class HTTPClient
   #
   #   clnt.set_auth('http://www.example.com/foo/', 'foo_user', 'passwd')
   #   clnt.set_auth('http://www.example.com/bar/', 'bar_user', 'passwd')
-  #
-  # Calling this method resets all existing sessions.
   def set_auth(domain, user, passwd)
     uri = to_resource_url(domain)
     @www_auth.set_auth(uri, user, passwd)
-    reset_all
   end
 
   # Deprecated.  Use set_auth instead.
   def set_basic_auth(domain, user, passwd)
     uri = to_resource_url(domain)
     @www_auth.basic_auth.set(uri, user, passwd)
-    reset_all
   end
 
   # Sets credential for Proxy authentication.
   # user:: username String.
   # passwd:: password String.
-  #
-  # Calling this method resets all existing sessions.
   def set_proxy_auth(user, passwd)
     @proxy_auth.set_auth(user, passwd)
-    reset_all
   end
 
   # Turn on/off the BasicAuth force flag. Generally HTTP client must

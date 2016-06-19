@@ -347,11 +347,13 @@ class TestClient < Test::Unit::TestCase
   def test_receive_timeout
     # this test takes 2 sec
     assert_equal('hello', @client.get_content(serverurl + 'sleep?sec=2'))
+    @client.reset_all
     @client.receive_timeout = 1
     assert_equal('hello', @client.get_content(serverurl + 'sleep?sec=0'))
     assert_raise(HTTPClient::ReceiveTimeoutError) do
       @client.get_content(serverurl + 'sleep?sec=2')
     end
+    @client.reset_all
     @client.receive_timeout = 3
     assert_equal('hello', @client.get_content(serverurl + 'sleep?sec=2'))
   end
