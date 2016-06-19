@@ -1319,12 +1319,47 @@ EOS
     # ToDo
   end
 
+  # this is a dummy body object responding to the Message.file?
+  # interface that simulates a slow send request
+  class SlowBody
+    def initialize(body, sleep)
+      @body = body
+      @sleep = sleep
+    end
+
+    def read(length, outbuf = nil)
+      sleep @sleep # simulate a slow send request
+      outbuf << @body
+      @body.to_s.length
+      nil # EOF, stop reading
+    end
+
+    def pos
+      0 # noop
+    end
+
+    def pos=(v)
+      # noop
+    end
+  end
+
   def test_send_timeout
-    # ToDo
+    # this test takes 4 sec
+    assert_equal('hello?sec=0', @client.post_content(serverurl + 'sleep?sec=0', SlowBody.new('', 0)))
+    @client.send_timeout = 1
+    assert_equal('hello?sec=0', @client.post_content(serverurl + 'sleep?sec=0', SlowBody.new('', 0)))
+    assert_raise(HTTPClient::SendTimeoutError) do
+      @client.post_content(serverurl + 'sleep?sec=2', SlowBody.new('', 2))
+    end
+    @client.send_timeout = 3
+    assert_equal('hello?sec=0', @client.post_content(serverurl + 'sleep?sec=0', SlowBody.new('', 2)))
+    assert_raise(HTTPClient::SendTimeoutError) do
+      @client.post_content(serverurl + 'sleep?sec=2', :body => SlowBody.new('', 2), :timeout => { :send => 1 })
+    end
   end
 
   def test_receive_timeout
-    # this test takes 2 sec
+    # this test takes 4 sec
     assert_equal('hello?sec=2', @client.get_content(serverurl + 'sleep?sec=2'))
     @client.receive_timeout = 1
     assert_equal('hello?sec=0', @client.get_content(serverurl + 'sleep?sec=0'))
@@ -1333,10 +1368,14 @@ EOS
     end
     @client.receive_timeout = 3
     assert_equal('hello?sec=2', @client.get_content(serverurl + 'sleep?sec=2'))
+    assert_raise(HTTPClient::ReceiveTimeoutError) do
+      @client.get_content(serverurl + 'sleep?sec=2', :timeout => { :receive => 1 })
+    end
+    assert_equal('hello?sec=2', @client.get_content(serverurl + 'sleep?sec=2'))
   end
 
   def test_receive_timeout_post
-    # this test takes 2 sec
+    # this test takes 4 sec
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 2).content)
     @client.receive_timeout = 1
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 0).content)
@@ -1344,6 +1383,10 @@ EOS
       @client.post(serverurl + 'sleep', :sec => 2)
     end
     @client.receive_timeout = 3
+    assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 2).content)
+    assert_raise(HTTPClient::ReceiveTimeoutError) do
+      @client.post(serverurl + 'sleep', :body => { :sec => 2 }, :timeout => { :receive => 1 })
+    end
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 2).content)
   end
 

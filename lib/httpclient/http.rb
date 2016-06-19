@@ -931,6 +931,11 @@ module HTTP
     # HTTP::Message::Headers:: message header.
     attr_accessor :http_header
 
+    # Request specific send timeout.
+    attr_accessor :http_send_timeout
+    # Request specific receive timeout.
+    attr_accessor :http_receive_timeout
+
     # HTTP::Message::Body:: message body.
     attr_reader :http_body
 
