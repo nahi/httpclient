@@ -844,13 +844,7 @@ class HTTPClient
     end
     uri = to_resource_url(uri)
     if block
-      if block.arity == 1
-        filtered_block = proc { |res, str|
-          block.call(str)
-        }
-      else
-        filtered_block = block
-      end
+      filtered_block = adapt_block(&block)
     end
     if follow_redirect
       follow_redirect(method, uri, query, body, header, &block)
@@ -1082,11 +1076,17 @@ private
     ENV[name.downcase] || ENV[name.upcase]
   end
 
+  def adapt_block(&block)
+    return block if block.arity == 2
+    proc { |r, str| block.call(str) }
+  end
+
   def follow_redirect(method, uri, query, body, header, &block)
     uri = to_resource_url(uri)
     if block
+      b = adapt_block(&block)
       filtered_block = proc { |r, str|
-        block.call(str) if r.ok?
+        b.call(r, str) if r.ok?
       }
     end
     if HTTP::Message.file?(body)
