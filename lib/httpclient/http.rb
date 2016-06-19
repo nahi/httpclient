@@ -808,6 +808,8 @@ module HTTP
         case path
         when /\.txt$/i
           'text/plain'
+        when /\.xml$/i
+          'text/xml'
         when /\.(htm|html)$/i
           'text/html'
         when /\.doc$/i
