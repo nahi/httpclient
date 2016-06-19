@@ -700,8 +700,9 @@ module HTTP
 
       def params_from_file(value)
         params = {}
+        original_filename = value.respond_to?(:original_filename) ? value.original_filename : nil
         path = value.respond_to?(:path) ? value.path : nil
-        params['filename'] = File.basename(path || '')
+        params['filename'] = original_filename || File.basename(path || '')
         # Creation time is not available from File::Stat
         if value.respond_to?(:mtime)
           params['modification-date'] = value.mtime.rfc822
