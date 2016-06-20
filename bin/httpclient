@@ -20,6 +20,7 @@ end
 url = ARGV.shift
 if method && url
   client = HTTPClient.new
+  client.strict_response_size_check = true
   if method == 'download'
     print client.get_content(url)
   else
@@ -37,6 +38,7 @@ require 'irb/completion'
 class Runner
   def initialize
     @httpclient = HTTPClient.new
+    @httpclient.strict_response_size_check = true
   end
 
   def method_missing(msg, *a, &b)

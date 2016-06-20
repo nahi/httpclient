@@ -115,6 +115,9 @@ class HTTPClient
     attr_accessor :read_block_size
     attr_accessor :protocol_retry_count
 
+    # Raise BadResponseError if response size does not match with Content-Length header in response.
+    attr_accessor :strict_response_size_check
+
     # Local address to bind local side of the socket to
     attr_accessor :socket_local
 
@@ -148,6 +151,7 @@ class HTTPClient
       @test_loopback_http_response = []
 
       @transparent_gzip_decompression = false
+      @strict_response_size_check = false
       @socket_local = Site.new
 
       @sess_pool = {}
@@ -221,6 +225,7 @@ class HTTPClient
       sess.protocol_retry_count = @protocol_retry_count
       sess.ssl_config = @ssl_config
       sess.debug_dev = @debug_dev
+      sess.strict_response_size_check = @strict_response_size_check
       sess.socket_local = @socket_local
       sess.test_loopback_http_response = @test_loopback_http_response
       sess.transparent_gzip_decompression = @transparent_gzip_decompression
@@ -444,6 +449,7 @@ class HTTPClient
     attr_accessor :read_block_size
     attr_accessor :protocol_retry_count
 
+    attr_accessor :strict_response_size_check
     attr_accessor :socket_local
 
     attr_accessor :ssl_config
@@ -473,6 +479,7 @@ class HTTPClient
       @ssl_peer_cert = nil
 
       @test_loopback_http_response = nil
+      @strict_response_size_check = false
       @socket_local = Site::EMPTY
 
       @agent_name = agent_name
@@ -871,6 +878,9 @@ class HTTPClient
           rescue EOFError
             close
             buf = nil
+            if @strict_response_size_check
+              raise BadResponseError.new("EOF while reading rest #{@content_length} bytes")
+            end
           end
         end
         if buf && buf.bytesize > 0
@@ -920,6 +930,9 @@ class HTTPClient
             @socket.readpartial(@read_block_size, buf)
           rescue EOFError
             buf = nil
+            if @strict_response_size_check
+              raise BadResponseError.new("EOF while reading chunked response")
+            end
           end
         end
         if buf && buf.bytesize > 0
