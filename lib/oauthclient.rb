@@ -33,6 +33,7 @@ class OAuthClient < HTTPClient
     @oauth_config = HTTPClient::OAuth::Config.new
     self.www_auth.oauth.set_config(nil, @oauth_config)
     self.www_auth.oauth.challenge(nil)
+    self.strict_response_size_check = true
   end
 
   # Get request token.
