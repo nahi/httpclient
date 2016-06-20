@@ -309,7 +309,6 @@ class HTTPClient
       if assignable
         aname = name + '='
         define_method(aname) { |rhs|
-          reset_all
           @session_manager.__send__(aname, rhs)
         }
       end

@@ -609,10 +609,12 @@ EOS
     assert_not_equal('hello', content)
     assert_equal(GZIP_CONTENT, content)
     @client.transparent_gzip_decompression = true
+    @client.reset_all
     assert_equal('hello', @client.get_content(serverurl + 'compressed?enc=gzip'))
     assert_equal('hello', @client.get_content(serverurl + 'compressed?enc=deflate'))
     assert_equal('hello', @client.get_content(serverurl + 'compressed?enc=deflate_noheader'))
     @client.transparent_gzip_decompression = false
+    @client.reset_all
   end
 
   def test_get_content_with_block
@@ -1355,11 +1357,13 @@ EOS
     # this test takes 2 sec
     assert_equal('hello?sec=2', @client.get_content(serverurl + 'sleep?sec=2'))
     @client.receive_timeout = 1
+    @client.reset_all
     assert_equal('hello?sec=0', @client.get_content(serverurl + 'sleep?sec=0'))
     assert_raise(HTTPClient::ReceiveTimeoutError) do
       @client.get_content(serverurl + 'sleep?sec=2')
     end
     @client.receive_timeout = 3
+    @client.reset_all
     assert_equal('hello?sec=2', @client.get_content(serverurl + 'sleep?sec=2'))
   end
 
@@ -1367,11 +1371,13 @@ EOS
     # this test takes 2 sec
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 2).content)
     @client.receive_timeout = 1
+    @client.reset_all
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 0).content)
     assert_raise(HTTPClient::ReceiveTimeoutError) do
       @client.post(serverurl + 'sleep', :sec => 2)
     end
     @client.receive_timeout = 3
+    @client.reset_all
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 2).content)
   end
 
