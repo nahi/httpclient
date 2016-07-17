@@ -36,7 +36,30 @@ class HTTPClient
   # then add_trust_ca for that purpose.
   class SSLConfig
     include HTTPClient::Util
-    include OpenSSL if SSLEnabled
+    if SSLEnabled
+      include OpenSSL
+
+      module ::OpenSSL
+        module X509
+          class Store
+            attr_reader :_httpclient_cert_store_items
+
+            def initialize(*a, &b)
+              super(*a, &b)
+              @_httpclient_cert_store_items = [ENV['SSL_CERT_FILE'] || :default]
+            end
+
+            [:add_cert, :add_file, :add_path].each do |m|
+              wrapped = instance_method(m)
+              define_method(m) do |cert|
+                wrapped.bind(self).call(cert)
+                @_httpclient_cert_store_items << cert
+              end
+            end
+          end
+        end
+      end
+    end
 
     CIPHERS_DEFAULT = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
 
@@ -89,7 +112,7 @@ class HTTPClient
     attr_reader :client_ca # :nodoc:
 
     # These array keeps original files/dirs that was added to @cert_store
-    attr_reader :cert_store_items
+    def cert_store_items; @cert_store._httpclient_cert_store_items; end
     attr_reader :cert_store_crl_items
 
     # Creates a SSLConfig.
@@ -97,7 +120,6 @@ class HTTPClient
       return unless SSLEnabled
       @client = client
       @cert_store = X509::Store.new
-      @cert_store_items = [:default]
       @cert_store_crl_items = []
       @client_cert = @client_key = @client_ca = nil
       @verify_mode = SSL::VERIFY_PEER | SSL::VERIFY_FAIL_IF_NO_PEER_CERT
@@ -170,7 +192,6 @@ class HTTPClient
       @cacerts_loaded = true # avoid lazy override
       @cert_store = X509::Store.new
       @cert_store.set_default_paths
-      @cert_store_items = [ENV['SSL_CERT_FILE'] || :default]
       change_notify
     end
 
@@ -181,7 +202,7 @@ class HTTPClient
     def clear_cert_store
       @cacerts_loaded = true # avoid lazy override
       @cert_store = X509::Store.new
-      @cert_store_items.clear
+      @cert_store._httpclient_cert_store_items.clear
       change_notify
     end
 
@@ -192,7 +213,6 @@ class HTTPClient
     def cert_store=(cert_store)
       @cacerts_loaded = true # avoid lazy override
       @cert_store = cert_store
-      @cert_store_items.clear
       change_notify
     end
 
@@ -209,7 +229,6 @@ class HTTPClient
       end
       @cacerts_loaded = true # avoid lazy override
       add_trust_ca_to_store(@cert_store, trust_ca_file_or_hashed_dir)
-      @cert_store_items << trust_ca_file_or_hashed_dir
       change_notify
     end
     alias set_trust_ca add_trust_ca
@@ -445,11 +464,7 @@ class HTTPClient
     def load_cacerts(cert_store)
       ver = OpenSSL::OPENSSL_VERSION
       file = File.join(File.dirname(__FILE__), 'cacert.pem')
-      unless defined?(JRuby)
-        # JRuby uses @cert_store_items
-        add_trust_ca_to_store(cert_store, file)
-      end
-      @cert_store_items << file
+      add_trust_ca_to_store(cert_store, file)
     end
   end
 

@@ -151,6 +151,20 @@ end
     assert_equal("hello", @client.get_content(@url))
   end
 
+  def test_cert_store
+    cfg = @client.ssl_config
+    cfg.cert_store.add_cert(cert('ca.cert'))
+    begin
+      @client.get(@url)
+      assert(false)
+    rescue OpenSSL::SSL::SSLError => ssle
+      assert_match(/(certificate verify failed|unable to find valid certification path to requested target)/, ssle.message)
+    end
+    #
+    cfg.cert_store.add_cert(cert('subca.cert'))
+    assert_equal("hello", @client.get_content(@url))
+  end
+
 if defined?(HTTPClient::JRubySSLSocket)
   def test_ciphers
     cfg = @client.ssl_config
