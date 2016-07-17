@@ -2,7 +2,6 @@ require File.expand_path('helper', File.dirname(__FILE__))
 require 'digest/md5'
 require 'rack'
 require 'rack/lint'
-require 'rack/showexceptions'
 require 'rack-ntlm'
 
 class TestAuth < Test::Unit::TestCase
