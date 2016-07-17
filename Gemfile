@@ -20,7 +20,7 @@ group :development do
   gem 'ci_reporter', '~> 1.9'
   gem 'simplecov-rcov', :platforms => [:ruby_19, :ruby_20, :ruby_21]
   gem 'pry'
-  gem 'rack'
+  gem 'rack', '~> 1.0'
   gem 'rubysspi'
   gem 'rubyntlm'
   gem 'rack-ntlm-test-service'
