@@ -464,7 +464,7 @@ unless defined?(SSLSocket)
 
       trust_store = nil
       verify_callback = config.verify_callback || config.method(:default_verify_callback)
-      if config.verify_mode == nil
+      if !config.verify?
         tmf = VerifyNoneTrustManagerFactory.new(verify_callback)
       else
         tmf = SystemTrustManagerFactory.new(verify_callback)
