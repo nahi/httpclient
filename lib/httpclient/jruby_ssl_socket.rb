@@ -289,11 +289,11 @@ unless defined?(SSLSocket)
         @keystore.load(nil)
       end
 
-      def add(cert_file, key_file, password)
-        cert_str = cert_file.respond_to?(:to_pem) ? cert_file.to_pem : File.read(cert_file.to_s)
+      def add(cert_source, key_source, password)
+        cert_str = cert_source.respond_to?(:to_pem) ? cert_source.to_pem : File.read(cert_source.to_s)
         cert = PEMUtils.read_certificate(cert_str)
         @keystore.setCertificateEntry('client_cert', cert)
-        key_str = key_file.respond_to?(:to_pem) ? key_file.to_pem : File.read(key_file.to_s)
+        key_str = key_source.respond_to?(:to_pem) ? key_source.to_pem : File.read(key_source.to_s)
         key_pair = PEMUtils.read_private_key(key_str, password)
         @keystore.setKeyEntry('client_key', key_pair.getPrivate, PASSWORD, [cert].to_java(Certificate))
       end
@@ -312,20 +312,21 @@ unless defined?(SSLSocket)
         @size = 0
       end
 
-      def add(file_or_dir)
-        return if file_or_dir == :default
-        if File.directory?(file_or_dir)
-          warn("#{file_or_dir}: directory not yet supported")
+      def add(cert_source)
+        return if cert_source == :default
+        if cert_source.respond_to?(:to_pem)
+          pem = cert_source.to_pem
+        elsif File.directory?(cert_source)
+          warn("#{cert_source}: directory not yet supported")
+          return
         else
           pem = nil
-          File.read(file_or_dir).each_line do |line|
+          File.read(cert_source).each_line do |line|
             case line
             when /-----BEGIN CERTIFICATE-----/
               pem = ''
             when /-----END CERTIFICATE-----/
-              cert = PEMUtils.read_certificate(pem)
-              @size += 1
-              @trust_store.setCertificateEntry("cert_#{@size}", cert)
+              break
             else
               if pem
                 pem << line
@@ -333,6 +334,9 @@ unless defined?(SSLSocket)
             end
           end
         end
+        cert = PEMUtils.read_certificate(pem)
+        @size += 1
+        @trust_store.setCertificateEntry("cert_#{@size}", cert)
       end
 
       def trust_store
