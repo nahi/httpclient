@@ -149,6 +149,8 @@ end
     #
     cfg.verify_mode = nil
     assert_equal("hello", @client.get_content(@url))
+    cfg.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    assert_equal("hello", @client.get_content(@url))
   end
 
   def test_cert_store

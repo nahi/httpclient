@@ -327,6 +327,10 @@ class HTTPClient
       change_notify
     end
 
+    def verify?
+      @verify_mode && (@verify_mode & OpenSSL::SSL::VERIFY_PEER != 0)
+    end
+
     # interfaces for SSLSocket.
     def set_context(ctx) # :nodoc:
       load_trust_ca unless @cacerts_loaded
