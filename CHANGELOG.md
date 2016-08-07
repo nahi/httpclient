@@ -1,5 +1,32 @@
 ## Changes
 
+### Changes in 2.8.1
+
+Aug 8, 2016 - version 2.8.1
+
+ * Changes
+
+   * Use TLSv1.2 always on JRuby #320
+
+   * Do not reset keep-alive connection by configuration change #315
+
+   * Add strict_response_size_check option #316
+     false by default, meaning it behavies like browsers by default.
+
+   * Add MIME type for XML #308
+
+ * Bug
+
+   * Direct access to SSLConfig#cert_store in JRuby was broken from 2.7 #276 #317
+
+   * OpenSSL::SSL::VERIFY_NONE does not work in JRuby #319
+
+   * Allow receiving response body in block when follow_redirects => true. #304
+
+   * Fix blocking issue with request_async when Encoding.default_internal is set. #307
+
+   * Apply timeouts for chunked transfer encoding #309
+
 ### Changes in 2.8.0
 
 Apr 24, 2016 - version 2.8.0
