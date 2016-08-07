@@ -446,12 +446,12 @@ unless defined?(SSLSocket)
       new(socket, session.dest, session.ssl_config, session.debug_dev)
     end
 
-    DEFAULT_SSL_PROTOCOL = 'TLS'
+    DEFAULT_SSL_PROTOCOL = (java.lang.System.getProperty('java.specification.version') == '1.7') ? 'TLSv1.2' : 'TLS'
     def initialize(socket, dest, config, debug_dev = nil)
       if config.ssl_version == :auto
         ssl_version = DEFAULT_SSL_PROTOCOL
       else
-        ssl_version = config.ssl_version.to_s.gsub(/_/, '.')
+        ssl_version = config.ssl_version.to_s.tr('_', '.')
       end
       unless config.cert_store_crl_items.empty?
         raise NotImplementedError.new('Manual CRL configuration is not yet supported')
