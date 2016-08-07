@@ -253,7 +253,7 @@ end
   def test_use_higher_TLS
     omit('TODO: it does not pass with Java 7 or old openssl ')
     teardown_server
-    setup_server_with_ssl_version(:TLSv1_2)
+    setup_server_with_ssl_version('TLSv1_2')
     assert_nothing_raised do
       @client.ssl_config.verify_mode = nil
       @client.get("https://localhost:#{serverport}/hello")
@@ -304,6 +304,10 @@ private
   end
 
   def setup_server_with_ssl_version(ssl_version)
+    # JRubyOpenSSL does not support "TLSv1_2" as an known version, and some JCE provides TLS v1.2 as "TLSv1.2" not "TLSv1_2"
+    if RUBY_ENGINE == 'jruby' && ['TLSv1_1', 'TLSv1_2'].include?(ssl_version)
+      ssl_version = ssl_version.tr('_', '.')
+    end
     logger = Logger.new(STDERR)
     logger.level = Logger::Severity::FATAL	# avoid logging SSLError (ERROR level)
     @server = WEBrick::HTTPServer.new(
