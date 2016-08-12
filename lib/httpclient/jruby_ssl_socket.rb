@@ -345,7 +345,7 @@ unless defined?(SSLSocket)
         @size += 1
         begin
           cert_uuid = "httpclient_cert_#{SecureRandom.uuid}"
-        end while @keystore.isCertificateEntry(cert_uuid)
+        end while @trust_store.isCertificateEntry(cert_uuid)
         @trust_store.setCertificateEntry(cert_uuid, cert)
       end
 
