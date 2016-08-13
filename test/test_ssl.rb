@@ -191,6 +191,19 @@ if defined?(HTTPClient::JRubySSLSocket)
     assert_equal("hello", @client.get_content(@url))
   end
 
+  def test_verification_with_default_store
+    http = HTTPClient.new
+    result = http.get("https://www.google.com") # works!
+    assert_equal(200, result.status)
+
+    # public cert (WoSign_China)
+    cert = OpenSSL::X509::Certificate.new "-----BEGIN CERTIFICATE-----\nMIIFWDCCA0CgAwIBAgIQUHBrzdgT/BtOOzNy0hFIjTANBgkqhkiG9w0BAQsFADBG\nMQswCQYDVQQGEwJDTjEaMBgGA1UEChMRV29TaWduIENBIExpbWl0ZWQxGzAZBgNV\nBAMMEkNBIOayg+mAmuagueivgeS5pjAeFw0wOTA4MDgwMTAwMDFaFw0zOTA4MDgw\nMTAwMDFaMEYxCzAJBgNVBAYTAkNOMRowGAYDVQQKExFXb1NpZ24gQ0EgTGltaXRl\nZDEbMBkGA1UEAwwSQ0Eg5rKD6YCa5qC56K+B5LmmMIICIjANBgkqhkiG9w0BAQEF\nAAOCAg8AMIICCgKCAgEA0EkhHiX8h8EqwqzbdoYGTufQdDTc7WU1/FDWiD+k8H/r\nD195L4mx/bxjWDeTmzj4t1up+thxx7S8gJeNbEvxUNUqKaqoGXqW5pWOdO2XCld1\n9AXbbQs5uQF/qvbW2mzmBeCkTVL829B0txGMe41P/4eDrv8FAxNXUDf+jJZSEExf\nv5RxadmWPgxDT74wwJ85dE8GRV2j1lY5aAfMh09Qd5Nx2UQIsYo06Yms25tO4dnk\nUkWMLhQfkWsZHWgpLFbE4h4TV2TwYeO5Ed+w4VegG63XX9Gv2ystP9Bojg/qnw+L\nNVgbExz03jWhCl3W6t8Sb8D7aQdGctyB9gQjF+BNdeFyb7Ao65vh4YOhn0pdr8yb\n+gIgthhid5E7o9Vlrdx8kHccREGkSovrlXLp9glk3Kgtn3R46MGiCWOc76DbT52V\nqyBPt7D3h1ymoOQ3OMdc4zUPLK2jgKLsLl3Az+2LBcLmc272idX10kaO6m1jGx6K\nyX2m+Jzr5dVjhU1zZmkR/sgO9MHHZklTfuQZa/HpelmjbX7FF+Ynxu8b22/8DU0G\nAbQOXDBGVWCvOGU6yke6rCzMRh+yRpY/8+0mBe53oWprfi1tWFxK1I5nuPHa1UaK\nJ/kR8slC/k7e3x9cxKSGhxYzoacXGKUN5AXlK8IrC6KVkLn9YDxOiT7nnO4fuwEC\nAwEAAaNCMEAwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0O\nBBYEFOBNv9ybQV0T6GTwp+kVpOGBwboxMA0GCSqGSIb3DQEBCwUAA4ICAQBqinA4\nWbbaixjIvirTthnVZil6Xc1bL3McJk6jfW+rtylNpumlEYOnOXOvEESS5iVdT2H6\nyAa+Tkvv/vMx/sZ8cApBWNromUuWyXi8mHwCKe0JgOYKOoICKuLJL8hWGSbueBwj\n/feTZU7n85iYr83d2Z5AiDEoOqsuC7CsDCT6eiaY8xJhEPRdF/d+4niXVOKM6Cm6\njBAyvd0zaziGfjk9DgNyp115j0WKWa5bIW4xRtVZjc8VX90xJc/bYNaBRHIpAlf2\nltTW/+op2znFuCyKGo3Oy+dCMYYFaA6eFN0AkLppRQjbbpCBhqcqBT/mhDn4t/lX\nX0ykeVoQDF7Va/81XwVRHmyjdanPUIPTfPRm94KNPQx96N97qA4bLJyuQHCH2u2n\nFoJavjVsIE4iYdm8UXrNemHcSxH5/mc0zy4EZmFcV5cjjPOGG0jfKq+nwf/Yjj4D\nu9gqsPoUJbJRa4ZDhS4HIxaAjUz7tGM7zMN07RujHv41D198HRaG9Q7DlfEvr10l\nO1Hm13ZBONFLAzkopR6RctR9q5czxNM+4Gm2KHmgCY0c0f9BckgG/Jou5yD5m6Le\nie2uPAmvylezkolwQOQvT8Jwg0DXJCxr5wkf09XHwQj02w47HAcLQxGEIYbpgNR1\n2KvxAmLBsX5VYc8T1yaw15zLKYs4SgsOkI26oQ==\n-----END CERTIFICATE-----"
+
+    http.ssl_config.cert_store.add_cert(cert)
+    result = http.get("https://www.google.com")
+    assert_equal(200, result.status)
+  end
+
 else
 
   def test_ciphers

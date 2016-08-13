@@ -8,6 +8,7 @@
 
 require 'java'
 require 'httpclient/ssl_config'
+require 'securerandom'
 
 
 class HTTPClient
@@ -292,10 +293,16 @@ unless defined?(SSLSocket)
       def add(cert_source, key_source, password)
         cert_str = cert_source.respond_to?(:to_pem) ? cert_source.to_pem : File.read(cert_source.to_s)
         cert = PEMUtils.read_certificate(cert_str)
-        @keystore.setCertificateEntry('client_cert', cert)
+        begin
+          client_cert_uuid = "httpclient_client_cert_#{SecureRandom.uuid}"
+        end while @keystore.isCertificateEntry(client_cert_uuid)
+        @keystore.setCertificateEntry(client_cert_uuid, cert)
         key_str = key_source.respond_to?(:to_pem) ? key_source.to_pem : File.read(key_source.to_s)
         key_pair = PEMUtils.read_private_key(key_str, password)
-        @keystore.setKeyEntry('client_key', key_pair.getPrivate, PASSWORD, [cert].to_java(Certificate))
+        begin
+          client_key_uuid = "httpclient_client_key_#{SecureRandom.uuid}"
+        end while @keystore.isKeyEntry(client_key_uuid)
+        @keystore.setKeyEntry(client_key_uuid, key_pair.getPrivate, PASSWORD, [cert].to_java(Certificate))
       end
 
       def keystore
@@ -336,7 +343,10 @@ unless defined?(SSLSocket)
         end
         cert = PEMUtils.read_certificate(pem)
         @size += 1
-        @trust_store.setCertificateEntry("cert_#{@size}", cert)
+        begin
+          cert_uuid = "httpclient_cert_#{SecureRandom.uuid}"
+        end while @trust_store.isCertificateEntry(cert_uuid)
+        @trust_store.setCertificateEntry(cert_uuid, cert)
       end
 
       def trust_store
