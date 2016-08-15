@@ -1,5 +1,15 @@
 ## Changes
 
+### Changes in 2.8.2
+
+Aug 15, 2016 - version 2.8.2
+
+ * Bug
+
+   * 2.8.1 introduced JRuby + SSL connection problem; in some cases it cannot
+     connect to trusted TLS server. 2.8.1 failed to load multiple CA
+     certificates in a file. #327.
+
 ### Changes in 2.8.1
 
 Aug 8, 2016 - version 2.8.1
