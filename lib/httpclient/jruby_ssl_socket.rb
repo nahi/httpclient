@@ -316,6 +316,7 @@ unless defined?(SSLSocket)
         return if cert_source == :default
         if cert_source.respond_to?(:to_pem)
           pem = cert_source.to_pem
+          load_pem(pem)
         elsif File.directory?(cert_source)
           warn("#{cert_source}: directory not yet supported")
           return
@@ -326,7 +327,8 @@ unless defined?(SSLSocket)
             when /-----BEGIN CERTIFICATE-----/
               pem = ''
             when /-----END CERTIFICATE-----/
-              break
+              load_pem(pem)
+              # keep parsing in case where multiple certificates in a file
             else
               if pem
                 pem << line
@@ -334,9 +336,6 @@ unless defined?(SSLSocket)
             end
           end
         end
-        cert = PEMUtils.read_certificate(pem)
-        @size += 1
-        @trust_store.setCertificateEntry("cert_#{@size}", cert)
       end
 
       def trust_store
@@ -345,6 +344,14 @@ unless defined?(SSLSocket)
         else
           @trust_store
         end
+      end
+
+    private
+
+      def load_pem(pem)
+        cert = PEMUtils.read_certificate(pem)
+        @size += 1
+        @trust_store.setCertificateEntry("cert_#{@size}", cert)
       end
     end
 

@@ -217,18 +217,14 @@ else
   end
 end
 
-  # SSL_CERT_FILE does not work with recent jruby-openssl.
-  # You should not depend on SSL_CERT_FILE on JRuby
-  if !defined?(JRUBY_VERSION)
-    def test_set_default_paths
-      assert_raise(OpenSSL::SSL::SSLError) do
-        @client.get(@url)
-      end
-      escape_env do
-        ENV['SSL_CERT_FILE'] = File.join(DIR, 'ca-chain.pem')
-        @client.ssl_config.set_default_paths
-        @client.get(@url)
-      end
+  def test_set_default_paths
+    assert_raise(OpenSSL::SSL::SSLError) do
+      @client.get(@url)
+    end
+    escape_env do
+      ENV['SSL_CERT_FILE'] = File.join(DIR, 'ca-chain.pem')
+      @client.ssl_config.set_default_paths
+      @client.get(@url)
     end
   end
 
