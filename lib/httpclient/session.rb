@@ -21,7 +21,7 @@ require 'zlib'
 require 'httpclient/timeout' # TODO: remove this once we drop 1.8 support
 require 'httpclient/ssl_config'
 require 'httpclient/http'
-if defined?(JRuby)
+if RUBY_ENGINE == 'jruby'
   require 'httpclient/jruby_ssl_socket'
 else
   require 'httpclient/ssl_socket'

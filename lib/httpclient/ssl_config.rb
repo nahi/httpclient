@@ -39,17 +39,27 @@ class HTTPClient
     if SSLEnabled
       include OpenSSL
 
-      module ::OpenSSL
-        module X509
-          class Store
-            attr_reader :_httpclient_cert_store_items
+      if RUBY_ENGINE == 'jruby'
+        module ::OpenSSL
+          module X509
+            class Store
+              attr_reader :_httpclient_cert_store_items
 
-            [:add_cert, :add_file, :add_path].each do |m|
-              wrapped = instance_method(m)
-              define_method(m) do |cert|
-                @_httpclient_cert_store_items ||= [ENV['SSL_CERT_FILE'] || :default]
-                wrapped.bind(self).call(cert)
-                @_httpclient_cert_store_items << cert
+              # TODO: use prepend instead when we drop JRuby + 1.9.x support
+              wrapped = {}
+
+              wrapped[:initialize] = instance_method(:initialize)
+              define_method(:initialize) do |*args|
+                wrapped[:initialize].bind(self).call(*args)
+                @_httpclient_cert_store_items = [ENV['SSL_CERT_FILE'] || :default]
+              end
+
+              [:add_cert, :add_file, :add_path].each do |m|
+                wrapped[m] = instance_method(m)
+                define_method(m) do |cert|
+                  wrapped[m].bind(self).call(cert)
+                  @_httpclient_cert_store_items << cert
+                end
               end
             end
           end
