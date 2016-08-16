@@ -39,27 +39,25 @@ class HTTPClient
     if SSLEnabled
       include OpenSSL
 
-      if RUBY_ENGINE == 'jruby'
-        module ::OpenSSL
-          module X509
-            class Store
-              attr_reader :_httpclient_cert_store_items
+      module ::OpenSSL
+        module X509
+          class Store
+            attr_reader :_httpclient_cert_store_items
 
-              # TODO: use prepend instead when we drop JRuby + 1.9.x support
-              wrapped = {}
+            # TODO: use prepend instead when we drop JRuby + 1.9.x support
+            wrapped = {}
 
-              wrapped[:initialize] = instance_method(:initialize)
-              define_method(:initialize) do |*args|
-                wrapped[:initialize].bind(self).call(*args)
-                @_httpclient_cert_store_items = [ENV['SSL_CERT_FILE'] || :default]
-              end
+            wrapped[:initialize] = instance_method(:initialize)
+            define_method(:initialize) do |*args|
+              wrapped[:initialize].bind(self).call(*args)
+              @_httpclient_cert_store_items = [ENV['SSL_CERT_FILE'] || :default]
+            end
 
-              [:add_cert, :add_file, :add_path].each do |m|
-                wrapped[m] = instance_method(m)
-                define_method(m) do |cert|
-                  wrapped[m].bind(self).call(cert)
-                  @_httpclient_cert_store_items << cert
-                end
+            [:add_cert, :add_file, :add_path].each do |m|
+              wrapped[m] = instance_method(m)
+              define_method(m) do |cert|
+                wrapped[m].bind(self).call(cert)
+                @_httpclient_cert_store_items << cert
               end
             end
           end
@@ -118,7 +116,7 @@ class HTTPClient
     attr_reader :client_ca # :nodoc:
 
     # These array keeps original files/dirs that was added to @cert_store
-    def cert_store_items; @cert_store._httpclient_cert_store_items || []; end
+    def cert_store_items; @cert_store._httpclient_cert_store_items; end
     attr_reader :cert_store_crl_items
 
     # Creates a SSLConfig.
