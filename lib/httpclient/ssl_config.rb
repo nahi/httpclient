@@ -44,14 +44,10 @@ class HTTPClient
           class Store
             attr_reader :_httpclient_cert_store_items
 
-            def initialize(*a, &b)
-              super(*a, &b)
-              @_httpclient_cert_store_items = [ENV['SSL_CERT_FILE'] || :default]
-            end
-
             [:add_cert, :add_file, :add_path].each do |m|
               wrapped = instance_method(m)
               define_method(m) do |cert|
+                @_httpclient_cert_store_items ||= [ENV['SSL_CERT_FILE'] || :default]
                 wrapped.bind(self).call(cert)
                 @_httpclient_cert_store_items << cert
               end
@@ -112,7 +108,7 @@ class HTTPClient
     attr_reader :client_ca # :nodoc:
 
     # These array keeps original files/dirs that was added to @cert_store
-    def cert_store_items; @cert_store._httpclient_cert_store_items; end
+    def cert_store_items; @cert_store._httpclient_cert_store_items || []; end
     attr_reader :cert_store_crl_items
 
     # Creates a SSLConfig.
