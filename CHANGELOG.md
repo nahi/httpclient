@@ -10,6 +10,14 @@ Aug 15, 2016 - version 2.8.2
      connect to trusted TLS server. 2.8.1 failed to load multiple CA
      certificates in a file. #327.
 
+Aug 16, 2016 - version 2.8.2.1
+
+ * Bug
+
+   * 2.8.1 introduced another bug that causes NPE from JRuby when JRuby
+     program loads httpclient and uses OpenSSL::X509::Store outside of
+     httpclient. 2.8.3 fixed this problem. #325
+
 ### Changes in 2.8.1
 
 Aug 8, 2016 - version 2.8.1
