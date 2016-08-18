@@ -455,6 +455,7 @@ unless defined?(SSLSocket)
 
     DEFAULT_SSL_PROTOCOL = (java.lang.System.getProperty('java.specification.version') == '1.7') ? 'TLSv1.2' : 'TLS'
     def initialize(socket, dest, config, debug_dev = nil)
+      @config = config
       if config.ssl_version == :auto
         ssl_version = DEFAULT_SSL_PROTOCOL
       else
@@ -527,7 +528,11 @@ unless defined?(SSLSocket)
   private
 
     def post_connection_check(hostname, wrap_cert)
-      BrowserCompatHostnameVerifier.new.verify(hostname, wrap_cert.cert)
+      if !@config.verify?
+        return
+      else
+        BrowserCompatHostnameVerifier.new.verify(hostname, wrap_cert.cert)
+      end
     end
   end
 
