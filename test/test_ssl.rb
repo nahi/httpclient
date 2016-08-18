@@ -275,6 +275,114 @@ end
     end
   end
 
+  VERIFY_TEST_CERT_LOCALHOST = OpenSSL::X509::Certificate.new(<<-EOS)
+-----BEGIN CERTIFICATE-----
+MIIB9jCCAV+gAwIBAgIJAIH8Gsm4PcNKMA0GCSqGSIb3DQEBCwUAMBQxEjAQBgNV
+BAMMCWxvY2FsaG9zdDAeFw0xNjA4MTgxMDI2MDVaFw00NDAxMDMxMDI2MDVaMBQx
+EjAQBgNVBAMMCWxvY2FsaG9zdDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA
+p7D8q0lcx5EZEV5+zPnQsxrbft5xyhH/MCStbH46DRATGPNSOaLRCG5r8gTKQzpD
+4swGrQFYe2ienQ+7o4aEHErsXp4O/EmDKeiXWWrMqPr23r3HOBDebuynC/sCwy7N
+epnX9u1VLB03eo+suj4d86OoOF+o11t9ZP+GA29Rsf8CAwEAAaNQME4wHQYDVR0O
+BBYEFIxsJuPVvd5KKFcAvHGSeKSsWiUJMB8GA1UdIwQYMBaAFIxsJuPVvd5KKFcA
+vHGSeKSsWiUJMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQELBQADgYEAMJaVCrrM
+SM2I06Vr4BL+jtDFhZh3HmJFEDpwEFQ5Y9hduwdUGRBGCpkuea3fE2FKwWW9gLM1
+w7rFMzYFtCEqm78dJWIU79MRy0wjO4LgtYfoikgBh6JKWuV5ed/+L3sLyLG0ZTtv
+lrD7lzDtXgwvj007PxDoYRp3JwYzKRmTbH8=
+-----END CERTIFICATE-----
+  EOS
+
+  VERIFY_TEST_CERT_FOO_DOMAIN = OpenSSL::X509::Certificate.new(<<-EOS)
+-----BEGIN CERTIFICATE-----
+MIIB8jCCAVugAwIBAgIJAL/od7Whx7VTMA0GCSqGSIb3DQEBCwUAMBIxEDAOBgNV
+BAMMB2Zvby5jb20wHhcNMTYwODE4MTAyMzUyWhcNNDQwMTAzMTAyMzUyWjASMRAw
+DgYDVQQDDAdmb28uY29tMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCnsPyr
+SVzHkRkRXn7M+dCzGtt+3nHKEf8wJK1sfjoNEBMY81I5otEIbmvyBMpDOkPizAat
+AVh7aJ6dD7ujhoQcSuxeng78SYMp6JdZasyo+vbevcc4EN5u7KcL+wLDLs16mdf2
+7VUsHTd6j6y6Ph3zo6g4X6jXW31k/4YDb1Gx/wIDAQABo1AwTjAdBgNVHQ4EFgQU
+jGwm49W93kooVwC8cZJ4pKxaJQkwHwYDVR0jBBgwFoAUjGwm49W93kooVwC8cZJ4
+pKxaJQkwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOBgQCVKTvfxx+yezuR
+5WpVKw1E9qabKOYFB5TqdHMHreRubMJTaoZC+YzhcCwtyLlAA9+axKINAiMM8T+z
+jjfOHQSa2GS2TaaVDJWmXIgsAlEbjd2BEiQF0LZYGJRG9pyq0WbTV+CyFdrghjcO
+xX/t7OG7NfOG9dhv3J+5SX10S5V5Dg==
+-----END CERTIFICATE-----
+  EOS
+
+  VERIFY_TEST_CERT_ALT_NAME = OpenSSL::X509::Certificate.new(<<-EOS)
+-----BEGIN CERTIFICATE-----
+MIICDDCCAXWgAwIBAgIJAOxXY4nOwxhGMA0GCSqGSIb3DQEBCwUAMBQxEjAQBgNV
+BAMMCWxvY2FsaG9zdDAeFw0xNjA4MTgxMDM0NTJaFw00NDAxMDMxMDM0NTJaMBQx
+EjAQBgNVBAMMCWxvY2FsaG9zdDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA
+p7D8q0lcx5EZEV5+zPnQsxrbft5xyhH/MCStbH46DRATGPNSOaLRCG5r8gTKQzpD
+4swGrQFYe2ienQ+7o4aEHErsXp4O/EmDKeiXWWrMqPr23r3HOBDebuynC/sCwy7N
+epnX9u1VLB03eo+suj4d86OoOF+o11t9ZP+GA29Rsf8CAwEAAaNmMGQwFAYDVR0R
+BA0wC4IJKi5mb28uY29tMB0GA1UdDgQWBBSMbCbj1b3eSihXALxxknikrFolCTAf
+BgNVHSMEGDAWgBSMbCbj1b3eSihXALxxknikrFolCTAMBgNVHRMEBTADAQH/MA0G
+CSqGSIb3DQEBCwUAA4GBADJlKNFuOnsDIhHGW72HuQw4naN6lM3eZE9JJ+UF/XIF
+ghGtgqw+00Yy5wMFc1K2Wm4p5NymmDfC/P1FOe34bpxt9/IWm6mEoIWoodC3N4Cm
+PtnSS1/CRWzVIPGMglTGGDcUc70tfeAWgyTxgcNQd4vTFtnN0f0RDdaXa8kfKMTw
+-----END CERTIFICATE-----
+  EOS
+
+  VERIFY_TEST_PKEY = OpenSSL::PKey::RSA.new(<<-EOS)
+-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQCnsPyrSVzHkRkRXn7M+dCzGtt+3nHKEf8wJK1sfjoNEBMY81I5
+otEIbmvyBMpDOkPizAatAVh7aJ6dD7ujhoQcSuxeng78SYMp6JdZasyo+vbevcc4
+EN5u7KcL+wLDLs16mdf27VUsHTd6j6y6Ph3zo6g4X6jXW31k/4YDb1Gx/wIDAQAB
+AoGAe0RHx+WKtQx8/96VmTl951qzxMPho2etTYd4kAsNwzJwx2N9qu57eBYrdWF+
+CQMYievucFhP4Y+bINtC1Eb6btz9TCUwjCfeIxfGRoFf3cxVmxlsRJJmN1kSZlu1
+yYlcMVuP4noeFIMQBRrt5pyLCx2Z9A01NCQT4Y6VoREBIeECQQDWeNhsL6xkrmdB
+M9+zl+SqHdNKhgKwMdp74+UNnAV9I8GB7bGlOWhc83aqMLgS+JBDFXcmNF/KawTR
+zcnkod5xAkEAyClFgr3lZQSnwUwoA/AOcyW0+H63taaaXS/g8n3H8ENK6kL4ldUx
+IgCk2ekbQ5Y3S2WScIGXNxMOza9MlsOvbwJAPUtoPvMZB+U4KVBT/JXKijvf6QqH
+tidpU8L78XnHr84KPcHa5WeUxgvmvBkUYoebYzC9TrPlNIqFZBi2PJtuYQJBAMda
+E5j7eJT75fhm2RPS6xFT5MH5sw6AOA3HucrJ63AoFVzsBpl0E9NBwO4ndLgDzF6T
+cx4Kc4iuunewuB8QFpECQQCfvsHCjIJ/X4kiqeBzxDq2GR/oDgQkOzY+4H9U7Lwl
+e61RBaxk5OHOA0bLtvJblV6NL72ZEZhX60wAWbrOPhpT
+-----END RSA PRIVATE KEY-----
+  EOS
+
+  def test_post_connection_check
+    teardown_server
+    setup_server_with_server_cert(nil, VERIFY_TEST_CERT_LOCALHOST, VERIFY_TEST_PKEY)
+    file = Tempfile.new('cert')
+    File.write(file.path, VERIFY_TEST_CERT_LOCALHOST.to_pem)
+    @client.ssl_config.add_trust_ca(file.path)
+    assert_nothing_raised do
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+    @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    assert_nothing_raised do
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+    @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+    teardown_server
+    setup_server_with_server_cert(nil, VERIFY_TEST_CERT_FOO_DOMAIN, VERIFY_TEST_PKEY)
+    File.write(file.path, VERIFY_TEST_CERT_FOO_DOMAIN.to_pem)
+    @client.ssl_config.add_trust_ca(file.path)
+    assert_raises(OpenSSL::SSL::SSLError) do
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+    @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    assert_nothing_raised do
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+    @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+    teardown_server
+    setup_server_with_server_cert(nil, VERIFY_TEST_CERT_ALT_NAME, VERIFY_TEST_PKEY)
+    File.write(file.path, VERIFY_TEST_CERT_ALT_NAME.to_pem)
+    @client.ssl_config.add_trust_ca(file.path)
+    assert_raises(OpenSSL::SSL::SSLError) do
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+    @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    assert_nothing_raised do
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+    @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_PEER
+  end
+
 private
 
   def cert(filename)
@@ -335,6 +443,33 @@ private
       :SSLPrivateKey => key('server.key')
     )
     @server.ssl_context.ssl_version = ssl_version
+    @serverport = @server.config[:Port]
+    [:hello].each do |sym|
+      @server.mount(
+        "/#{sym}",
+        WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
+      )
+    end
+    @server_thread = start_server_thread(@server)
+  end
+
+  def setup_server_with_server_cert(ca_cert, server_cert, server_key)
+    logger = Logger.new(STDERR)
+    logger.level = Logger::Severity::FATAL	# avoid logging SSLError (ERROR level)
+    @server = WEBrick::HTTPServer.new(
+      :BindAddress => "localhost",
+      :Logger => logger,
+      :Port => 0,
+      :AccessLog => [],
+      :DocumentRoot => DIR,
+      :SSLEnable => true,
+      :SSLCACertificateFile => ca_cert,
+      :SSLCertificate => server_cert,
+      :SSLPrivateKey => server_key,
+      :SSLVerifyClient => nil,
+      :SSLClientCA => nil,
+      :SSLCertName => nil
+    )
     @serverport = @server.config[:Port]
     [:hello].each do |sym|
       @server.mount(
