@@ -18,6 +18,12 @@ Aug 16, 2016 - version 2.8.2.1
      program loads httpclient and uses OpenSSL::X509::Store outside of
      httpclient. 2.8.3 fixed this problem. #325
 
+Aug 28, 2016 - version 2.8.2.3
+
+ * Bug
+
+   * 2.8.2 fixed VERIFY_NONE at JRuby but the fix was not enough.
+
 ### Changes in 2.8.1
 
 Aug 8, 2016 - version 2.8.1
