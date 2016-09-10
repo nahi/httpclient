@@ -56,8 +56,9 @@ class HTTPClient
             [:add_cert, :add_file, :add_path].each do |m|
               wrapped[m] = instance_method(m)
               define_method(m) do |cert|
-                wrapped[m].bind(self).call(cert)
+                res = wrapped[m].bind(self).call(cert)
                 @_httpclient_cert_store_items << cert
+                res
               end
             end
           end

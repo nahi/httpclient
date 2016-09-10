@@ -383,6 +383,11 @@ e61RBaxk5OHOA0bLtvJblV6NL72ZEZhX60wAWbrOPhpT
     @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_PEER
   end
 
+  def test_x509_store_add_cert_prepend
+    store = OpenSSL::X509::Store.new
+    assert_equal(store, store.add_cert(OpenSSL::X509::Certificate.new(VERIFY_TEST_CERT_LOCALHOST)))
+  end
+
 private
 
   def cert(filename)
