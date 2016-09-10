@@ -24,6 +24,12 @@ Aug 28, 2016 - version 2.8.2.3
 
    * 2.8.2 fixed VERIFY_NONE at JRuby but the fix was not enough.
 
+Sep 11, 2016 - version 2.8.2.4
+
+ * Bug
+
+   * 2.8.2 caused unexpected resulting value change of OpenSSL::X509::Store#add_cert method. Fixed.
+
 ### Changes in 2.8.1
 
 Aug 8, 2016 - version 2.8.1
