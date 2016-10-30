@@ -76,7 +76,7 @@ class HTTPClient
     def to_s # :nodoc:
       addr
     end
-    
+
     # Returns true if scheme, host and port of the given URI matches with this.
     def match(uri)
       (@scheme == uri.scheme) and (@host == uri.host) and (@port == uri.port.to_i)
@@ -612,11 +612,9 @@ class HTTPClient
           socket.debug_dev = @debug_dev
         end
       rescue SystemCallError => e
-        e.message << " (#{host}:#{port})"
-        raise
+        raise e.class, e.message + " (#{host}:#{port})"
       rescue SocketError => e
-        e.message << " (#{host}:#{port})"
-        raise
+        raise e.class, e.message + " (#{host}:#{port})"
       end
       socket
     end
