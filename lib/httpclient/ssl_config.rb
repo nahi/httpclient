@@ -471,7 +471,6 @@ class HTTPClient
 
     # Use 2048 bit certs trust anchor
     def load_cacerts(cert_store)
-      ver = OpenSSL::OPENSSL_VERSION
       file = File.join(File.dirname(__FILE__), 'cacert.pem')
       add_trust_ca_to_store(cert_store, file)
     end
