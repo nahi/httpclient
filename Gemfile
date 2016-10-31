@@ -17,9 +17,6 @@ group :development do
   gem 'rubysspi'
   gem 'rubyntlm'
   gem 'rack-ntlm-test-service'
-  if RUBY_VERSION >= '2.4'
-    gem 'json', '~> 2.0'
-  end
 end
 
 gemspec
