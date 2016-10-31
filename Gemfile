@@ -8,7 +8,11 @@ end
 
 group :development do
   gem 'rake', :require => false
-  gem 'rdoc'
+  if RUBY_VERSION >= '2.4'
+    gem 'rdoc', '>= 5.0.0.beta2'
+  else
+    gem 'rdoc'
+  end
   gem 'test-unit'
   gem 'simplecov'
   gem 'simplecov-rcov'
@@ -17,9 +21,6 @@ group :development do
   gem 'rubysspi'
   gem 'rubyntlm'
   gem 'rack-ntlm-test-service'
-  if RUBY_VERSION >= '2.4'
-    gem 'json', '~> 2.0'
-  end
 end
 
 gemspec
