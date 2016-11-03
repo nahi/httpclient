@@ -121,6 +121,7 @@ unless defined?(SSLSocket)
     java_import 'java.io.ByteArrayInputStream'
     java_import 'java.io.InputStreamReader'
     java_import 'java.net.Socket'
+    java_import 'java.net.InetSocketAddress'
     java_import 'java.security.KeyStore'
     java_import 'java.security.cert.Certificate'
     java_import 'java.security.cert.CertificateFactory'
@@ -441,10 +442,12 @@ unless defined?(SSLSocket)
 
     def self.create_socket(session)
       site = session.proxy || session.dest
-      socket = Socket.new(site.host, site.port)
       begin
         if session.proxy
+          socket = Socket.new(site.host, site.port)
           session.connect_ssl_proxy(JavaSocketWrap.new(socket), Util.urify(session.dest.to_s))
+        else
+          socket = nil
         end
       rescue
         socket.close
@@ -497,10 +500,21 @@ unless defined?(SSLSocket)
 
       factory = ctx.getSocketFactory
       begin
-        ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
+        ssl_socket = factory.createSocket
         ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
         if config.ciphers != SSLConfig::CIPHERS_DEFAULT
           ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
+        end
+        if socket
+          ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
+        else
+          socket_addr = InetSocketAddress.new(dest.host, dest.port)
+          if config.timeout
+            ssl_socket.connect(socket_addr, config.timeout * 1000)
+            ssl_socket.setSoTimeout(config.timeout * 1000)
+          else
+            ssl_socket.connect(socket_addr)
+          end
         end
         ssl_socket.startHandshake
         ssl_session = ssl_socket.getSession
