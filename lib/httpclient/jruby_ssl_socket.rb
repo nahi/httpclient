@@ -453,11 +453,16 @@ unless defined?(SSLSocket)
         socket.close
         raise
       end
-      new(socket, session.dest, session.ssl_config, session.debug_dev)
+      opts = {
+        :connect_timeout => session.connect_timeout,
+        :receive_timeout => session.receive_timeout,
+        :send_timeout => session.send_timeout,
+      }
+      new(socket, session.dest, session.ssl_config, session.debug_dev, opts)
     end
 
     DEFAULT_SSL_PROTOCOL = (java.lang.System.getProperty('java.specification.version') == '1.7') ? 'TLSv1.2' : 'TLS'
-    def initialize(socket, dest, config, debug_dev = nil)
+    def initialize(socket, dest, config, debug_dev = nil, opts={})
       @config = config
       if config.ssl_version == :auto
         ssl_version = DEFAULT_SSL_PROTOCOL
@@ -509,12 +514,12 @@ unless defined?(SSLSocket)
           ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
         else
           socket_addr = InetSocketAddress.new(dest.host, dest.port)
-          if config.timeout
-            ssl_socket.connect(socket_addr, config.timeout * 1000)
-            ssl_socket.setSoTimeout(config.timeout * 1000)
+          if opts[:connect_timeout]
+            ssl_socket.connect(socket_addr, opts[:connect_timeout] * 1000)
           else
             ssl_socket.connect(socket_addr)
           end
+          ssl_socket.setSoTimeout(opts[:receive_timeout] * 1000) if opts[:receive_timeout]
         end
         ssl_socket.startHandshake
         ssl_session = ssl_socket.getSession
