@@ -105,11 +105,15 @@ unless defined?(SSLSocket)
   private
 
     def fill
-      size = @instr.read(@buf)
-      if size > 0
-        @bufstr << String.from_java_bytes(@buf, Encoding::BINARY)[0, size]
+      begin
+        size = @instr.read(@buf)
+        if size > 0
+          @bufstr << String.from_java_bytes(@buf, Encoding::BINARY)[0, size]
+        end
+        size
+      rescue java.io.IOException => e
+        raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
       end
-      size
     end
 
     def debug(str)
@@ -512,10 +516,8 @@ unless defined?(SSLSocket)
         post_connection_check(dest.host, @peer_cert)
       rescue java.security.GeneralSecurityException => e
         raise OpenSSL::SSL::SSLError.new(e.getMessage)
-      rescue javax.net.ssl.SSLException => e
-        raise OpenSSL::SSL::SSLError.new(e.getMessage)
-      rescue java.net.SocketException => e
-        raise OpenSSL::SSL::SSLError.new(e.getMessage)
+      rescue java.io.IOException => e
+        raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
       end
 
       super(ssl_socket, debug_dev)
