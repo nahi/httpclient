@@ -69,7 +69,7 @@ class HTTPClient
     CIPHERS_DEFAULT = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
 
     # Which TLS protocol version (also called method) will be used. Defaults
-    # to :auto which means that OpenSSL decides (In my tests this resulted 
+    # to :auto which means that OpenSSL decides (In my tests this resulted
     # with always the highest available protocol being used).
     # String name of OpenSSL's SSL version method name: TLSv1_2, TLSv1_1, TLSv1,
     # SSLv2, SSLv23, SSLv3 or :auto (and nil) to allow version negotiation (default).
@@ -146,28 +146,38 @@ class HTTPClient
 
     # Sets SSL version method String.  Possible values: "SSLv2" for SSL2,
     # "SSLv3" for SSL3 and TLS1.x, "SSLv23" for SSL3 with fallback to SSL2.
+    #
+    # Calling this method resets all existing sessions if value is changed.
     def ssl_version=(ssl_version)
-      @ssl_version = ssl_version
-      change_notify
+      if @ssl_version != ssl_version
+        @ssl_version = ssl_version
+        change_notify
+      end
     end
 
     # Sets certificate (OpenSSL::X509::Certificate) for SSL client
     # authentication.
     # client_key and client_cert must be a pair.
     #
-    # Calling this method resets all existing sessions.
+    # Calling this method resets all existing sessions if value is changed.
     def client_cert=(client_cert)
-      @client_cert = client_cert
-      change_notify
+      # This is object equality check, since OpenSSL::X509::Certificate doesn't overload ==
+      if @client_cert != client_cert
+        @client_cert = client_cert
+        change_notify
+      end
     end
 
     # Sets private key (OpenSSL::PKey::PKey) for SSL client authentication.
     # client_key and client_cert must be a pair.
     #
-    # Calling this method resets all existing sessions.
+    # Calling this method resets all existing sessions if value is changed.
     def client_key=(client_key)
-      @client_key = client_key
-      change_notify
+      # This is object equality check, since OpenSSL::PKey::PKey doesn't overload ==
+      if @client_key != client_key
+        @client_key = client_key
+        change_notify
+      end
     end
 
     # Sets certificate and private key for SSL client authentication.
@@ -176,10 +186,12 @@ class HTTPClient
     #            RSA key.  If you want to use other PKey algorithm,
     #            use client_key=.
     #
-    # Calling this method resets all existing sessions.
+    # Calling this method resets all existing sessions if value is changed.
     def set_client_cert_file(cert_file, key_file, pass = nil)
-      @client_cert, @client_key, @client_key_pass = cert_file, key_file, pass
-      change_notify
+      if (@client_cert != cert_file) || (@client_key != key_file) || (@client_key_pass != pass)
+        @client_cert, @client_key, @client_key_pass = cert_file, key_file, pass
+        change_notify
+      end
     end
 
     # Sets OpenSSL's default trusted CA certificates.  Generally, OpenSSL is
@@ -216,9 +228,12 @@ class HTTPClient
     #
     # Calling this method resets all existing sessions.
     def cert_store=(cert_store)
-      @cacerts_loaded = true # avoid lazy override
-      @cert_store = cert_store
-      change_notify
+      # This is object equality check, since OpenSSL::X509::Store doesn't overload ==
+      if !@cacerts_loaded || (@cert_store != cert_store)
+        @cacerts_loaded = true # avoid lazy override
+        @cert_store = cert_store
+        change_notify
+      end
     end
 
     # Sets trust anchor certificate(s) for verification.
@@ -279,57 +294,71 @@ class HTTPClient
     # Sets verify mode of OpenSSL.  New value must be a combination of
     # constants OpenSSL::SSL::VERIFY_*
     #
-    # Calling this method resets all existing sessions.
+    # Calling this method resets all existing sessions if value is changed.
     def verify_mode=(verify_mode)
-      @verify_mode = verify_mode
-      change_notify
+      if @verify_mode != verify_mode
+        @verify_mode = verify_mode
+        change_notify
+      end
     end
 
     # Sets verify depth.  New value must be a number.
     #
-    # Calling this method resets all existing sessions.
+    # Calling this method resets all existing sessions if value is changed.
     def verify_depth=(verify_depth)
-      @verify_depth = verify_depth
-      change_notify
+      if @verify_depth != verify_depth
+        @verify_depth = verify_depth
+        change_notify
+      end
     end
 
     # Sets callback handler for custom certificate verification.
     # See verify_callback.
     #
-    # Calling this method resets all existing sessions.
+    # Calling this method resets all existing sessions if value is changed.
     def verify_callback=(verify_callback)
-      @verify_callback = verify_callback
-      change_notify
+      if @verify_callback != verify_callback
+        @verify_callback = verify_callback
+        change_notify
+      end
     end
 
     # Sets SSL timeout in sec.
     #
-    # Calling this method resets all existing sessions.
+    # Calling this method resets all existing sessions if value is changed.
     def timeout=(timeout)
-      @timeout = timeout
-      change_notify
+      if @timeout != timeout
+        @timeout = timeout
+        change_notify
+      end
     end
 
     # Sets SSL options.  New value must be a combination of # constants
     # OpenSSL::SSL::OP_*
     #
-    # Calling this method resets all existing sessions.
+    # Calling this method resets all existing sessions if value is changed.
     def options=(options)
-      @options = options
-      change_notify
+      if @options != options
+        @options = options
+        change_notify
+      end
     end
 
     # Sets cipher configuration.  New value must be a String.
     #
-    # Calling this method resets all existing sessions.
+    # Calling this method resets all existing sessions if value is changed.
     def ciphers=(ciphers)
-      @ciphers = ciphers
-      change_notify
+      if @ciphers != ciphers
+        @ciphers = ciphers
+        change_notify
+      end
     end
 
     def client_ca=(client_ca) # :nodoc:
-      @client_ca = client_ca
-      change_notify
+      if @client_ca != client_ca
+        @client_ca = client_ca
+        change_notify
+      end
     end
 
     def verify?
