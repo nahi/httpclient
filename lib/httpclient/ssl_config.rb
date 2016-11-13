@@ -66,6 +66,25 @@ class HTTPClient
       end
     end
 
+    class << self
+    private
+      def attr_config(symbol)
+        name = symbol.to_s
+        ivar_name = "@#{name}"
+        define_method(name) {
+          instance_variable_get(ivar_name)
+        }
+        define_method("#{name}=") { |rhs|
+          if instance_variable_get(ivar_name) != rhs
+            instance_variable_set(ivar_name, rhs)
+            change_notify
+          end
+        }
+        symbol
+      end
+    end
+
+
     CIPHERS_DEFAULT = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
 
     # Which TLS protocol version (also called method) will be used. Defaults
@@ -75,46 +94,48 @@ class HTTPClient
     # SSLv2, SSLv23, SSLv3 or :auto (and nil) to allow version negotiation (default).
     # See {OpenSSL::SSL::SSLContext::METHODS} for a list of available versions
     # in your specific Ruby environment.
-    attr_reader :ssl_version
+    attr_config :ssl_version
     # OpenSSL::X509::Certificate:: certificate for SSL client authentication.
     # nil by default. (no client authentication)
-    attr_reader :client_cert
+    attr_config :client_cert
     # OpenSSL::PKey::PKey:: private key for SSL client authentication.
     # nil by default. (no client authentication)
-    attr_reader :client_key
-    attr_reader :client_key_pass
+    attr_config :client_key
+    # OpenSSL::PKey::PKey:: private key pass phrase for client_key.
+    # nil by default. (no pass phrase)
+    attr_config :client_key_pass
 
     # A number which represents OpenSSL's verify mode.  Default value is
     # OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT.
-    attr_reader :verify_mode
+    attr_config :verify_mode
     # A number of verify depth.  Certification path which length is longer than
     # this depth is not allowed.
     # CAUTION: this is OpenSSL specific option and ignored on JRuby.
-    attr_reader :verify_depth
+    attr_config :verify_depth
     # A callback handler for custom certificate verification.  nil by default.
     # If the handler is set, handler.call is invoked just after general
     # OpenSSL's verification.  handler.call is invoked with 2 arguments,
     # ok and ctx; ok is a result of general OpenSSL's verification.  ctx is a
     # OpenSSL::X509::StoreContext.
-    attr_reader :verify_callback
+    attr_config :verify_callback
     # SSL timeout in sec.  nil by default.
-    attr_reader :timeout
+    attr_config :timeout
     # A number of OpenSSL's SSL options.  Default value is
     # OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2
     # CAUTION: this is OpenSSL specific option and ignored on JRuby.
     # Use ssl_version to specify the TLS version you want to use.
-    attr_reader :options
+    attr_config :options
     # A String of OpenSSL's cipher configuration.  Default value is
     # ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH
     # See ciphers(1) man in OpenSSL for more detail.
-    attr_reader :ciphers
+    attr_config :ciphers
 
     # OpenSSL::X509::X509::Store used for verification.  You can reset the
     # store with clear_cert_store and set the new store with cert_store=.
     attr_reader :cert_store # don't use if you don't know what it is.
 
     # For server side configuration.  Ignore this.
-    attr_reader :client_ca # :nodoc:
+    attr_config :client_ca # :nodoc:
 
     # These array keeps original files/dirs that was added to @cert_store
     def cert_store_items; @cert_store._httpclient_cert_store_items; end
@@ -142,42 +163,6 @@ class HTTPClient
       # OpenSSL 0.9.8 default: "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
       @ciphers = CIPHERS_DEFAULT
       @cacerts_loaded = false
-    end
-
-    # Sets SSL version method String.  Possible values: "SSLv2" for SSL2,
-    # "SSLv3" for SSL3 and TLS1.x, "SSLv23" for SSL3 with fallback to SSL2.
-    #
-    # Calling this method resets all existing sessions if value is changed.
-    def ssl_version=(ssl_version)
-      if @ssl_version != ssl_version
-        @ssl_version = ssl_version
-        change_notify
-      end
-    end
-
-    # Sets certificate (OpenSSL::X509::Certificate) for SSL client
-    # authentication.
-    # client_key and client_cert must be a pair.
-    #
-    # Calling this method resets all existing sessions if value is changed.
-    def client_cert=(client_cert)
-      # This is object equality check, since OpenSSL::X509::Certificate doesn't overload ==
-      if @client_cert != client_cert
-        @client_cert = client_cert
-        change_notify
-      end
-    end
-
-    # Sets private key (OpenSSL::PKey::PKey) for SSL client authentication.
-    # client_key and client_cert must be a pair.
-    #
-    # Calling this method resets all existing sessions if value is changed.
-    def client_key=(client_key)
-      # This is object equality check, since OpenSSL::PKey::PKey doesn't overload ==
-      if @client_key != client_key
-        @client_key = client_key
-        change_notify
-      end
     end
 
     # Sets certificate and private key for SSL client authentication.
@@ -290,76 +275,6 @@ class HTTPClient
       change_notify
     end
     alias set_crl add_crl
-
-    # Sets verify mode of OpenSSL.  New value must be a combination of
-    # constants OpenSSL::SSL::VERIFY_*
-    #
-    # Calling this method resets all existing sessions if value is changed.
-    def verify_mode=(verify_mode)
-      if @verify_mode != verify_mode
-        @verify_mode = verify_mode
-        change_notify
-      end
-    end
-
-    # Sets verify depth.  New value must be a number.
-    #
-    # Calling this method resets all existing sessions if value is changed.
-    def verify_depth=(verify_depth)
-      if @verify_depth != verify_depth
-        @verify_depth = verify_depth
-        change_notify
-      end
-    end
-
-    # Sets callback handler for custom certificate verification.
-    # See verify_callback.
-    #
-    # Calling this method resets all existing sessions if value is changed.
-    def verify_callback=(verify_callback)
-      if @verify_callback != verify_callback
-        @verify_callback = verify_callback
-        change_notify
-      end
-    end
-
-    # Sets SSL timeout in sec.
-    #
-    # Calling this method resets all existing sessions if value is changed.
-    def timeout=(timeout)
-      if @timeout != timeout
-        @timeout = timeout
-        change_notify
-      end
-    end
-
-    # Sets SSL options.  New value must be a combination of # constants
-    # OpenSSL::SSL::OP_*
-    #
-    # Calling this method resets all existing sessions if value is changed.
-    def options=(options)
-      if @options != options
-        @options = options
-        change_notify
-      end
-    end
-
-    # Sets cipher configuration.  New value must be a String.
-    #
-    # Calling this method resets all existing sessions if value is changed.
-    def ciphers=(ciphers)
-      if @ciphers != ciphers
-        @ciphers = ciphers
-        change_notify
-      end
-    end
-
-    def client_ca=(client_ca) # :nodoc:
-      if @client_ca != client_ca
-        @client_ca = client_ca
-        change_notify
-      end
-    end
 
     def verify?
       @verify_mode && (@verify_mode & OpenSSL::SSL::VERIFY_PEER != 0)
