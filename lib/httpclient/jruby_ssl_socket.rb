@@ -446,6 +446,7 @@ unless defined?(SSLSocket)
     def self.create_socket(session)
       site = session.proxy || session.dest
       socket = Socket.new(site.host, site.port)
+      socket.setKeepAlive(true)
       begin
         if session.proxy
           session.connect_ssl_proxy(JavaSocketWrap.new(socket), Util.urify(session.dest.to_s))
