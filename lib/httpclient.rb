@@ -355,6 +355,8 @@ class HTTPClient
   # if your ruby is older than 2005-09-06, do not set socket_sync = false to
   # avoid an SSL socket blocking bug in openssl/buffering.rb.
   attr_proxy(:socket_sync, true)
+  # Enables TCP keepalive; no timing settings exist at present
+  attr_proxy(:tcp_keepalive, true)
   # User-Agent header in HTTP request.
   attr_proxy(:agent_name, true)
   # From header in HTTP request.

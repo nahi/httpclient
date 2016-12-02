@@ -388,6 +388,25 @@ e61RBaxk5OHOA0bLtvJblV6NL72ZEZhX60wAWbrOPhpT
     assert_equal(store, store.add_cert(OpenSSL::X509::Certificate.new(VERIFY_TEST_CERT_LOCALHOST)))
   end
 
+  def test_tcp_keepalive
+    @client.tcp_keepalive = true
+    cfg = @client.ssl_config
+    cfg.add_trust_ca(path('ca.cert'))
+    cfg.add_trust_ca(path('subca.cert'))
+    @client.get_content(@url)
+
+    # expecting HTTP keepalive caches the socket
+    session = @client.instance_variable_get(:@session_manager).send(:get_cached_session, HTTPClient::Site.new(URI.parse(@url)))
+    socket = session.instance_variable_get(:@socket).instance_variable_get(:@socket)
+
+    assert_true(session.tcp_keepalive)
+    if RUBY_ENGINE == 'jruby'
+      assert_true(socket.getKeepAlive())
+    else
+      assert_equal(Socket::SO_KEEPALIVE, socket.getsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE).optname)
+    end
+  end
+
 private
 
   def cert(filename)

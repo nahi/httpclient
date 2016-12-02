@@ -105,6 +105,8 @@ class HTTPClient
     attr_accessor :debug_dev
     # Boolean value for Socket#sync
     attr_accessor :socket_sync
+    # Boolean value to send TCP keepalive packets; no timing settings exist at present
+    attr_accessor :tcp_keepalive
 
     attr_accessor :connect_timeout
     # Maximum retry count.  0 for infinite.
@@ -137,6 +139,7 @@ class HTTPClient
       @protocol_version = nil
       @debug_dev = client.debug_dev
       @socket_sync = true
+      @tcp_keepalive = false
       @chunk_size = ::HTTP::Message::Body::DEFAULT_CHUNK_SIZE
 
       @connect_timeout = 60
@@ -216,6 +219,7 @@ class HTTPClient
       sess = Session.new(@client, site, @agent_name, @from)
       sess.proxy = via_proxy ? @proxy : nil
       sess.socket_sync = @socket_sync
+      sess.tcp_keepalive = @tcp_keepalive
       sess.requested_version = @protocol_version if @protocol_version
       sess.connect_timeout = @connect_timeout
       sess.connect_retry = @connect_retry
@@ -437,6 +441,8 @@ class HTTPClient
     attr_accessor :proxy
     # Boolean value for Socket#sync
     attr_accessor :socket_sync
+    # Boolean value to send TCP keepalive packets; no timing settings exist at present
+    attr_accessor :tcp_keepalive
     # Requested protocol version
     attr_accessor :requested_version
     # Device for dumping log for debugging
@@ -464,6 +470,7 @@ class HTTPClient
       @dest = dest
       @proxy = nil
       @socket_sync = true
+      @tcp_keepalive = false
       @requested_version = nil
 
       @debug_dev = nil
@@ -606,6 +613,7 @@ class HTTPClient
           clean_local = @socket_local.host.delete("[]")
           socket = TCPSocket.new(clean_host, port, clean_local, @socket_local.port)
         end
+        socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, true) if @tcp_keepalive
         if @debug_dev
           @debug_dev << "! CONNECTION ESTABLISHED\n"
           socket.extend(DebugSocket)
