@@ -125,6 +125,7 @@ unless defined?(SSLSocket)
     java_import 'java.io.ByteArrayInputStream'
     java_import 'java.io.InputStreamReader'
     java_import 'java.net.Socket'
+    java_import 'java.net.InetSocketAddress'
     java_import 'java.security.KeyStore'
     java_import 'java.security.cert.Certificate'
     java_import 'java.security.cert.CertificateFactory'
@@ -445,21 +446,29 @@ unless defined?(SSLSocket)
 
     def self.create_socket(session)
       site = session.proxy || session.dest
-      socket = Socket.new(site.host, site.port)
-      socket.setKeepAlive(true) if session.tcp_keepalive
       begin
         if session.proxy
+          socket = Socket.new(site.host, site.port)
+          socket.setKeepAlive(true) if session.tcp_keepalive
           session.connect_ssl_proxy(JavaSocketWrap.new(socket), Util.urify(session.dest.to_s))
+        else
+          socket = nil
         end
       rescue
         socket.close
         raise
       end
-      new(socket, session.dest, session.ssl_config, session.debug_dev)
+      opts = {
+        :connect_timeout => session.connect_timeout,
+        :receive_timeout => session.receive_timeout,
+        :send_timeout => session.send_timeout,
+        :tcp_keepalive => session.tcp_keepalive
+      }
+      new(socket, session.dest, session.ssl_config, session.debug_dev, opts)
     end
 
     DEFAULT_SSL_PROTOCOL = (java.lang.System.getProperty('java.specification.version') == '1.7') ? 'TLSv1.2' : 'TLS'
-    def initialize(socket, dest, config, debug_dev = nil)
+    def initialize(socket, dest, config, debug_dev = nil, opts={})
       @config = config
       if config.ssl_version == :auto
         ssl_version = DEFAULT_SSL_PROTOCOL
@@ -502,10 +511,22 @@ unless defined?(SSLSocket)
 
       factory = ctx.getSocketFactory
       begin
-        ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
+        ssl_socket = factory.createSocket
         ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
         if config.ciphers != SSLConfig::CIPHERS_DEFAULT
           ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
+        end
+        if socket
+          ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
+        else
+          socket_addr = InetSocketAddress.new(dest.host, dest.port)
+          if opts[:connect_timeout]
+            ssl_socket.connect(socket_addr, opts[:connect_timeout] * 1000)
+          else
+            ssl_socket.connect(socket_addr)
+          end
+          ssl_socket.setSoTimeout(opts[:receive_timeout] * 1000) if opts[:receive_timeout]
+          ssl_socket.setKeepAlive(true) if opts[:tcp_keepalive]
         end
         ssl_socket.startHandshake
         ssl_session = ssl_socket.getSession
