@@ -1908,6 +1908,18 @@ EOS
     end
   end
 
+  def test_tcp_keepalive
+    @client.tcp_keepalive = true
+    @client.get(serverurl)
+
+    # expecting HTTP keepalive caches the socket
+    session = @client.instance_variable_get(:@session_manager).send(:get_cached_session, HTTPClient::Site.new(URI.parse(serverurl)))
+    socket = session.instance_variable_get(:@socket)
+
+    assert_true(session.tcp_keepalive)
+    assert_equal(Socket::SO_KEEPALIVE, socket.getsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE).optname)
+  end
+
 private
 
   def check_query_get(query)
