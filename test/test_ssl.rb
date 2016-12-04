@@ -390,9 +390,7 @@ e61RBaxk5OHOA0bLtvJblV6NL72ZEZhX60wAWbrOPhpT
 
   def test_tcp_keepalive
     @client.tcp_keepalive = true
-    cfg = @client.ssl_config
-    cfg.add_trust_ca(path('ca.cert'))
-    cfg.add_trust_ca(path('subca.cert'))
+    @client.ssl_config.add_trust_ca(path('ca-chain.pem'))
     @client.get_content(@url)
 
     # expecting HTTP keepalive caches the socket
@@ -405,6 +403,28 @@ e61RBaxk5OHOA0bLtvJblV6NL72ZEZhX60wAWbrOPhpT
     else
       assert_equal(Socket::SO_KEEPALIVE, socket.getsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE).optname)
     end
+  end
+
+  def test_timeout
+    url = "https://localhost:#{serverport}/"
+    @client.ssl_config.add_trust_ca(path('ca-chain.pem'))
+    assert_equal('sleep', @client.get_content(url + 'sleep?sec=2'))
+    @client.receive_timeout = 1
+    @client.reset_all
+    assert_equal('sleep', @client.get_content(url + 'sleep?sec=0'))
+
+    start = Time.now
+    assert_raise(HTTPClient::ReceiveTimeoutError) do
+      @client.get_content(url + 'sleep?sec=5')
+    end
+    if Time.now - start > 3
+      # before #342 it detected timeout when IO was freed
+      fail 'timeout does not work'
+    end
+
+    @client.receive_timeout = 3
+    @client.reset_all
+    assert_equal('sleep', @client.get_content(url + 'sleep?sec=2'))
   end
 
 private
@@ -439,7 +459,7 @@ private
       :SSLCertName => nil
     )
     @serverport = @server.config[:Port]
-    [:hello].each do |sym|
+    [:hello, :sleep].each do |sym|
       @server.mount(
         "/#{sym}",
         WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
@@ -507,6 +527,13 @@ private
   def do_hello(req, res)
     res['content-type'] = 'text/html'
     res.body = "hello"
+  end
+
+  def do_sleep(req, res)
+    sec = req.query['sec'].to_i
+    sleep sec
+    res['content-type'] = 'text/html'
+    res.body = "sleep"
   end
 
   def start_server_thread(server)
