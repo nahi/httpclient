@@ -271,8 +271,8 @@ unless defined?(SSLSocket)
 
     module PEMUtils
       def self.read_certificate(pem)
-        pem = pem.sub(/-----BEGIN CERTIFICATE-----/, '').sub(/-----END CERTIFICATE-----/, '')
-        der = pem.unpack('m*').first
+        cert = pem.sub(/.*?-----BEGIN CERTIFICATE-----/m, '').sub(/-----END CERTIFICATE-----.*?/m, '')
+        der = cert.unpack('m*').first
         cf = CertificateFactory.getInstance('X.509')
         cf.generateCertificate(ByteArrayInputStream.new(der.to_java_bytes))
       end
