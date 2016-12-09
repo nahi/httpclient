@@ -14,43 +14,31 @@ class HTTPClient
   # Wraps up OpenSSL::SSL::SSLSocket and offers debugging features.
   class SSLSocket
     def self.create_socket(session)
+      opts = {
+        :debug_dev => session.debug_dev
+      }
       site = session.proxy || session.dest
       socket = session.create_socket(site.host, site.port)
       begin
         if session.proxy
           session.connect_ssl_proxy(socket, Util.urify(session.dest.to_s))
         end
-        ssl_socket = new(socket, session.ssl_config, session.debug_dev)
-        ssl_socket.ssl_connect(session.dest.host)
-        ssl_socket
+        new(socket, session.dest, session.ssl_config, opts)
       rescue
         socket.close
         raise
       end
     end
 
-    def initialize(socket, context, debug_dev = nil)
+    def initialize(socket, dest, config, opts = {})
       unless SSLEnabled
         raise ConfigurationError.new('Ruby/OpenSSL module is required')
       end
       @socket = socket
-      @context = context
+      @config = config
       @ssl_socket = create_openssl_socket(@socket)
-      @debug_dev = debug_dev
-    end
-
-    def ssl_connect(hostname = nil)
-      if hostname && @ssl_socket.respond_to?(:hostname=)
-        @ssl_socket.hostname = hostname
-      end
-      @ssl_socket.connect
-      if $DEBUG
-        if @ssl_socket.respond_to?(:ssl_version)
-          warn("Protocol version: #{@ssl_socket.ssl_version}")
-        end
-        warn("Cipher: #{@ssl_socket.cipher.inspect}")
-      end
-      post_connection_check(hostname)
+      @debug_dev = opts[:debug_dev]
+      ssl_connect(dest.host)
     end
 
     def peer_cert
@@ -108,8 +96,22 @@ class HTTPClient
 
   private
 
+    def ssl_connect(hostname = nil)
+      if hostname && @ssl_socket.respond_to?(:hostname=)
+        @ssl_socket.hostname = hostname
+      end
+      @ssl_socket.connect
+      if $DEBUG
+        if @ssl_socket.respond_to?(:ssl_version)
+          warn("Protocol version: #{@ssl_socket.ssl_version}")
+        end
+        warn("Cipher: #{@ssl_socket.cipher.inspect}")
+      end
+      post_connection_check(hostname)
+    end
+
     def post_connection_check(hostname)
-      verify_mode = @context.verify_mode || OpenSSL::SSL::VERIFY_NONE
+      verify_mode = @config.verify_mode || OpenSSL::SSL::VERIFY_NONE
       if verify_mode == OpenSSL::SSL::VERIFY_NONE
         return
       elsif @ssl_socket.peer_cert.nil? and
@@ -119,7 +121,7 @@ class HTTPClient
       if @ssl_socket.respond_to?(:post_connection_check) and RUBY_VERSION > "1.8.4"
         @ssl_socket.post_connection_check(hostname)
       else
-        @context.post_connection_check(@ssl_socket.peer_cert, hostname)
+        @config.post_connection_check(@ssl_socket.peer_cert, hostname)
       end
     end
 
@@ -131,11 +133,11 @@ class HTTPClient
       ssl_socket = nil
       if OpenSSL::SSL.const_defined?("SSLContext")
         ctx = OpenSSL::SSL::SSLContext.new
-        @context.set_context(ctx)
+        @config.set_context(ctx)
         ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ctx)
       else
         ssl_socket = OpenSSL::SSL::SSLSocket.new(socket)
-        @context.set_context(ssl_socket)
+        @config.set_context(ssl_socket)
       end
       ssl_socket
     end

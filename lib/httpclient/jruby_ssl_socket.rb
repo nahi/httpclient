@@ -15,8 +15,22 @@ class HTTPClient
 unless defined?(SSLSocket)
 
   class JavaSocketWrap
+    java_import 'java.net.InetSocketAddress'
     java_import 'java.io.BufferedInputStream'
+
     BUF_SIZE = 1024 * 16
+
+    def self.connect(socket, site, opts = {})
+      socket_addr = InetSocketAddress.new(site.host, site.port)
+      if opts[:connect_timeout]
+        socket.connect(socket_addr, opts[:connect_timeout])
+      else
+        socket.connect(socket_addr)
+      end
+      socket.setSoTimeout(opts[:so_timeout]) if opts[:so_timeout]
+      socket.setKeepAlive(true) if opts[:tcp_keepalive]
+      socket
+    end
 
     def initialize(socket, debug_dev = nil)
       @socket = socket
@@ -38,7 +52,6 @@ unless defined?(SSLSocket)
     def eof?
       @socket.isClosed
     end
-
 
     def gets(rs)
       while (size = @bufstr.index(rs)).nil?
@@ -125,7 +138,6 @@ unless defined?(SSLSocket)
     java_import 'java.io.ByteArrayInputStream'
     java_import 'java.io.InputStreamReader'
     java_import 'java.net.Socket'
-    java_import 'java.net.InetSocketAddress'
     java_import 'java.security.KeyStore'
     java_import 'java.security.cert.Certificate'
     java_import 'java.security.cert.CertificateFactory'
@@ -445,36 +457,56 @@ unless defined?(SSLSocket)
     end
 
     def self.create_socket(session)
-      site = session.proxy || session.dest
+      opts = {
+        :connect_timeout => session.connect_timeout * 1000,
+        # send_timeout is ignored in JRuby
+        :so_timeout => session.receive_timeout * 1000,
+        :tcp_keepalive => session.tcp_keepalive,
+        :debug_dev => session.debug_dev
+      }
+      socket = nil
       begin
         if session.proxy
-          socket = Socket.new(site.host, site.port)
-          socket.setKeepAlive(true) if session.tcp_keepalive
+          site = session.proxy || session.dest
+          socket = JavaSocketWrap.connect(Socket.new, site, opts)
           session.connect_ssl_proxy(JavaSocketWrap.new(socket), Util.urify(session.dest.to_s))
-        else
-          socket = nil
         end
+        new(socket, session.dest, session.ssl_config, opts)
       rescue
-        socket.close
+        socket.close if socket
         raise
       end
-      opts = {
-        :connect_timeout => session.connect_timeout,
-        :receive_timeout => session.receive_timeout,
-        :send_timeout => session.send_timeout,
-        :tcp_keepalive => session.tcp_keepalive
-      }
-      new(socket, session.dest, session.ssl_config, session.debug_dev, opts)
     end
 
     DEFAULT_SSL_PROTOCOL = (java.lang.System.getProperty('java.specification.version') == '1.7') ? 'TLSv1.2' : 'TLS'
-    def initialize(socket, dest, config, debug_dev = nil, opts={})
+    def initialize(socket, dest, config, opts = {})
       @config = config
-      if config.ssl_version == :auto
-        ssl_version = DEFAULT_SSL_PROTOCOL
-      else
-        ssl_version = config.ssl_version.to_s.tr('_', '.')
+      begin
+        @ssl_socket = create_ssl_socket(socket, dest, config, opts)
+        ssl_version = java_ssl_version(config)
+        @ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
+        if config.ciphers != SSLConfig::CIPHERS_DEFAULT
+          @ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
+        end
+        ssl_connect(dest.host)
+      rescue java.security.GeneralSecurityException => e
+        raise OpenSSL::SSL::SSLError.new(e.getMessage)
+      rescue java.io.IOException => e
+        raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
       end
+
+      super(@ssl_socket, opts[:debug_dev])
+    end
+
+    def java_ssl_version(config)
+      if config.ssl_version == :auto
+        DEFAULT_SSL_PROTOCOL
+      else
+        config.ssl_version.to_s.tr('_', '.')
+      end
+    end
+
+    def create_ssl_context(config)
       unless config.cert_store_crl_items.empty?
         raise NotImplementedError.new('Manual CRL configuration is not yet supported')
       end
@@ -503,46 +535,24 @@ unless defined?(SSLSocket)
       tmf.init(trust_store)
       tm = tmf.getTrustManagers
 
-      ctx = SSLContext.getInstance(ssl_version)
+      ctx = SSLContext.getInstance(java_ssl_version(config))
       ctx.init(km, tm, nil)
       if config.timeout
         ctx.getClientSessionContext.setSessionTimeout(config.timeout)
       end
+      ctx
+    end
 
+    def create_ssl_socket(socket, dest, config, opts)
+      ctx = create_ssl_context(config)
       factory = ctx.getSocketFactory
-      begin
+      if socket
+        ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
+      else
         ssl_socket = factory.createSocket
-        ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
-        if config.ciphers != SSLConfig::CIPHERS_DEFAULT
-          ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
-        end
-        if socket
-          ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
-        else
-          socket_addr = InetSocketAddress.new(dest.host, dest.port)
-          if opts[:connect_timeout]
-            ssl_socket.connect(socket_addr, opts[:connect_timeout] * 1000)
-          else
-            ssl_socket.connect(socket_addr)
-          end
-          ssl_socket.setSoTimeout(opts[:receive_timeout] * 1000) if opts[:receive_timeout]
-          ssl_socket.setKeepAlive(true) if opts[:tcp_keepalive]
-        end
-        ssl_socket.startHandshake
-        ssl_session = ssl_socket.getSession
-        @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
-        if $DEBUG
-          warn("Protocol version: #{ssl_session.getProtocol}")
-          warn("Cipher: #{ssl_socket.getSession.getCipherSuite}")
-        end
-        post_connection_check(dest.host, @peer_cert)
-      rescue java.security.GeneralSecurityException => e
-        raise OpenSSL::SSL::SSLError.new(e.getMessage)
-      rescue java.io.IOException => e
-        raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
+        JavaSocketWrap.connect(ssl_socket, dest, opts)
       end
-
-      super(ssl_socket, debug_dev)
+      ssl_socket
     end
 
     def peer_cert
@@ -551,11 +561,22 @@ unless defined?(SSLSocket)
 
   private
 
-    def post_connection_check(hostname, wrap_cert)
+    def ssl_connect(hostname)
+      @ssl_socket.startHandshake
+      ssl_session = @ssl_socket.getSession
+      @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
+      if $DEBUG
+        warn("Protocol version: #{ssl_session.getProtocol}")
+        warn("Cipher: #{@ssl_socket.getSession.getCipherSuite}")
+      end
+      post_connection_check(hostname)
+    end
+
+    def post_connection_check(hostname)
       if !@config.verify?
         return
       else
-        BrowserCompatHostnameVerifier.new.verify(hostname, wrap_cert.cert)
+        BrowserCompatHostnameVerifier.new.verify(hostname, @peer_cert.cert)
       end
     end
   end
