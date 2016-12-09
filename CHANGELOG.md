@@ -1,5 +1,23 @@
 ## Changes
 
+### Changes in 2.8.3
+
+Dec 8, 2016 - version 2.8.3
+
+ * Bug
+
+   * Avoid frozen string errors on Ruby 2.3 - fixed by RJ Walsh #336
+
+   * SSL timeouts not working on JRuby - fixed by Dave Golombek #341
+
+   * Do not reset SSL connection if unnecessary - fixed by Dave Golombek #344
+
+   * Ignore text around PEM file in JRuby fixed by Scott Kolb #352
+
+ * Changes
+
+   * Add HTTPClient#tcp_keepalive= for enabling TCP keepalive. false by default. #350
+
 ### Changes in 2.8.2
 
 Aug 15, 2016 - version 2.8.2
