@@ -469,9 +469,8 @@ unless defined?(SSLSocket)
     DEFAULT_SSL_PROTOCOL = (java.lang.System.getProperty('java.specification.version') == '1.7') ? 'TLSv1.2' : 'TLS'
     def initialize(socket, dest, config, debug_dev = nil, opts={})
       @config = config
-      ctx = create_ssl_context(config)
       begin
-        ssl_socket = create_ssl_socket(socket, dest, ctx, opts)
+        ssl_socket = create_ssl_socket(socket, dest, config, opts)
         ssl_version = java_ssl_version(config)
         ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
         if config.ciphers != SSLConfig::CIPHERS_DEFAULT
@@ -539,7 +538,8 @@ unless defined?(SSLSocket)
       ctx
     end
 
-    def create_ssl_socket(socket, dest, ctx, opts)
+    def create_ssl_socket(socket, dest, config, opts)
+      ctx = create_ssl_context(config)
       factory = ctx.getSocketFactory
       if socket
         ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
