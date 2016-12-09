@@ -14,43 +14,31 @@ class HTTPClient
   # Wraps up OpenSSL::SSL::SSLSocket and offers debugging features.
   class SSLSocket
     def self.create_socket(session)
+      opts = {
+        :debug_dev => session.debug_dev
+      }
       site = session.proxy || session.dest
       socket = session.create_socket(site.host, site.port)
       begin
         if session.proxy
           session.connect_ssl_proxy(socket, Util.urify(session.dest.to_s))
         end
-        ssl_socket = new(socket, session.ssl_config, session.debug_dev)
-        ssl_socket.ssl_connect(session.dest.host)
-        ssl_socket
+        new(socket, session.dest, session.ssl_config, opts)
       rescue
         socket.close
         raise
       end
     end
 
-    def initialize(socket, config, debug_dev = nil)
+    def initialize(socket, dest, config, opts = {})
       unless SSLEnabled
         raise ConfigurationError.new('Ruby/OpenSSL module is required')
       end
       @socket = socket
       @config = config
       @ssl_socket = create_openssl_socket(@socket)
-      @debug_dev = debug_dev
-    end
-
-    def ssl_connect(hostname = nil)
-      if hostname && @ssl_socket.respond_to?(:hostname=)
-        @ssl_socket.hostname = hostname
-      end
-      @ssl_socket.connect
-      if $DEBUG
-        if @ssl_socket.respond_to?(:ssl_version)
-          warn("Protocol version: #{@ssl_socket.ssl_version}")
-        end
-        warn("Cipher: #{@ssl_socket.cipher.inspect}")
-      end
-      post_connection_check(hostname)
+      @debug_dev = opts[:debug_dev]
+      ssl_connect(dest.host)
     end
 
     def peer_cert
@@ -107,6 +95,20 @@ class HTTPClient
     end
 
   private
+
+    def ssl_connect(hostname = nil)
+      if hostname && @ssl_socket.respond_to?(:hostname=)
+        @ssl_socket.hostname = hostname
+      end
+      @ssl_socket.connect
+      if $DEBUG
+        if @ssl_socket.respond_to?(:ssl_version)
+          warn("Protocol version: #{@ssl_socket.ssl_version}")
+        end
+        warn("Cipher: #{@ssl_socket.cipher.inspect}")
+      end
+      post_connection_check(hostname)
+    end
 
     def post_connection_check(hostname)
       verify_mode = @config.verify_mode || OpenSSL::SSL::VERIFY_NONE

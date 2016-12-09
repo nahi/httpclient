@@ -461,47 +461,41 @@ unless defined?(SSLSocket)
         :connect_timeout => session.connect_timeout * 1000,
         # send_timeout is ignored in JRuby
         :so_timeout => session.receive_timeout * 1000,
-        :tcp_keepalive => session.tcp_keepalive
+        :tcp_keepalive => session.tcp_keepalive,
+        :debug_dev => session.debug_dev
       }
       socket = nil
-      if session.proxy
-        begin
+      begin
+        if session.proxy
           site = session.proxy || session.dest
           socket = JavaSocketWrap.connect(Socket.new, site, opts)
           session.connect_ssl_proxy(JavaSocketWrap.new(socket), Util.urify(session.dest.to_s))
-        rescue
-          socket.close
-          raise
         end
+        new(socket, session.dest, session.ssl_config, opts)
+      rescue
+        socket.close if socket
+        raise
       end
-      new(socket, session.dest, session.ssl_config, session.debug_dev, opts)
     end
 
     DEFAULT_SSL_PROTOCOL = (java.lang.System.getProperty('java.specification.version') == '1.7') ? 'TLSv1.2' : 'TLS'
-    def initialize(socket, dest, config, debug_dev = nil, opts={})
+    def initialize(socket, dest, config, opts = {})
       @config = config
       begin
-        ssl_socket = create_ssl_socket(socket, dest, config, opts)
+        @ssl_socket = create_ssl_socket(socket, dest, config, opts)
         ssl_version = java_ssl_version(config)
-        ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
+        @ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
         if config.ciphers != SSLConfig::CIPHERS_DEFAULT
-          ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
+          @ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
         end
-        ssl_socket.startHandshake
-        ssl_session = ssl_socket.getSession
-        @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
-        if $DEBUG
-          warn("Protocol version: #{ssl_session.getProtocol}")
-          warn("Cipher: #{ssl_socket.getSession.getCipherSuite}")
-        end
-        post_connection_check(dest.host, @peer_cert)
+        ssl_connect(dest.host)
       rescue java.security.GeneralSecurityException => e
         raise OpenSSL::SSL::SSLError.new(e.getMessage)
       rescue java.io.IOException => e
         raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
       end
 
-      super(ssl_socket, debug_dev)
+      super(@ssl_socket, opts[:debug_dev])
     end
 
     def java_ssl_version(config)
@@ -567,11 +561,22 @@ unless defined?(SSLSocket)
 
   private
 
-    def post_connection_check(hostname, wrap_cert)
+    def ssl_connect(hostname)
+      @ssl_socket.startHandshake
+      ssl_session = @ssl_socket.getSession
+      @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
+      if $DEBUG
+        warn("Protocol version: #{ssl_session.getProtocol}")
+        warn("Cipher: #{@ssl_socket.getSession.getCipherSuite}")
+      end
+      post_connection_check(hostname)
+    end
+
+    def post_connection_check(hostname)
       if !@config.verify?
         return
       else
-        BrowserCompatHostnameVerifier.new.verify(hostname, wrap_cert.cert)
+        BrowserCompatHostnameVerifier.new.verify(hostname, @peer_cert.cert)
       end
     end
   end
