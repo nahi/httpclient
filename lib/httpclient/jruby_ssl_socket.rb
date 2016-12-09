@@ -458,9 +458,9 @@ unless defined?(SSLSocket)
         end
       end
       opts = {
-        :connect_timeout => session.connect_timeout,
-        :receive_timeout => session.receive_timeout,
-        :send_timeout => session.send_timeout,
+        :connect_timeout => session.connect_timeout * 1000,
+        # send_timeout is ignored in JRuby
+        :so_timeout => session.receive_timeout * 1000,
         :tcp_keepalive => session.tcp_keepalive
       }
       new(socket, session.dest, session.ssl_config, session.debug_dev, opts)
@@ -547,12 +547,12 @@ unless defined?(SSLSocket)
         ssl_socket = factory.createSocket
         socket_addr = InetSocketAddress.new(dest.host, dest.port)
         if opts[:connect_timeout]
-          ssl_socket.connect(socket_addr, opts[:connect_timeout] * 1000)
+          ssl_socket.connect(socket_addr, opts[:connect_timeout])
         else
           ssl_socket.connect(socket_addr)
         end
       end
-      ssl_socket.setSoTimeout(opts[:receive_timeout] * 1000) if opts[:receive_timeout]
+      ssl_socket.setSoTimeout(opts[:so_timeout]) if opts[:so_timeout]
       ssl_socket.setKeepAlive(true) if opts[:tcp_keepalive]
       ssl_socket
     end
