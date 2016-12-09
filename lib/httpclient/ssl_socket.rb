@@ -29,12 +29,12 @@ class HTTPClient
       end
     end
 
-    def initialize(socket, context, debug_dev = nil)
+    def initialize(socket, config, debug_dev = nil)
       unless SSLEnabled
         raise ConfigurationError.new('Ruby/OpenSSL module is required')
       end
       @socket = socket
-      @context = context
+      @config = config
       @ssl_socket = create_openssl_socket(@socket)
       @debug_dev = debug_dev
     end
@@ -109,7 +109,7 @@ class HTTPClient
   private
 
     def post_connection_check(hostname)
-      verify_mode = @context.verify_mode || OpenSSL::SSL::VERIFY_NONE
+      verify_mode = @config.verify_mode || OpenSSL::SSL::VERIFY_NONE
       if verify_mode == OpenSSL::SSL::VERIFY_NONE
         return
       elsif @ssl_socket.peer_cert.nil? and
@@ -119,7 +119,7 @@ class HTTPClient
       if @ssl_socket.respond_to?(:post_connection_check) and RUBY_VERSION > "1.8.4"
         @ssl_socket.post_connection_check(hostname)
       else
-        @context.post_connection_check(@ssl_socket.peer_cert, hostname)
+        @config.post_connection_check(@ssl_socket.peer_cert, hostname)
       end
     end
 
@@ -131,11 +131,11 @@ class HTTPClient
       ssl_socket = nil
       if OpenSSL::SSL.const_defined?("SSLContext")
         ctx = OpenSSL::SSL::SSLContext.new
-        @context.set_context(ctx)
+        @config.set_context(ctx)
         ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ctx)
       else
         ssl_socket = OpenSSL::SSL::SSLSocket.new(socket)
-        @context.set_context(ssl_socket)
+        @config.set_context(ssl_socket)
       end
       ssl_socket
     end
