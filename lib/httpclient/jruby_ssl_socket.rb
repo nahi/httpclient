@@ -445,18 +445,17 @@ unless defined?(SSLSocket)
     end
 
     def self.create_socket(session)
-      site = session.proxy || session.dest
-      begin
-        if session.proxy
+      socket = nil
+      if session.proxy
+        begin
+          site = session.proxy || session.dest
           socket = Socket.new(site.host, site.port)
           socket.setKeepAlive(true) if session.tcp_keepalive
           session.connect_ssl_proxy(JavaSocketWrap.new(socket), Util.urify(session.dest.to_s))
-        else
-          socket = nil
+        rescue
+          socket.close
+          raise
         end
-      rescue
-        socket.close
-        raise
       end
       opts = {
         :connect_timeout => session.connect_timeout,
@@ -509,24 +508,11 @@ unless defined?(SSLSocket)
         ctx.getClientSessionContext.setSessionTimeout(config.timeout)
       end
 
-      factory = ctx.getSocketFactory
       begin
-        ssl_socket = factory.createSocket
+        ssl_socket = create_ssl_socket(socket, dest, ctx, opts)
         ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
         if config.ciphers != SSLConfig::CIPHERS_DEFAULT
           ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
-        end
-        if socket
-          ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
-        else
-          socket_addr = InetSocketAddress.new(dest.host, dest.port)
-          if opts[:connect_timeout]
-            ssl_socket.connect(socket_addr, opts[:connect_timeout] * 1000)
-          else
-            ssl_socket.connect(socket_addr)
-          end
-          ssl_socket.setSoTimeout(opts[:receive_timeout] * 1000) if opts[:receive_timeout]
-          ssl_socket.setKeepAlive(true) if opts[:tcp_keepalive]
         end
         ssl_socket.startHandshake
         ssl_session = ssl_socket.getSession
@@ -543,6 +529,24 @@ unless defined?(SSLSocket)
       end
 
       super(ssl_socket, debug_dev)
+    end
+
+    def create_ssl_socket(socket, dest, ctx, opts)
+      factory = ctx.getSocketFactory
+      if socket
+        ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
+      else
+        ssl_socket = factory.createSocket
+        socket_addr = InetSocketAddress.new(dest.host, dest.port)
+        if opts[:connect_timeout]
+          ssl_socket.connect(socket_addr, opts[:connect_timeout] * 1000)
+        else
+          ssl_socket.connect(socket_addr)
+        end
+        ssl_socket.setSoTimeout(opts[:receive_timeout] * 1000) if opts[:receive_timeout]
+        ssl_socket.setKeepAlive(true) if opts[:tcp_keepalive]
+      end
+      ssl_socket
     end
 
     def peer_cert
