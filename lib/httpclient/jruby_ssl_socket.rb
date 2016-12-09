@@ -15,8 +15,22 @@ class HTTPClient
 unless defined?(SSLSocket)
 
   class JavaSocketWrap
+    java_import 'java.net.InetSocketAddress'
     java_import 'java.io.BufferedInputStream'
+
     BUF_SIZE = 1024 * 16
+
+    def self.connect(socket, site, opts = {})
+      socket_addr = InetSocketAddress.new(site.host, site.port)
+      if opts[:connect_timeout]
+        socket.connect(socket_addr, opts[:connect_timeout])
+      else
+        socket.connect(socket_addr)
+      end
+      socket.setSoTimeout(opts[:so_timeout]) if opts[:so_timeout]
+      socket.setKeepAlive(true) if opts[:tcp_keepalive]
+      socket
+    end
 
     def initialize(socket, debug_dev = nil)
       @socket = socket
@@ -38,7 +52,6 @@ unless defined?(SSLSocket)
     def eof?
       @socket.isClosed
     end
-
 
     def gets(rs)
       while (size = @bufstr.index(rs)).nil?
@@ -125,7 +138,6 @@ unless defined?(SSLSocket)
     java_import 'java.io.ByteArrayInputStream'
     java_import 'java.io.InputStreamReader'
     java_import 'java.net.Socket'
-    java_import 'java.net.InetSocketAddress'
     java_import 'java.security.KeyStore'
     java_import 'java.security.cert.Certificate'
     java_import 'java.security.cert.CertificateFactory'
@@ -445,24 +457,23 @@ unless defined?(SSLSocket)
     end
 
     def self.create_socket(session)
-      socket = nil
-      if session.proxy
-        begin
-          site = session.proxy || session.dest
-          socket = Socket.new(site.host, site.port)
-          socket.setKeepAlive(true) if session.tcp_keepalive
-          session.connect_ssl_proxy(JavaSocketWrap.new(socket), Util.urify(session.dest.to_s))
-        rescue
-          socket.close
-          raise
-        end
-      end
       opts = {
         :connect_timeout => session.connect_timeout * 1000,
         # send_timeout is ignored in JRuby
         :so_timeout => session.receive_timeout * 1000,
         :tcp_keepalive => session.tcp_keepalive
       }
+      socket = nil
+      if session.proxy
+        begin
+          site = session.proxy || session.dest
+          socket = JavaSocketWrap.connect(Socket.new, site, opts)
+          session.connect_ssl_proxy(JavaSocketWrap.new(socket), Util.urify(session.dest.to_s))
+        rescue
+          socket.close
+          raise
+        end
+      end
       new(socket, session.dest, session.ssl_config, session.debug_dev, opts)
     end
 
@@ -545,15 +556,8 @@ unless defined?(SSLSocket)
         ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
       else
         ssl_socket = factory.createSocket
-        socket_addr = InetSocketAddress.new(dest.host, dest.port)
-        if opts[:connect_timeout]
-          ssl_socket.connect(socket_addr, opts[:connect_timeout])
-        else
-          ssl_socket.connect(socket_addr)
-        end
+        JavaSocketWrap.connect(ssl_socket, dest, opts)
       end
-      ssl_socket.setSoTimeout(opts[:so_timeout]) if opts[:so_timeout]
-      ssl_socket.setKeepAlive(true) if opts[:tcp_keepalive]
       ssl_socket
     end
 
