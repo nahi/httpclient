@@ -469,11 +469,40 @@ unless defined?(SSLSocket)
     DEFAULT_SSL_PROTOCOL = (java.lang.System.getProperty('java.specification.version') == '1.7') ? 'TLSv1.2' : 'TLS'
     def initialize(socket, dest, config, debug_dev = nil, opts={})
       @config = config
-      if config.ssl_version == :auto
-        ssl_version = DEFAULT_SSL_PROTOCOL
-      else
-        ssl_version = config.ssl_version.to_s.tr('_', '.')
+      ctx = create_ssl_context(config)
+      begin
+        ssl_socket = create_ssl_socket(socket, dest, ctx, opts)
+        ssl_version = java_ssl_version(config)
+        ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
+        if config.ciphers != SSLConfig::CIPHERS_DEFAULT
+          ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
+        end
+        ssl_socket.startHandshake
+        ssl_session = ssl_socket.getSession
+        @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
+        if $DEBUG
+          warn("Protocol version: #{ssl_session.getProtocol}")
+          warn("Cipher: #{ssl_socket.getSession.getCipherSuite}")
+        end
+        post_connection_check(dest.host, @peer_cert)
+      rescue java.security.GeneralSecurityException => e
+        raise OpenSSL::SSL::SSLError.new(e.getMessage)
+      rescue java.io.IOException => e
+        raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
       end
+
+      super(ssl_socket, debug_dev)
+    end
+
+    def java_ssl_version(config)
+      if config.ssl_version == :auto
+        DEFAULT_SSL_PROTOCOL
+      else
+        config.ssl_version.to_s.tr('_', '.')
+      end
+    end
+
+    def create_ssl_context(config)
       unless config.cert_store_crl_items.empty?
         raise NotImplementedError.new('Manual CRL configuration is not yet supported')
       end
@@ -502,33 +531,12 @@ unless defined?(SSLSocket)
       tmf.init(trust_store)
       tm = tmf.getTrustManagers
 
-      ctx = SSLContext.getInstance(ssl_version)
+      ctx = SSLContext.getInstance(java_ssl_version(config))
       ctx.init(km, tm, nil)
       if config.timeout
         ctx.getClientSessionContext.setSessionTimeout(config.timeout)
       end
-
-      begin
-        ssl_socket = create_ssl_socket(socket, dest, ctx, opts)
-        ssl_socket.setEnabledProtocols([ssl_version].to_java(java.lang.String)) if ssl_version != DEFAULT_SSL_PROTOCOL
-        if config.ciphers != SSLConfig::CIPHERS_DEFAULT
-          ssl_socket.setEnabledCipherSuites(config.ciphers.to_java(java.lang.String))
-        end
-        ssl_socket.startHandshake
-        ssl_session = ssl_socket.getSession
-        @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
-        if $DEBUG
-          warn("Protocol version: #{ssl_session.getProtocol}")
-          warn("Cipher: #{ssl_socket.getSession.getCipherSuite}")
-        end
-        post_connection_check(dest.host, @peer_cert)
-      rescue java.security.GeneralSecurityException => e
-        raise OpenSSL::SSL::SSLError.new(e.getMessage)
-      rescue java.io.IOException => e
-        raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
-      end
-
-      super(ssl_socket, debug_dev)
+      ctx
     end
 
     def create_ssl_socket(socket, dest, ctx, opts)
