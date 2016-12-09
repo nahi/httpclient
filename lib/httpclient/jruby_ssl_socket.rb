@@ -551,9 +551,9 @@ unless defined?(SSLSocket)
         else
           ssl_socket.connect(socket_addr)
         end
-        ssl_socket.setSoTimeout(opts[:receive_timeout] * 1000) if opts[:receive_timeout]
-        ssl_socket.setKeepAlive(true) if opts[:tcp_keepalive]
       end
+      ssl_socket.setSoTimeout(opts[:receive_timeout] * 1000) if opts[:receive_timeout]
+      ssl_socket.setKeepAlive(true) if opts[:tcp_keepalive]
       ssl_socket
     end
 
