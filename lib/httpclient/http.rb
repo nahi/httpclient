@@ -239,7 +239,11 @@ module HTTP
         def set_body_encoding
           if type = self.content_type
             OpenURI::Meta.init(o = '')
-            o.meta_add_field('content-type', type)
+            if o.respond_to?(:meta_add_field)
+              o.meta_add_field('content-type', type)
+            else
+              o.meta_add_field2('content-type', [type])
+            end
             @body_encoding = o.encoding
           end
         end
