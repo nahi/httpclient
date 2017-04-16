@@ -24,6 +24,14 @@ class TestJSONClient < Test::Unit::TestCase
     assert_equal(1, JSON.parse(res.previous.content)['a'])
   end
 
+  def test_post_with_array
+    res = @client.post(serverurl + 'json', [{'a' => 1}, {'b' => {'c' => 2}}])
+    assert_equal(2, res.content[1]['b']['c'])
+    assert_equal('application/json; charset=utf-8', res.content_type)
+    # #previous contains the original response
+    assert_equal(1, JSON.parse(res.previous.content)[0]['a'])
+  end
+
   def test_post_with_header
     res = @client.post(serverurl + 'json', :header => {'X-foo' => 'bar'}, :body => {'a' => 1, 'b' => {'c' => 2}})
     assert_equal(2, res.content['b']['c'])
