@@ -133,6 +133,10 @@ end
           scheduler.cancel(period) if scheduler and period
         end
       end
+    else
+      def timeout(sec, ex = nil, &block)
+        ::Timeout.timeout(sec, ex, &block)
+      end
     end
   end
 
