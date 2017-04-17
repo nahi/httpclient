@@ -21,6 +21,8 @@ See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentati
   * Digest auth
   * Negotiate/NTLM auth for WWW-Authenticate (requires net/ntlm module; rubyntlm gem)
   * NTLM auth for Proxy-Authenticate (requires 'win32/sspi' module; rubysspi gem)
+  * SSPI Negotiate auth which uses encrypted challenge/response protocol to authenticate a user as per Microsoft
+  [Negotiate protocol](http://msdn.microsoft.com/en-us/library/windows/desktop/aa378748(v=vs.85).aspx)(requires 'win32/sspi' module; gssapi gem)
   * extensible with filter interface
   * you don't have to care HTTP/1.1 persistent connection
     (httpclient cares instead of you)
