@@ -84,8 +84,9 @@ if !defined?(JRUBY_VERSION) and RUBY_VERSION < '1.9'
   private
 
     def start_timer_thread
+      parent_thread = Thread.current
       thread = Thread.new {
-        while true
+        while parent_thread.alive?
           if @pool.empty?
             @next = nil
             sleep
