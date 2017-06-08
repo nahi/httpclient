@@ -54,6 +54,18 @@ class TestJSONClient < Test::Unit::TestCase
     assert_equal('', res.content_type)
   end
 
+  def test_hash_header_not_modified
+    header = {'X-foo' => 'bar'}
+    res = @client.post(serverurl, :header => header, :body => {'a' => 1, 'b' => {'c' => 2}})
+    assert_equal({'X-foo' => 'bar'}, header)
+  end
+
+  def test_array_header_not_modified
+    header = [['X-foo', 'bar']]
+    res = @client.post(serverurl, :header => header, :body => {'a' => 1, 'b' => {'c' => 2}})
+    assert_equal([['X-foo', 'bar']], header)
+  end
+
   class JSONServlet < WEBrick::HTTPServlet::AbstractServlet
     def get_instance(*arg)
       self
