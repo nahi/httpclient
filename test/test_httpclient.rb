@@ -115,6 +115,14 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("Accept: text/html", lines[4])
   end
 
+  def test_header_symbol
+    str = ""
+    @client.debug_dev = str
+    @client.post(serverurl + 'servlet', :header => {:'Content-Type' => 'application/json'}, :body => 'hello')
+    lines = str.split(/(?:\r?\n)+/).grep(/^Content-Type/)
+    assert_equal(2, lines.size) # 1 for both request and response
+  end
+
   def test_host_given
     str = ""
     @client.debug_dev = str
@@ -138,7 +146,7 @@ class TestHTTPClient < Test::Unit::TestCase
 
   def test_redirect_returns_not_modified
     assert_nothing_raised do
-      timeout(2) do
+      ::Timeout.timeout(2) do
         @client.get(serverurl + 'status', {:status => 306}, {:follow_redirect => true})
       end
     end
@@ -531,7 +539,7 @@ EOS
 
   def test_no_content
     assert_nothing_raised do
-      timeout(2) do
+      ::Timeout.timeout(2) do
         @client.get(serverurl + 'status', :status => 101)
         @client.get(serverurl + 'status', :status => 204)
         @client.get(serverurl + 'status', :status => 304)
@@ -568,7 +576,7 @@ EOS
   end
 
   def test_get_content_with_base_url
-    @client = HTTPClient.new(:base_url => serverurl[0..-1])
+    @client = HTTPClient.new(:base_url => serverurl)
     assert_equal('hello', @client.get_content('/hello'))
     assert_equal('hello', @client.get_content('/redirect1'))
     assert_equal('hello', @client.get_content('/redirect2'))
@@ -601,10 +609,12 @@ EOS
     assert_not_equal('hello', content)
     assert_equal(GZIP_CONTENT, content)
     @client.transparent_gzip_decompression = true
+    @client.reset_all
     assert_equal('hello', @client.get_content(serverurl + 'compressed?enc=gzip'))
     assert_equal('hello', @client.get_content(serverurl + 'compressed?enc=deflate'))
     assert_equal('hello', @client.get_content(serverurl + 'compressed?enc=deflate_noheader'))
     @client.transparent_gzip_decompression = false
+    @client.reset_all
   end
 
   def test_get_content_with_block
@@ -679,14 +689,14 @@ EOS
   end
 
   def test_get_with_base_url
-    @client = HTTPClient.new(:base_url => serverurl[0..-1])
+    @client = HTTPClient.new(:base_url => serverurl)
     assert_equal("get", @client.get('/servlet').content)
     param = {'1'=>'2', '3'=>'4'}
     res = @client.get('/servlet', param)
     assert_equal(param, params(res.header["x-query"][0]))
     assert_nil(res.contenttype)
     #
-    @client.base_url = serverurl[0..-1] + '/servlet'
+    @client.base_url = serverurl[0...-1] + '/servlet'
     url = '?5=6&7=8'
     res = @client.get(url, param)
     assert_equal(param.merge("5"=>"6", "7"=>"8"), params(res.header["x-query"][0]))
@@ -694,7 +704,7 @@ EOS
   end
 
   def test_get_with_default_header
-    @client = HTTPClient.new(:base_url => serverurl[0..-1], :default_header => {'x-header' => 'custom'})
+    @client = HTTPClient.new(:base_url => serverurl, :default_header => {'x-header' => 'custom'})
     assert_equal('custom', @client.get('/servlet').headers['X-Header'])
     @client.default_header = {'x-header' => 'custom2'}
     assert_equal('custom2', @client.get('/servlet').headers['X-Header'])
@@ -757,6 +767,22 @@ EOS
     assert_equal(1000*1000, res.content.read.length)
   end
 
+  if RUBY_VERSION > "1.9"
+    def test_post_async_with_default_internal
+      original_encoding = Encoding.default_internal
+      Encoding.default_internal = Encoding::UTF_8
+      begin
+        post_body = StringIO.new("こんにちは")
+        conn = @client.post_async(serverurl + 'servlet', post_body)
+        Thread.pass while !conn.finished?
+        res = conn.pop
+        assert_equal 'post,こんにちは', res.content.read
+      ensure
+        Encoding.default_internal = original_encoding
+      end
+    end
+  end
+
   def test_get_with_block
     called = false
     res = @client.get(serverurl + 'servlet') { |str|
@@ -770,8 +796,31 @@ EOS
 
   def test_get_with_block_arity_2
     called = false
-    res = @client.get(serverurl + 'servlet') { |res, str|
-      assert_equal(200, res.status)
+    res = @client.get(serverurl + 'servlet') { |blk_res, str|
+      assert_equal(200, blk_res.status)
+      assert_equal('get', str)
+      called = true
+    }
+    assert(called)
+    # res does not have a content
+    assert_nil(res.content)
+  end
+
+  def test_get_with_block_and_redirects
+    called = false
+    res = @client.get(serverurl + 'servlet', :follow_redirect => true) { |str|
+      assert_equal('get', str)
+      called = true
+    }
+    assert(called)
+    # res does not have a content
+    assert_nil(res.content)
+  end
+
+  def test_get_with_block_arity_2_and_redirects
+    called = false
+    res = @client.get(serverurl + 'servlet', :follow_redirect => true) { |blk_res, str|
+      assert_equal(200, blk_res.status)
       assert_equal('get', str)
       called = true
     }
@@ -783,7 +832,7 @@ EOS
   def test_get_with_block_string_recycle
     @client.read_block_size = 2
     body = []
-    res = @client.get(serverurl + 'servlet') { |str|
+    _res = @client.get(serverurl + 'servlet') { |str|
       body << str
     }
     assert_equal(2, body.size)
@@ -800,7 +849,7 @@ EOS
     url = "http://localhost:#{server.addr[1]}/"
     body = []
     begin
-      res = @client.get(url + 'chunked') { |str|
+      _res = @client.get(url + 'chunked') { |str|
         body << str
       }
     ensure
@@ -955,7 +1004,7 @@ EOS
       1
     end
     @client.debug_dev = str = StringIO.new
-    res = @client.post(serverurl + 'servlet', { :file => myio })
+    _res = @client.post(serverurl + 'servlet', { :file => myio })
     assert_match(/\r\n4\r\n/, str.string, 'should send "4" not "45"')
   end
 
@@ -972,7 +1021,7 @@ EOS
       end
     end
     @client.debug_dev = str = StringIO.new
-    res = @client.post(serverurl + 'servlet', { :file1 => myio1, :file2 => myio2 })
+    _res = @client.post(serverurl + 'servlet', { :file1 => myio1, :file2 => myio2 })
     assert_match(/\r\n45\r\n/, str.string)
   end
 
@@ -1024,6 +1073,10 @@ EOS
   def test_post_with_custom_multipart_and_file
     STDOUT.sync = true
     File.open(__FILE__) do |file|
+      def file.original_filename
+        'file.txt'
+      end
+
       ext = { 'Content-Type' => 'multipart/alternative' }
       body = [{ 'Content-Type' => 'text/plain', :content => "this is only a test" },
               { 'Content-Type' => 'application/x-ruby', :content => file }]
@@ -1031,8 +1084,39 @@ EOS
       assert_match(/^Content-Type: text\/plain\r\n/m, res.content)
       assert_match(/^this is only a test\r\n/m, res.content)
       assert_match(/^Content-Type: application\/x-ruby\r\n/m, res.content)
+      assert_match(/Content-Disposition: form-data; name="3"; filename="file.txt"/, res.content)
       assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
     end
+  end
+
+  def test_patch
+    assert_equal("patch", @client.patch(serverurl + 'servlet', '').content)
+    param = {'1'=>'2', '3'=>'4'}
+    @client.debug_dev = str = ''
+    res = @client.patch(serverurl + 'servlet', param)
+    assert_equal(param, params(res.header["x-query"][0]))
+    assert_equal('Content-Type: application/x-www-form-urlencoded', str.split(/\r?\n/)[5])
+  end
+
+  def test_patch_with_query_and_body
+    res = @client.patch(serverurl + 'servlet', :query => {:query => 'query'}, :body => {:body => 'body'})
+    assert_equal("patch", res.content)
+    assert_equal("body=body", res.headers["X-Query"])
+    assert_equal("query=query", res.headers["X-Request-Query"])
+  end
+
+  def test_patch_bytesize
+    res = @client.patch(serverurl + 'servlet', 'txt' => 'あいうえお')
+    assert_equal('txt=%E3%81%82%E3%81%84%E3%81%86%E3%81%88%E3%81%8A', res.header["x-query"][0])
+    assert_equal('15', res.header["x-size"][0])
+  end
+
+  def test_patch_async
+    param = {'1'=>'2', '3'=>'4'}
+    conn = @client.patch_async(serverurl + 'servlet', param)
+    Thread.pass while !conn.finished?
+    res = conn.pop
+    assert_equal(param, params(res.header["x-query"][0]))
   end
 
   def test_put
@@ -1243,7 +1327,7 @@ EOS
 
   def test_http_custom_date_header
     @client.debug_dev = (str = "")
-    res = @client.get(serverurl + 'hello', :header => {'Date' => 'foo'})
+    _res = @client.get(serverurl + 'hello', :header => {'Date' => 'foo'})
     lines = str.split(/(?:\r?\n)+/)
     assert_equal('Date: foo', lines[4])
   end
@@ -1273,11 +1357,13 @@ EOS
     # this test takes 2 sec
     assert_equal('hello?sec=2', @client.get_content(serverurl + 'sleep?sec=2'))
     @client.receive_timeout = 1
+    @client.reset_all
     assert_equal('hello?sec=0', @client.get_content(serverurl + 'sleep?sec=0'))
     assert_raise(HTTPClient::ReceiveTimeoutError) do
       @client.get_content(serverurl + 'sleep?sec=2')
     end
     @client.receive_timeout = 3
+    @client.reset_all
     assert_equal('hello?sec=2', @client.get_content(serverurl + 'sleep?sec=2'))
   end
 
@@ -1285,11 +1371,13 @@ EOS
     # this test takes 2 sec
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 2).content)
     @client.receive_timeout = 1
+    @client.reset_all
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 0).content)
     assert_raise(HTTPClient::ReceiveTimeoutError) do
       @client.post(serverurl + 'sleep', :sec => 2)
     end
     @client.receive_timeout = 3
+    @client.reset_all
     assert_equal('hello', @client.post(serverurl + 'sleep', :sec => 2).content)
   end
 
@@ -1448,6 +1536,7 @@ EOS
     assert_equal('text/plain', HTTP::Message.mime_type('foo.txt'))
     assert_equal('text/html', HTTP::Message.mime_type('foo.html'))
     assert_equal('text/html', HTTP::Message.mime_type('foo.htm'))
+    assert_equal('text/xml', HTTP::Message.mime_type('foo.xml'))
     assert_equal('application/msword', HTTP::Message.mime_type('foo.doc'))
     assert_equal('image/png', HTTP::Message.mime_type('foo.png'))
     assert_equal('image/gif', HTTP::Message.mime_type('foo.gif'))
@@ -1741,6 +1830,19 @@ EOS
     end
   end
 
+  def test_strict_response_size_check
+    @client.strict_response_size_check = false
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\nContent-Length: 12345\r\n\r\nhello world"
+    assert_equal('hello world', @client.get_content('http://dummy'))
+
+    @client.reset_all
+    @client.strict_response_size_check = true
+    @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\nContent-Length: 12345\r\n\r\nhello world"
+    assert_raise(HTTPClient::BadResponseError) do
+      @client.get_content('http://dummy')
+    end
+  end
+
   def test_socket_local
     @client.socket_local.host = '127.0.0.1'
     assert_equal('hello', @client.get_content(serverurl + 'hello'))
@@ -1806,6 +1908,18 @@ EOS
     end
   end
 
+  def test_tcp_keepalive
+    @client.tcp_keepalive = true
+    @client.get(serverurl)
+
+    # expecting HTTP keepalive caches the socket
+    session = @client.instance_variable_get(:@session_manager).send(:get_cached_session, HTTPClient::Site.new(URI.parse(serverurl)))
+    socket = session.instance_variable_get(:@socket)
+
+    assert_true(session.tcp_keepalive)
+    assert_equal(Socket::SO_KEEPALIVE, socket.getsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE).optname)
+  end
+
 private
 
   def check_query_get(query)
@@ -1841,14 +1955,6 @@ private
     end
     @server.mount('/servlet', TestServlet.new(@server))
     @server_thread = start_server_thread(@server)
-  end
-
-  def escape_noproxy
-    backup = HTTPClient::NO_PROXY_HOSTS.dup
-    HTTPClient::NO_PROXY_HOSTS.clear
-    yield
-  ensure
-    HTTPClient::NO_PROXY_HOSTS.replace(backup)
   end
 
   def add_query_string(req)
@@ -1969,6 +2075,14 @@ private
       res["content-type"] = "text/plain" # iso-8859-1, not US-ASCII
       res.body = 'post,' + req.body.to_s
       res["x-query"] = body_response(req)
+      res["x-request-query"] = req.query_string
+    end
+
+    def do_PATCH(req, res)
+      res["x-query"] = body_response(req)
+      param = WEBrick::HTTPUtils.parse_query(req.body) || {}
+      res["x-size"] = (param['txt'] || '').size
+      res.body = param['txt'] || 'patch'
       res["x-request-query"] = req.query_string
     end
 

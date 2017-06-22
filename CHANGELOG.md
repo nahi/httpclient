@@ -1,6 +1,226 @@
 ## Changes
 
+### Changes in 2.8.3
+
+Dec 8, 2016 - version 2.8.3
+
+ * Bug
+
+   * Avoid frozen string errors on Ruby 2.3 - fixed by RJ Walsh #336
+
+   * SSL timeouts not working on JRuby - fixed by Dave Golombek #341
+
+   * Do not reset SSL connection if unnecessary - fixed by Dave Golombek #344
+
+   * Ignore text around PEM file in JRuby fixed by Scott Kolb #352
+
+ * Changes
+
+   * Add HTTPClient#tcp_keepalive= for enabling TCP keepalive. false by default. #350
+
+### Changes in 2.8.2
+
+Aug 15, 2016 - version 2.8.2
+
+ * Bug
+
+   * 2.8.1 introduced JRuby + SSL connection problem; in some cases it cannot
+     connect to trusted TLS server. 2.8.1 failed to load multiple CA
+     certificates in a file. #327.
+
+Aug 16, 2016 - version 2.8.2.1
+
+ * Bug
+
+   * 2.8.1 introduced another bug that causes NPE from JRuby when JRuby
+     program loads httpclient and uses OpenSSL::X509::Store outside of
+     httpclient. 2.8.3 fixed this problem. #325
+
+Aug 28, 2016 - version 2.8.2.3
+
+ * Bug
+
+   * 2.8.2 fixed VERIFY_NONE at JRuby but the fix was not enough.
+
+Sep 11, 2016 - version 2.8.2.4
+
+ * Bug
+
+   * 2.8.2 caused unexpected resulting value change of OpenSSL::X509::Store#add_cert method. Fixed.
+
+### Changes in 2.8.1
+
+Aug 8, 2016 - version 2.8.1
+
+ * Changes
+
+   * Use TLSv1.2 always on JRuby #320
+
+   * Do not reset keep-alive connection by configuration change #315
+
+   * Add strict_response_size_check option #316
+     false by default, meaning it behavies like browsers by default.
+
+   * Add MIME type for XML #308
+
+ * Bug
+
+   * Direct access to SSLConfig#cert_store in JRuby was broken from 2.7 #276 #317
+
+   * OpenSSL::SSL::VERIFY_NONE does not work in JRuby #319
+
+   * Allow receiving response body in block when follow_redirects => true. #304
+
+   * Fix blocking issue with request_async when Encoding.default_internal is set. #307
+
+   * Apply timeouts for chunked transfer encoding #309
+
+### Changes in 2.8.0
+
+Apr 24, 2016 - version 2.8.0
+
+ * Changes
+
+   * Force using RSA 2048bit CA cert set
+
+     Use RSA 2048bit CA cert set every time if it runs with OpenSSL (== except
+     JRuby.)
+
+     Old openssl (<1.0.1p or <1.0.2d) cannot handle this CA set and causes
+     SSL connection failure against some SSL servers including AWS S3 API.
+     For such case you can manually specify RSA 1024bit CA cert set as a
+     workaround.
+
+     ```
+     c = HTTPClient.new { |c| c.ssl_config.add_trust_ca("cacert1024.pem") }
+     c.get("https://www.ruby-lang.org/")
+     ```
+
+     RSA 1024bit CA cert set is not maintained over years so you should
+     consider updating OpenSSL version so that HTTPClient uses RSA 2048 bit
+     CA cert set.
+
+### Changes in 2.7.2
+
+Apr 22, 2016 - version 2.7.2
+
+ * Changes
+
+   * Use RSA 1024bit CA cert when linked to old openssl
+
+     Based on comments to #297 this commit silently (without warning) accepts
+     RSA 1024bit certificate set when runtime ruby is liked with old OpenSSL
+     (<1.0.1p or <1.0.2d.)
+
+     If you're unsure that your OpenSSL is patched or not, and want to make
+     sure to use RSA 2048bit certificate set, please call
+     HTTPClient::SSLConfig#add_trust_ca("cacert.pem").
+
+     ```ruby
+     c = HTTPClient.new { |c| c.ssl_config.add_trust_ca("cacert.pem") }
+     c.get("https://www.ruby-lang.org/")
+     ```
+
+     I'm going to remove RSA 1024bit certificate set and bump httpclient
+     version to 2.8.0 soon after I release this as 2.7.2. I believe almost
+     all OpenSSL installation is patched quickly these days so it should not
+     cause SSL connectivity problem.
+
+### Changes in 2.7.1
+
+Jan 1, 2016 - version 2.7.1
+
+ * Changes
+
+   * Symbol aware header key comparison
+
+     Normalizes symbol to String for header key.
+     https://github.com/nahi/httpclient/issues/278
+
+   * Show warning message only once
+
+     Added HTTPClient::Util.warning that cached warning message and supress the
+     message if it's already dumped.
+
+   * Use Timeout.timeout instead of Kernel.timeout that is deprecated from ruby 2.3.0.
+
+ * Bug fixes
+
+   * [JRuby] Set ssl_version properly
+
+
+### Changes in 2.7.0
+
+Nov 5, 2015 - version 2.7.0
+
+ * Changes
+
+   * Update trusted CA certificates
+
+     Issue #230 blocked updating trusted CA certificates to 2048 bit version
+     long time. But from OpenSSL 1.0.1m and 1.0.2a it changes their custom
+     chain building algorithm to find shortcut path when it fails to validate
+     the path SSL server returns so that we can migrate trusted CA
+     certificates to 2048bit version atop OpenSSL.
+
+     Unfortunately the new algorithm has CVE-2015-1793 problem so we can use
+     this new algorithm actually from OpenSSL >= 1.0.1p or >= 1.0.2d. (Jul
+     2015)
+
+     After this commit HTTPClient leverages 2048 bit version of trusted CA
+     certificates if ruby is compiled with proper version of OpenSSL.
+
+     ```ruby
+     ver = OpenSSL::OPENSSL_VERSION
+     if (ver.start_with?('OpenSSL 1.0.1') && ver >= 'OpenSSL 1.0.1p') ||
+         (ver.start_with?('OpenSSL ') && ver >= 'OpenSSL 1.0.2d')
+       filename = 'cacert.pem'
+     else
+       filename = 'cacert1024.pem'
+      end
+     ```
+
+   * New SSLSocket implementation for JRuby
+
+     Full rewrite of SSL implementation for JRuby with java.net.ssl.*.
+     HTTPClient no longer relies on SSL implementation in jruby-openssl.
+     Now it supports revocation check.
+
+     On JRuby, instead of setting CRL by yourself you can set following
+     options to let HTTPClient to perform revocation check with CRL and OCSP:
+
+     ```
+     -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true
+     ex. % jruby -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true app.rb
+     ```
+
+   * HTTPClient.new accepts initialization block
+
+     ```ruby
+     HTTPClient.new { |c| c.debug_dev = STDERR }.get("...")
+     ```
+
+   * Add 'version' command to httpclient CLI
+
+     ```
+     % httpclient version
+     2.7.0
+     ```
+
+   * Add patch() and patch_async() methods to support HTTP PATCH
+
+ * Bug fixes
+
+   * Support no header deflate compression
+
+     Some server returns deflate content without zlib header. Try to detect
+     it and fallback to plain deflate algorithm for
+     transparent_gzip_decompression.  Fixes #244.
+
+
 ### Changes in 2.6.0
+
+Jan 3, 2015 - version 2.6.0
 
 This release includes internal CookieManager implementation change. It
 involves compatibility layer but for the case your library depends on internal

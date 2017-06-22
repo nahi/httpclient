@@ -2,7 +2,6 @@ require File.expand_path('helper', File.dirname(__FILE__))
 require 'digest/md5'
 require 'rack'
 require 'rack/lint'
-require 'rack/showexceptions'
 require 'rack-ntlm'
 
 class TestAuth < Test::Unit::TestCase
@@ -124,6 +123,7 @@ class TestAuth < Test::Unit::TestCase
       end
       # Make it work if @value == nil
       class SecurityBuffer < FieldSet
+        remove_method(:data_size) if method_defined?(:data_size)
         def data_size
           @active && @value ? @value.size : 0
         end
@@ -230,7 +230,7 @@ class TestAuth < Test::Unit::TestCase
       c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
 
-      threads = 100.times.map { |idx|
+      100.times.map { |idx|
         Thread.new(idx) { |idx2|
           Thread.abort_on_exception = true
           Thread.pass
@@ -251,7 +251,7 @@ class TestAuth < Test::Unit::TestCase
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
     c.debug_dev = str = ''
     c.get_content("http://localhost:#{serverport}/basic_auth/sub/dir/")
-    assert_match /Authorization: Basic YWRtaW46YWRtaW4=/, str
+    assert_match(/Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
 
   def test_digest_auth
@@ -267,7 +267,7 @@ class TestAuth < Test::Unit::TestCase
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
     c.debug_dev = str = ''
     c.get_content("http://localhost:#{serverport}/digest_auth/sub/dir/")
-    assert_match /Authorization: Digest/, str
+    assert_match(/Authorization: Digest/, str)
   end
 
   def test_digest_auth_with_block
@@ -326,6 +326,16 @@ class TestAuth < Test::Unit::TestCase
     c = HTTPClient.new
     c.set_proxy_auth('admin', 'admin')
     c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Basic realm=\"foo\"\nContent-Length: 2\n\nNG"
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.debug_dev = str = ''
+    c.get_content('http://example.com/')
+    assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
+  end
+
+  def test_proxy_auth_force
+    c = HTTPClient.new
+    c.set_proxy_auth('admin', 'admin')
+    c.force_basic_auth = true
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
     c.debug_dev = str = ''
     c.get_content('http://example.com/')
@@ -442,11 +452,20 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def test_basic_auth_post_with_multipart
-    c = HTTPClient.new
-    c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
-    File.open(__FILE__) do |f|
-      # read 'f' twice for authorization negotiation
-      assert_equal('basic_auth OK', c.post("http://localhost:#{serverport}/basic_auth", :file => f).content)
+    retry_times = 0
+    begin
+      c = HTTPClient.new
+      c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
+      File.open(__FILE__) do |f|
+        # read 'f' twice for authorization negotiation
+        assert_equal('basic_auth OK', c.post("http://localhost:#{serverport}/basic_auth", :file => f).content)
+      end
+    rescue Errno::ECONNRESET, HTTPClient::KeepAliveDisconnected
+      # TODO: WEBrick server returns ECONNRESET/EPIPE before sending Unauthorized response to client?
+      raise if retry_times > 5
+      retry_times += 1
+      sleep 1
+      retry 
     end
   end
 

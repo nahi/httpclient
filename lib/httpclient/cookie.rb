@@ -3,16 +3,19 @@ unless defined?(HTTPClient::CookieManager)
 begin # for catching LoadError and load webagent-cookie instead
 
 require 'http-cookie'
+require 'httpclient/util'
 
 class HTTPClient
   class CookieManager
-    attr_reader :format
+    include HTTPClient::Util
+
+    attr_reader :format, :jar
     attr_accessor :cookies_file
 
-    def initialize(cookies_file = nil, format = WebAgentSaver)
+    def initialize(cookies_file = nil, format = WebAgentSaver, jar = HTTP::CookieJar.new)
       @cookies_file = cookies_file
       @format = format
-      @jar = HTTP::CookieJar.new
+      @jar = jar
       load_cookies if @cookies_file
     end
 
@@ -68,7 +71,7 @@ class HTTPClient
     end
 
     def find(uri)
-      warn('CookieManager#find is deprecated and will be removed in near future. Use HTTP::Cookie.cookie_value(CookieManager#cookies) instead') if log_http_cookie_warnings?
+      warning('CookieManager#find is deprecated and will be removed in near future. Use HTTP::Cookie.cookie_value(CookieManager#cookies) instead') if log_http_cookie_warnings?
       if cookie = cookies(uri)
         HTTP::Cookie.cookie_value(cookie)
       end
@@ -174,7 +177,7 @@ class WebAgent
   CookieManager = ::HTTPClient::CookieManager
 
   class Cookie < HTTP::Cookie
-    @@warned = false
+    include HTTPClient::Util
 
     def url
       deprecated('url', 'origin')
@@ -194,7 +197,7 @@ class WebAgent
     alias original_domain domain
 
     def domain
-      warn('Cookie#domain returns dot-less domain name now. Use Cookie#dot_domain if you need "." at the beginning.') if log_http_cookie_warnings?
+      warning('Cookie#domain returns dot-less domain name now. Use Cookie#dot_domain if you need "." at the beginning.') if log_http_cookie_warnings?
       self.original_domain
     end
 
@@ -206,10 +209,7 @@ class WebAgent
   private
 
     def deprecated(old, new)
-      unless @@warned || !log_http_cookie_warnings?
-        warn("WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie##{new} instead of Cookie##{old} for the replacement.")
-        @@warned = true
-      end
+      warning("WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie##{new} instead of Cookie##{old} for the replacement.") if log_http_cookie_warnings?
     end
   end
 end

@@ -1,5 +1,5 @@
 # HTTPClient - HTTP client library.
-# Copyright (C) 2000-2009  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+# Copyright (C) 2000-2015  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 #
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;
@@ -148,6 +148,16 @@ require 'httpclient/cookie'
 #     user_key_file = 'privkey.pem'
 #     clnt.ssl_config.set_client_cert_file(user_cert_file, user_key_file)
 #     clnt.get(https_url)
+#
+# 4. Revocation check. On JRuby you can set following options to let
+#    HTTPClient to perform revocation check with CRL and OCSP:
+#
+#     -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true
+#     ex. jruby -J-Dcom.sun.security.enableCRLDP=true -J-Dcom.sun.net.ssl.checkRevocation=true app.rb
+#     Revoked cert example: https://test-sspev.verisign.com:2443/test-SSPEV-revoked-verisign.html
+#
+#    On other platform you can download CRL by yourself and set it via
+#    SSLConfig#add_crl.
 #
 # === Handling Cookies
 #
@@ -299,7 +309,6 @@ class HTTPClient
       if assignable
         aname = name + '='
         define_method(aname) { |rhs|
-          reset_all
           @session_manager.__send__(aname, rhs)
         }
       end
@@ -326,7 +335,7 @@ class HTTPClient
   attr_accessor :follow_redirect_count
   # Base url of resources.
   attr_accessor :base_url
-  # Defalut request header.
+  # Default request header.
   attr_accessor :default_header
 
   # Set HTTP version as a String:: 'HTTP/1.0' or 'HTTP/1.1'
@@ -346,6 +355,8 @@ class HTTPClient
   # if your ruby is older than 2005-09-06, do not set socket_sync = false to
   # avoid an SSL socket blocking bug in openssl/buffering.rb.
   attr_proxy(:socket_sync, true)
+  # Enables TCP keepalive; no timing settings exist at present
+  attr_proxy(:tcp_keepalive, true)
   # User-Agent header in HTTP request.
   attr_proxy(:agent_name, true)
   # From header in HTTP request.
@@ -355,6 +366,9 @@ class HTTPClient
   attr_proxy(:test_loopback_http_response)
   # Decompress a compressed (with gzip or deflate) content body transparently. false by default.
   attr_proxy(:transparent_gzip_decompression, true)
+  # Raise BadResponseError if response size does not match with Content-Length header in response. false by default.
+  # TODO: enable by default
+  attr_proxy(:strict_response_size_check, true)
   # Local socket address. Set HTTPClient#socket_local.host and HTTPClient#socket_local.port to specify local binding hostname and port of TCP socket.
   attr_proxy(:socket_local, true)
 
@@ -383,9 +397,24 @@ class HTTPClient
   #
   # After you set :base_url, all resources you pass to get, post and other
   # methods are recognized to be prefixed with base_url. Say base_url is
-  # 'https://api.example.com/v1, get('/users') is the same as
+  # 'https://api.example.com/v1/, get('users') is the same as
   # get('https://api.example.com/v1/users') internally. You can also pass
   # full URL from 'http://' even after setting base_url.
+  #
+  # The expected base_url and path behavior is the following. Please take
+  # care of '/' in base_url and path.
+  #
+  # The last '/' is important for base_url:
+  #   1. http://foo/bar/baz/ + path -> http://foo/bar/baz/path
+  #   2. http://foo/bar/baz + path -> http://foo/bar/path
+  # Relative path handling:
+  #   3. http://foo/bar/baz/ + ../path -> http://foo/bar/path
+  #   4. http://foo/bar/baz + ../path -> http://foo/path
+  #   5. http://foo/bar/baz/ + ./path -> http://foo/bar/baz/path
+  #   6. http://foo/bar/baz + ./path -> http://foo/bar/path
+  # The leading '/' of path means absolute path:
+  #   7. http://foo/bar/baz/ + /path -> http://foo/path
+  #   8. http://foo/bar/baz + /path -> http://foo/path
   #
   # :default_header is for providing default headers Hash that all HTTP
   # requests should have, such as custom 'Authorization' header in API.
@@ -420,7 +449,7 @@ class HTTPClient
     load_environment
     self.proxy = proxy if proxy
     keep_webmock_compat
-    instance_eval &block if block
+    instance_eval(&block) if block
   end
 
   # webmock 1.6.2 depends on HTTP::Message#body.content to work.
@@ -693,9 +722,9 @@ class HTTPClient
   def default_redirect_uri_callback(uri, res)
     newuri = urify(res.header['location'][0])
     if !http?(newuri) && !https?(newuri)
-      newuri = uri + newuri
-      warn("could be a relative URI in location header which is not recommended")
+      warn("#{newuri}: a relative URI in location header which is not recommended")
       warn("'The field value consists of a single absolute URI' in HTTP spec")
+      newuri = uri + newuri
     end
     if https?(uri) && !https?(newuri)
       raise BadResponseError.new("redirecting to non-https resource")
@@ -712,6 +741,16 @@ class HTTPClient
   # Sends GET request to the specified URL.  See request for arguments.
   def get(uri, *args, &block)
     request(:get, uri, argument_to_hash(args, :query, :header, :follow_redirect), &block)
+  end
+
+  # Sends PATCH request to the specified URL.  See request for arguments.
+  def patch(uri, *args, &block)
+    if hashy_argument_has_keys(args, :query, :body)
+      new_args = args[0]
+    else
+      new_args = argument_to_hash(args, :body, :header)
+    end
+    request(:patch, uri, new_args, &block)
   end
 
   # Sends POST request to the specified URL.  See request for arguments.
@@ -809,13 +848,7 @@ class HTTPClient
     end
     uri = to_resource_url(uri)
     if block
-      if block.arity == 1
-        filtered_block = proc { |res, str|
-          block.call(str)
-        }
-      else
-        filtered_block = block
-      end
+      filtered_block = adapt_block(&block)
     end
     if follow_redirect
       follow_redirect(method, uri, query, body, header, &block)
@@ -834,6 +867,17 @@ class HTTPClient
   # It immediately returns a HTTPClient::Connection instance as a result.
   def get_async(uri, *args)
     request_async2(:get, uri, argument_to_hash(args, :query, :header))
+  end
+
+  # Sends PATCH request in async style.  See request_async2 for arguments.
+  # It immediately returns a HTTPClient::Connection instance as a result.
+  def patch_async(uri, *args)
+    if hashy_argument_has_keys(args, :query, :body)
+      new_args = args[0]
+    else
+      new_args = argument_to_hash(args, :body, :header)
+    end
+    request_async2(:patch, uri, new_args)
   end
 
   # Sends POST request in async style.  See request_async for arguments.
@@ -1036,11 +1080,17 @@ private
     ENV[name.downcase] || ENV[name.upcase]
   end
 
+  def adapt_block(&block)
+    return block if block.arity == 2
+    proc { |r, str| block.call(str) }
+  end
+
   def follow_redirect(method, uri, query, body, header, &block)
     uri = to_resource_url(uri)
     if block
+      b = adapt_block(&block)
       filtered_block = proc { |r, str|
-        block.call(str) if r.ok?
+        b.call(r, str) if r.ok?
       }
     end
     if HTTP::Message.file?(body)
@@ -1081,7 +1131,7 @@ private
   def protect_keep_alive_disconnected
     begin
       yield
-    rescue KeepAliveDisconnected => e
+    rescue KeepAliveDisconnected
       # Force to create new connection
       Thread.current[:HTTPClient_AcquireNewConnection] = true
       begin
@@ -1102,7 +1152,7 @@ private
     boundary = nil
     if body
       _, content_type = header.find { |key, value|
-        key.downcase == 'content-type'
+        key.to_s.downcase == 'content-type'
       }
       if content_type
         if /\Amultipart/ =~ content_type
@@ -1111,7 +1161,7 @@ private
           else
             boundary = create_boundary
             content_type = "#{content_type}; boundary=#{boundary}"
-            header = override_header(header, 'Content-Type', content_type)
+            header = override_header(header, 'content-type', content_type)
           end
         end
       else
@@ -1149,7 +1199,7 @@ private
   def override_header(header, key, value)
     result = []
     header.each do |k, v|
-      if k.downcase == key.downcase
+      if k.to_s.downcase == key
         result << [key, value]
       else
         result << [k, v]
@@ -1224,6 +1274,7 @@ private
       return
     end
     piper, pipew = IO.pipe
+    pipew.binmode
     res = HTTP::Message.new_response(piper, req.header)
     @debug_dev << "= Request\n\n" if @debug_dev
     sess = @session_manager.query(req, proxy)
@@ -1268,7 +1319,7 @@ private
   def to_resource_url(uri)
     u = urify(uri)
     if @base_url && u.scheme.nil? && u.host.nil?
-      urify(@base_url + uri)
+      urify(@base_url) + uri
     else
       u
     end

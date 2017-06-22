@@ -1,5 +1,5 @@
 # HTTPClient - HTTP client library.
-# Copyright (C) 2000-2012  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
+# Copyright (C) 2000-2015  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 #
 # This program is copyrighted free software by NAKAMURA, Hiroshi.  You can
 # redistribute it and/or modify it under the same terms of Ruby's license;
@@ -23,6 +23,28 @@ if RUBY_VERSION < "1.9.3"
     end
   end
 end
+
+# With recent JRuby 1.7 + jruby-openssl, X509CRL#extentions_to_text causes
+# StringIndexOOBException when we try to dump SSL Server Certificate.
+# when one of extensions has "" as value.
+if defined?(JRUBY_VERSION)
+  require 'openssl'
+  require 'java'
+  module OpenSSL
+    module X509
+      class Certificate
+        java_import 'java.security.cert.Certificate'
+        java_import 'java.security.cert.CertificateFactory'
+        java_import 'java.io.ByteArrayInputStream'
+        def to_text
+          cf = CertificateFactory.getInstance('X.509')
+          cf.generateCertificate(ByteArrayInputStream.new(self.to_der.to_java_bytes)).toString
+        end
+      end
+    end
+  end
+end
+
 
 class HTTPClient
 
@@ -175,6 +197,16 @@ class HTTPClient
       false
     end
     module_function :try_require
+
+    # show one warning message only once by caching message
+    #
+    # it cached all messages in memory so be careful not to show many kinds of warning message.
+    @@__warned = {}
+    def warning(message)
+      return if @@__warned.key?(message)
+      warn(message)
+      @@__warned[message] = true
+    end
 
     # Checks if the given URI is https.
     def https?(uri)
