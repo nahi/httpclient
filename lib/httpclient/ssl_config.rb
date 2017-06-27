@@ -415,8 +415,15 @@ class HTTPClient
 
     # Use 2048 bit certs trust anchor
     def load_cacerts(cert_store)
-      file = File.join(File.dirname(__FILE__), 'cacert.pem')
-      add_trust_ca_to_store(cert_store, file)
+      certs = if ENV.key?('SSL_CERT_DIR'.freeze) || ENV.key?('SSL_CERT_FILE')
+                [ ENV['SSL_CERT_DIR'], ENV['SSL_CERT_FILE'] ].compact
+              else
+                [ File.join(File.dirname(__FILE__), 'cacert.pem') ]
+              end
+    
+      certs.each do |cert|
+        add_trust_ca_to_store(cert_store, cert)
+      end
     end
   end
 
