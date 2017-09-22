@@ -44,9 +44,12 @@ require 'httpclient/cookie'
 #     clnt = HTTPClient.new
 #
 # 2. Accessing resources through HTTP proxy.  You can use environment
-#    variable 'http_proxy' or 'HTTP_PROXY' instead.
+#    variable 'http_proxy' or 'HTTP_PROXY' or 'SOCKS_PROXY' instead.
 #
 #     clnt = HTTPClient.new('http://myproxy:8080')
+#     clnt = HTTPClient.new('socks4://myproxy:1080')
+#     clnt = HTTPClient.new('socks5://myproxy:1080')
+#     clnt = HTTPClient.new('socks5://username:password@myproxy:1080')
 #
 # === How to retrieve web resources
 #
@@ -503,8 +506,9 @@ class HTTPClient
       @proxy_auth.reset_challenge
     else
       @proxy = urify(proxy)
-      if @proxy.scheme == nil or @proxy.scheme.downcase != 'http' or
-          @proxy.host == nil or @proxy.port == nil
+      if @proxy.scheme == nil or
+        (@proxy.scheme.downcase != 'http' and !socks?(@proxy)) or
+         @proxy.host == nil or @proxy.port == nil
         raise ArgumentError.new("unsupported proxy #{proxy}")
       end
       @proxy_auth.reset_challenge
@@ -1069,8 +1073,10 @@ private
       # HTTP_* is used for HTTP header information.  Unlike open-uri, we
       # simply ignore http_proxy in CGI env and use cgi_http_proxy instead.
       self.proxy = getenv('cgi_http_proxy')
-    else
+    elsif ENV.key?('http_proxy')
       self.proxy = getenv('http_proxy')
+    else
+      self.proxy = getenv('socks_proxy')
     end
     # no_proxy
     self.no_proxy = getenv('no_proxy')
