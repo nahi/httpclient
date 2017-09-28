@@ -1136,6 +1136,8 @@ private
       Thread.current[:HTTPClient_AcquireNewConnection] = true
       begin
         yield
+      rescue KeepAliveDisconnected => e
+        raise e.cause || e
       ensure
         Thread.current[:HTTPClient_AcquireNewConnection] = false
       end
