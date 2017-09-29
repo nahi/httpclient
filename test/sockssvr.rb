@@ -35,7 +35,8 @@ class SOCKSServer
     addr = @server.addr
     addr.shift
     @port = addr[0]
-    @logger = Logger.new('/home/mumumu/fuga.log')
+    @logger = Logger.new(STDERR)
+    @logger.level = Logger::INFO
     @protocol_version = nil
   end
 
