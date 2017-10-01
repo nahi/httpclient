@@ -40,7 +40,7 @@ class SOCKSServer
     addr.shift
     @port = addr[0]
     @logger = Logger.new(STDERR)
-    @logger.level = Logger::INFO
+    @logger.level = Logger::WARN
     @protocol_version = nil
   end
 
