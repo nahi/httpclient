@@ -24,6 +24,7 @@ See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentati
   * extensible with filter interface
   * you don't have to care HTTP/1.1 persistent connection
     (httpclient cares instead of you)
+  * socks proxy
 * Not supported now
   * Cache
   * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.
