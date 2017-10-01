@@ -18,6 +18,10 @@ class SOCKSServer
   SOCKS_NO_AUTH = 0
   SOCKS_USER_PASS_AUTH = 2
 
+  # auth result
+  SOCKS_AUTH_SUCCESS = 1
+  SOCKS_AUTH_FAILURE = 2
+
   # host type
   SOCKS_HOSTTYPE_IPV4 = 1
   SOCKS_HOSTTYPE_DOMAIN = 3
@@ -87,7 +91,11 @@ class SOCKSServer
       @logger.debug('entering socks5 protocol mode...')
       auth_method = get_auth_method(client_socket)
       client_socket.send([SOCKS_VERSION_5, auth_method].pack('C*'), 0)
-      auth_if_needed(auth_method, client_socket)
+      unless auth_method == SOCKS_NO_AUTH
+        auth_result = authenticate(client_socket)
+        send_auth_response(auth_result, client_socket)
+        return unless auth_result == SOCKS_AUTH_SUCCESS
+      end
 
       session = create_socks5_session(client_socket)
       forward_packet(session, client_socket)
@@ -156,9 +164,7 @@ class SOCKSServer
     end
   end
 
-  def auth_if_needed(auth_method, socket)
-    return if auth_method == SOCKS_NO_AUTH
-
+  def authenticate(socket)
     version = socket.recv(1).unpack('C')[0]
     if version != 1
       raise SOCKSProtocolError,
@@ -170,9 +176,18 @@ class SOCKSServer
 
     if username == TEST_USERNAME && password == TEST_PASSWORD
       @logger.debug('socks5 username:password auth -> success')
-      socket.send([SOCKS_VERSION_5, 0x00].pack('C*'), 0)
+      return SOCKS_AUTH_SUCCESS
     else
       @logger.debug('socks5 username:password auth -> fail')
+      return SOCKS_AUTH_FAILURE
+    end
+  end
+
+  def send_auth_response(auth_result, socket)
+    case auth_result
+    when SOCKS_AUTH_SUCCESS
+      socket.send([SOCKS_VERSION_5, 0x00].pack('C*'), 0)
+    when SOCKS_AUTH_FAILURE
       socket.send([SOCKS_VERSION_5, 0xFF].pack('C*'), 0)
     end
   end
