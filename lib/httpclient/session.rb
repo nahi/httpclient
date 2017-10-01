@@ -661,6 +661,8 @@ class HTTPClient
         options = { user: @socks_user } if @socks_user
         options[:password] = @socks_password if @socks_password
         socks_socket = SOCKS5Socket.new(proxy.host, proxy.port, options)
+      else
+        raise "invalid proxy url #{proxy}"
       end
       dest_site = Site.new(dest)
       opened_socket = socks_socket.open(dest_site.host, dest_site.port, {})
