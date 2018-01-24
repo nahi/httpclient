@@ -651,8 +651,8 @@ class HTTPClient
   # use get method.  get returns HTTP::Message as a response and you need to
   # follow HTTP redirect by yourself if you need.
   def get_content(uri, *args, &block)
-    query, header = keyword_argument(args, :query, :header)
-    success_content(follow_redirect(:get, uri, query, nil, header || {}, &block))
+    query, header, to = keyword_argument(args, :query, :header, :to)
+    success_content(follow_redirect(:get, uri, query, nil, header || {}, to, &block))
   end
 
   # Posts a content.
@@ -995,7 +995,7 @@ private
       key.all? { |e| args[0].key?(e) }
   end
 
-  def do_request(method, uri, query, body, header, &block)
+  def do_request(method, uri, query, body, header, to = nil, &block)
     res = nil
     if HTTP::Message.file?(body)
       pos = body.pos rescue nil
@@ -1016,7 +1016,7 @@ private
           # We want to delete Connection usage in do_get_block but Newrelic gem depends on it.
           # https://github.com/newrelic/rpm/blob/master/lib/new_relic/agent/instrumentation/httpclient.rb#L34-L36
           conn = Connection.new
-          res = do_get_block(req, proxy, conn, &block)
+          res = do_get_block(req, proxy, conn, to, &block)
           # Webmock's do_get_block returns ConditionVariable
           if !res.respond_to?(:previous)
             res = conn.pop
@@ -1085,7 +1085,7 @@ private
     proc { |r, str| block.call(str) }
   end
 
-  def follow_redirect(method, uri, query, body, header, &block)
+  def follow_redirect(method, uri, query, body, header, to = nil, &block)
     uri = to_resource_url(uri)
     if block
       b = adapt_block(&block)
@@ -1101,7 +1101,7 @@ private
     request_query = query
     while retry_number < @follow_redirect_count
       body.pos = pos if pos
-      res = do_request(method, uri, request_query, body, header, &filtered_block)
+      res = do_request(method, uri, request_query, body, header, to, &filtered_block)
       res.previous = previous
       if res.redirect?
         if res.header['location'].empty?
@@ -1226,7 +1226,7 @@ private
 
   # !! CAUTION !!
   #   Method 'do_get*' runs under MT conditon. Be careful to change.
-  def do_get_block(req, proxy, conn, &block)
+  def do_get_block(req, proxy, conn, to = nil, &block)
     @request_filter.each do |filter|
       filter.filter_request(req)
     end
@@ -1244,7 +1244,8 @@ private
     @debug_dev << "\n\n= Response\n\n" if @debug_dev
     do_get_header(req, res, sess)
     conn.push(res)
-    sess.get_body do |part|
+
+    sess.get_body(to) do |part|
       set_encoding(part, res.body_encoding)
       if block
         block.call(res, part.dup)
