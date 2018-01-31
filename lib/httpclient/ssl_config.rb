@@ -367,7 +367,6 @@ class HTTPClient
       cert = ctx.current_cert
       self_signed = false
       ca = false
-      pathlen = nil
       server_auth = true
       self_signed = (cert.subject.cmp(cert.issuer) == 0)
 
@@ -377,7 +376,7 @@ class HTTPClient
         when 'basicConstraints'
           /CA:(TRUE|FALSE), pathlen:(\d+)/ =~ ex.value
           ca = ($1 == 'TRUE')
-          pathlen = $2.to_i
+          $2.to_i
         when 'keyUsage'
           usage = ex.value.split(/\s*,\s*/)
           ca = usage.include?('Certificate Sign')
