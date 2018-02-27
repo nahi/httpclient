@@ -278,6 +278,8 @@ end
   end
 
   def test_load_cacerts
+    omit_if(RUBY_ENGINE == 'jruby', 'SSL_CERT_FILE environment does not work on JRuby')
+
     # disables loading default openssl paths
     stub_x509_const(:DEFAULT_CERT_FILE, '/invalid') do
       assert_raise(OpenSSL::SSL::SSLError) do
@@ -323,7 +325,7 @@ end
   end
 
   def test_use_higher_TLS
-    omit('TODO: it does not pass with Java 7 or old openssl ')
+    # TODO: it does not pass with Java 7 or old openssl
     teardown_server
     setup_server_with_ssl_version('TLSv1_2')
     assert_nothing_raised do
