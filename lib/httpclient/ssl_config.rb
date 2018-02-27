@@ -146,6 +146,9 @@ class HTTPClient
       return unless SSLEnabled
       @client = client
       @cert_store = X509::Store.new
+      @cert_store.set_default_paths
+      @cacerts_loaded = working_openssl_platform?
+
       @cert_store_crl_items = []
       @client_cert = @client_key = @client_key_pass = @client_ca = nil
       @verify_mode = SSL::VERIFY_PEER | SSL::VERIFY_FAIL_IF_NO_PEER_CERT
@@ -162,7 +165,6 @@ class HTTPClient
       @options |= OpenSSL::SSL::OP_NO_SSLv3 if defined?(OpenSSL::SSL::OP_NO_SSLv3)
       # OpenSSL 0.9.8 default: "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
       @ciphers = CIPHERS_DEFAULT
-      @cacerts_loaded = false
     end
 
     # Sets certificate and private key for SSL client authentication.
@@ -411,6 +413,10 @@ class HTTPClient
     def change_notify
       @client.reset_all
       nil
+    end
+
+    def working_openssl_platform?
+      File.exist?(OpenSSL::X509::DEFAULT_CERT_FILE) && Dir.exist?(OpenSSL::X509::DEFAULT_CERT_DIR)
     end
 
     # Use 2048 bit certs trust anchor
