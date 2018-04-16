@@ -211,9 +211,9 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_post_content
-    assert_equal('hello', @client.post_content(serverurl + 'hello'))
-    assert_equal('hello', @client.post_content(serverurl + 'redirect1'))
-    assert_equal('hello', @client.post_content(serverurl + 'redirect2'))
+    assert_equal('hello', @client.post_content(serverurl + 'hello', ''))
+    assert_equal('hello', @client.post_content(serverurl + 'redirect1', ''))
+    assert_equal('hello', @client.post_content(serverurl + 'redirect2', ''))
     assert_raises(HTTPClient::Session::BadResponse) do
       @client.post_content(serverurl + 'notfound')
     end
@@ -226,7 +226,7 @@ class TestClient < Test::Unit::TestCase
       called = true
       newuri
     }
-    assert_equal('hello', @client.post_content(serverurl + 'relative_redirect'))
+    assert_equal('hello', @client.post_content(serverurl + 'relative_redirect', ''))
     assert(called)
   end
 

@@ -521,14 +521,14 @@ class HTTPClient
       rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE, IOError
         # JRuby can raise IOError instead of ECONNRESET for now
         close
-        raise KeepAliveDisconnected.new(self, $!)
+        raise keep_alive_disconnected(req, $!)
       rescue HTTPClient::TimeoutError
         close
         raise
       rescue => e
         close
         if SSLEnabled and e.is_a?(OpenSSL::SSL::SSLError)
-          raise KeepAliveDisconnected.new(self, e)
+          raise keep_alive_disconnected(req, e)
         else
           raise
         end
@@ -650,7 +650,7 @@ class HTTPClient
       req.dump(socket)
       socket.flush unless @socket_sync
       res = HTTP::Message.new_response('')
-      parse_header(socket)
+      parse_header(req, socket)
       res.http_version, res.status, res.reason = @version, @status, @reason
       @headers.each do |key, value|
         res.header.set(key.to_s, value)
@@ -667,6 +667,15 @@ class HTTPClient
     end
 
   private
+
+    def keep_alive_disconnected(req, e)
+      request_method = req.header.request_method
+      if request_method != 'POST' && request_method != 'PUT'
+        KeepAliveDisconnected.new(self, e)
+      else
+        e
+      end
+    end
 
     # This inflater allows deflate compression with/without zlib header
     class LenientInflater
@@ -781,10 +790,10 @@ class HTTPClient
       @chunked = false
       @content_encoding = nil
       @chunk_length = 0
-      parse_header(@socket)
+      req = @requests.shift
+      parse_header(req, @socket)
       # Header of the request has been parsed.
       @state = :DATA
-      req = @requests.shift
       if req.header.request_method == 'HEAD' or no_message_body?(@status)
         @content_length = 0
         if @next_connection
@@ -797,7 +806,7 @@ class HTTPClient
     end
 
     StatusParseRegexp = %r(\AHTTP/(\d+\.\d+)\s+(\d\d\d)\s*([^\r\n]+)?\r?\n\z)
-    def parse_header(socket)
+    def parse_header(req, socket)
       ::Timeout.timeout(@receive_timeout, ReceiveTimeoutError) do
         initial_line = nil
         begin
@@ -805,12 +814,12 @@ class HTTPClient
             initial_line = socket.gets("\n")
             if initial_line.nil?
               close
-              raise KeepAliveDisconnected.new(self)
+              raise keep_alive_disconnected(req, BadResponseError.new('no status line received'))
             end
           rescue Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE, IOError
             # JRuby can raise IOError instead of ECONNRESET for now
             close
-            raise KeepAliveDisconnected.new(self, $!)
+            raise keep_alive_disconnected(req, $!)
           end
           if StatusParseRegexp !~ initial_line
             @version = '0.9'

@@ -630,9 +630,9 @@ EOS
   end
 
   def test_post_content
-    assert_equal('hello', @client.post_content(serverurl + 'hello'))
-    assert_equal('hello', @client.post_content(serverurl + 'redirect1'))
-    assert_equal('hello', @client.post_content(serverurl + 'redirect2'))
+    assert_equal('hello', @client.post_content(serverurl + 'hello', ''))
+    assert_equal('hello', @client.post_content(serverurl + 'redirect1', ''))
+    assert_equal('hello', @client.post_content(serverurl + 'redirect2', ''))
     assert_raises(HTTPClient::BadResponseError) do
       @client.post_content(serverurl + 'notfound')
     end
@@ -645,7 +645,7 @@ EOS
       called = true
       newuri
     }
-    assert_equal('hello', @client.post_content(serverurl + 'relative_redirect'))
+    assert_equal('hello', @client.post_content(serverurl + 'relative_redirect', ''))
     assert(called)
   end
 
@@ -890,9 +890,9 @@ EOS
   end
 
   def test_post_follow_redirect
-    assert_equal('hello', @client.post(serverurl + 'hello', :follow_redirect => true).body)
-    assert_equal('hello', @client.post(serverurl + 'redirect1', :follow_redirect => true).body)
-    assert_equal('hello', @client.post(serverurl + 'redirect2', :follow_redirect => true).body)
+    assert_equal('hello', @client.post(serverurl + 'hello', :body => '', :follow_redirect => true).body)
+    assert_equal('hello', @client.post(serverurl + 'redirect1', :body => '', :follow_redirect => true).body)
+    assert_equal('hello', @client.post(serverurl + 'redirect2', :body => '', :follow_redirect => true).body)
   end
 
   def test_post_with_content_type
@@ -1698,8 +1698,7 @@ EOS
   def create_keepalive_disconnected_thread(idx, sock)
     Thread.new {
       # return "12345" for the first connection
-      sock.gets
-      sock.gets
+      loop { break if sock.gets == "\r\n" }
       sock.write("HTTP/1.1 200 OK\r\n")
       sock.write("Content-Length: 5\r\n")
       sock.write("\r\n")
@@ -1775,6 +1774,47 @@ EOS
         assert_equal("34567", client.get(endpoint).content)
       }
     }.each { |th| th.join }
+  end
+
+  def test_keepalive_disconnected_post_put
+    [:post, :put].each do |http_method|
+      client = HTTPClient.new
+      server = TCPServer.open('127.0.0.1', 0)
+      #server.listen
+      endpoint = "http://127.0.0.1:#{server.addr[1]}/"
+      Thread.new do
+        Thread.abort_on_exception = true
+
+        server.accept.tap do |sock1|
+          create_keepalive_disconnected_thread(1, sock1)
+        end
+
+        server.accept.tap do |sock2|
+          sock2.gets
+          sock2.gets
+          sock2.write("HTTP/1.1 200 OK\r\n")
+          sock2.write("Connection: close\r\n")
+          sock2.write("Content-Length: 5\r\n")
+          sock2.write("\r\n")
+          sock2.write("34567")
+          sock2.close
+        end
+
+        server.close
+      end
+
+      # The first request opens a new socket.
+      assert_equal("12345", client.get(endpoint).content)
+
+      # The second request attempts to use the existing socket, and fails.
+      assert_raises(HTTPClient::BadResponseError, Errno::ECONNABORTED, Errno::ECONNRESET,
+        Errno::EPIPE, IOError) do
+          client.request(http_method, endpoint)
+        end
+
+      # The third request opens a new socket (doesn't re-use the broken one).
+      assert_equal("34567", client.request(http_method, endpoint).content)
+    end
   end
 
   def create_keepalive_thread(count, sock)
