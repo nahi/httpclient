@@ -951,7 +951,7 @@ class HTTPClient
 
     def empty_bin_str
       str = ''
-      str.force_encoding('BINARY') if str.respond_to?(:force_encoding)
+      str = str.dup.force_encoding('BINARY') if str.respond_to?(:force_encoding)
       str
     end
   end
