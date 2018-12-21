@@ -541,7 +541,7 @@ class HTTPClient
         if host[0] == ?.
           regexp = /#{Regexp.quote(host)}\z/i
         else
-          regexp = /(\A|\.)#{Regexp.quote(host)}\z/i
+          regexp = /(\A|\.)#{Regexp.quote(host).gsub('\*', '.+')}\z/i
         end
         @no_proxy_regexps << [regexp, port]
       end
