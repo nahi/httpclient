@@ -146,6 +146,7 @@ class HTTPClient
       return unless SSLEnabled
       @client = client
       @cert_store = X509::Store.new
+      @cert_store.set_default_paths
       @cert_store_crl_items = []
       @client_cert = @client_key = @client_key_pass = @client_ca = nil
       @verify_mode = SSL::VERIFY_PEER | SSL::VERIFY_FAIL_IF_NO_PEER_CERT
