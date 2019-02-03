@@ -20,14 +20,18 @@ unless defined?(SSLSocket)
 
     BUF_SIZE = 1024 * 16
 
+    def self.normalize_timeout(timeout)
+      [Java::JavaLang::Integer::MAX_VALUE, timeout].min
+    end
+
     def self.connect(socket, site, opts = {})
       socket_addr = InetSocketAddress.new(site.host, site.port)
       if opts[:connect_timeout]
-        socket.connect(socket_addr, opts[:connect_timeout])
+        socket.connect(socket_addr, normalize_timeout(opts[:connect_timeout]))
       else
         socket.connect(socket_addr)
       end
-      socket.setSoTimeout(opts[:so_timeout]) if opts[:so_timeout]
+      socket.setSoTimeout(normalize_timeout(opts[:so_timeout])) if opts[:so_timeout]
       socket.setKeepAlive(true) if opts[:tcp_keepalive]
       socket
     end

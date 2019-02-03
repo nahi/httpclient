@@ -1,5 +1,6 @@
 require File.expand_path('helper', File.dirname(__FILE__))
 require 'webrick/https'
+require 'time'
 
 
 class TestSSL < Test::Unit::TestCase
@@ -87,6 +88,7 @@ end
     cert = ::OpenSSL::X509::Certificate.new(raw_cert)
     store = ::OpenSSL::X509::Store.new
     store.add_cert(ca_cert)
+    store.time = Time.new(2017, 01, 01)
     assert(store.verify(cert), "Verify failed: #{store.error_string}, #{store.error}")
   end
 

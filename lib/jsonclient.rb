@@ -37,7 +37,7 @@ private
 
   def argument_to_hash_for_json(args)
     hash = argument_to_hash(args, :body, :header, :follow_redirect)
-    if hash[:body].is_a?(Hash)
+    if hash[:body].is_a?(Hash) || hash[:body].is_a?(Array)
       hash[:header] = json_header(hash[:header])
       hash[:body] = JSON.generate(hash[:body])
     end
@@ -47,11 +47,10 @@ private
   def json_header(header)
     header ||= {}
     if header.is_a?(Hash)
-      header['Content-Type'] = @content_type_json_request
+      header.merge('Content-Type' => @content_type_json_request)
     else
-      header << ['Content-Type', @content_type_json_request]
+      header + [['Content-Type', @content_type_json_request]]
     end
-    header
   end
 
   def wrap_json_response(original)
