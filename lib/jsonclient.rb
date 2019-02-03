@@ -47,11 +47,10 @@ private
   def json_header(header)
     header ||= {}
     if header.is_a?(Hash)
-      header['Content-Type'] = @content_type_json_request
+      header.merge('Content-Type' => @content_type_json_request)
     else
-      header << ['Content-Type', @content_type_json_request]
+      header + [['Content-Type', @content_type_json_request]]
     end
-    header
   end
 
   def wrap_json_response(original)
