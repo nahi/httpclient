@@ -37,7 +37,7 @@ private
 
   def argument_to_hash_for_json(args)
     hash = argument_to_hash(args, :body, :header, :follow_redirect)
-    if hash[:body].is_a?(Hash)
+    if hash[:body].is_a?(Hash) || hash[:body].is_a?(Array)
       hash[:header] = json_header(hash[:header])
       hash[:body] = JSON.generate(hash[:body])
     end
