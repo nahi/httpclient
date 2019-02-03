@@ -555,8 +555,11 @@ unless defined?(SSLSocket)
       if socket
         ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
       else
-        ssl_socket = factory.createSocket
-        JavaSocketWrap.connect(ssl_socket, dest, opts)
+        # Create a plain socket first to set connection timeouts on,
+        # then wrap it in a SSL socket so that SNI gets setup on it.
+        socket = javax.net.SocketFactory.getDefault.createSocket
+        JavaSocketWrap.connect(socket, dest, opts)
+        ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
       end
       ssl_socket
     end
