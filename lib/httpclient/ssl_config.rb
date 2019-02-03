@@ -403,6 +403,9 @@ class HTTPClient
         return true
       end
 
+      if pathlen > 2
+        warn('pathlen > 2') if $DEBUG
+      end
       return false
     end
 
