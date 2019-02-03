@@ -495,6 +495,8 @@ unless defined?(SSLSocket)
         ssl_connect(dest.host)
       rescue java.security.GeneralSecurityException => e
         raise OpenSSL::SSL::SSLError.new(e.getMessage)
+      rescue java.net.SocketTimeoutException => e
+        raise HTTPClient::ConnectTimeoutError.new(e.getMessage)
       rescue java.io.IOException => e
         raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
       end
