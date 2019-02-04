@@ -5,8 +5,7 @@ begin
   SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
   SimpleCov.start
 rescue LoadError
-end if ENV['CI']
-
+end
 require 'test/unit'
 
 require 'httpclient'

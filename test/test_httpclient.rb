@@ -2,6 +2,7 @@
 require File.expand_path('helper', File.dirname(__FILE__))
 require 'tempfile'
 
+
 class TestHTTPClient < Test::Unit::TestCase
   include Helper
   include HTTPClient::Util
@@ -415,6 +416,7 @@ EOS
       assert_match(/^Authorization: Basic YWRtaW46YWRtaW4=/, str)
     end
   end
+
 
   def test_proxy_ssl
     escape_noproxy do
