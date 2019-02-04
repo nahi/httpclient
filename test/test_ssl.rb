@@ -1,5 +1,6 @@
 require File.expand_path('helper', File.dirname(__FILE__))
 require 'webrick/https'
+require 'time'
 
 
 class TestSSL < Test::Unit::TestCase
@@ -81,45 +82,14 @@ end
   end
 
   def test_verification_without_httpclient
-    ca_cert = ::OpenSSL::X509::Certificate.new(%w[-----BEGIN\ CERTIFICATE-----
-MIIC3jCCAcYCCQCUWi3t8e122TANBgkqhkiG9w0BAQsFADAxMQ0wCwYDVQQKDARS
-dWJ5MRMwEQYDVQQLDApodHRwY2xpZW50MQswCQYDVQQDDAJDQTAeFw0xODAyMjcx
-MTM0NDRaFw0yODAyMjUxMTM0NDRaMDExDTALBgNVBAoMBFJ1YnkxEzARBgNVBAsM
-Cmh0dHBjbGllbnQxCzAJBgNVBAMMAkNBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-MIIBCgKCAQEAs6FPPj8PVl1uxsMZas4VC/ibRvtyXQkfrEa7TO032Kh+ETsOQNS8
-QJedhw/BMHuoVbU0/b6PZ//LJTUDN/C77/QWHKzcMoxkNye5PC2cJlSQMosaKjYG
-1ERYmJ+FBiMMSpcLOCS5cYoP2fJHGtHqZPkxIPYy+IKQ7WuP3tUXkVC+ftpD6H4V
-6MUnfLwagpaAAbRoFUJQoZISmH2+F5GOKX9KKiMBI94yqRRN4K/B9iqXgld45Hmg
-67vX0ckRbqBhrz1CwPtaETLFB4hZT2ouBkMQYtrvpNXv80p7vcz+BwORo8b2Ns9B
-4FqtpjMaS9Mf95z4Mn+NG7lanYtsHO2svwIDAQABMA0GCSqGSIb3DQEBCwUAA4IB
-AQBu614zHB5SS+ORYrRwl7tICKUipWHdCJfYsJOQy/FKwe7vedwd/Uclfe06GU+m
-bNv0y22/oF7vrM3EfnxFe2DNIKXTndszrQSLpT6OPBe4mAOSJxnIMy6B6/PyhK6I
-D7TWFSVlYX9a4OfolsoE0gQtxhyLud4rvJgXyAq9kRZ1FcNfI75cImk67rCa8jRY
-TJOTidKq1Kcn6RY7d8cf581HP7y/eK887K6lBvGiQE1aFDSLe2ZLY+rxS9GSMYfK
-81XhUX2QKytGYch2y95ThMwOljVTg6fKDrtKGwj9mSsnlfTFX3gikvLLtB/o7JPR
-2pWBic8PX7gnANQqH/4ahv1M
------END\ CERTIFICATE-----].join("\n"))
-    cert = ::OpenSSL::X509::Certificate.new(%w[-----BEGIN\ CERTIFICATE-----
-MIIC5zCCAc8CCQCz/lMJNLxQDjANBgkqhkiG9w0BAQsFADAxMQ0wCwYDVQQKDARS
-dWJ5MRMwEQYDVQQLDApodHRwY2xpZW50MQswCQYDVQQDDAJDQTAeFw0xODAyMjcx
-MTM1MTNaFw0yNzExMjcxMTM1MTNaMDoxDTALBgNVBAoMBFJ1YnkxEzARBgNVBAsM
-Cmh0dHBjbGllbnQxFDASBgNVBAMMC0NlcnRpZmljYXRlMIIBIjANBgkqhkiG9w0B
-AQEFAAOCAQ8AMIIBCgKCAQEAo/zP4oPyqerNyJYNTKzAGGQR8uKmP9wLnLm/yTf/
-jwzVLj3rvunw54aw89V3R4LLwBBMgFlE9OrUa+2zCvZJ8ykSoltU+w9E2EdXnXAR
-C/GW678MA06NPBuMNQyf+7Lv7dipdv+0hUNXFarwGiJkCms0zcmTonkOC8Bh7stZ
-EykkvQs5zmYVd+G26D5un8Wzjl6OckbBDcKTS9u9H1YveRcnN7odsh+qI4PjDmKG
-PXR8Gz/loNYN/I55Hqe7vkQJZ7r1PjSBp/fIcb4pNEkKS9DAcNWkoHF2j5nBNdOq
-mH3WR36vKlw5S4HLzDXQDeueFbtk3QGrWY2MWrpJNapeAQIDAQABMA0GCSqGSIb3
-DQEBCwUAA4IBAQB2CiGKAvHjr4kjOavWqGfPv115N4fhmBcPH4YAeJB9mHTzpoPV
-BCm0ouRG5Oqj/DJhm+mckFKSorZFSgVb/G92w0uXRvBMPJb4wyIbp5ld6K3138cn
-DtmeON3gbHwh3or741LdD6GIaulA9CL/qI3bbiyrJrHAZuHbpA6UqHfTKTBVi0uq
-kv8qmA8FrzI2itDqdp0dq3QMNGnG40OM8NSDX+8A9wMahPh+Oe3TePSvDTahXIU1
-o+dzaUEIVhUWEikQBnfeEnxzN8B/qtt3wEpliAip9Z3LuN0pVFb81Mx1wEZls2Bd
-Kj83iBw7flO651USNPnkOkU3DegNtcpTaT5M
------END\ CERTIFICATE-----].join("\n"))
+    raw_cert = "-----BEGIN CERTIFICATE-----\nMIIDKDCCAhCgAwIBAgIBAjANBgkqhkiG9w0BAQUFADA8MQswCQYDVQQGDAJKUDES\nMBAGA1UECgwJSklOLkdSLkpQMQwwCgYDVQQLDANSUlIxCzAJBgNVBAMMAkNBMB4X\nDTA0MDEzMTAzMTQ1OFoXDTM1MDEyMzAzMTQ1OFowZTELMAkGA1UEBgwCSlAxEjAQ\nBgNVBAoMCUpJTi5HUi5KUDEMMAoGA1UECwwDUlJSMRAwDgYDVQQDDAdleGFtcGxl\nMSIwIAYJKoZIhvcNAQkBDBNleGFtcGxlQGV4YW1wbGUub3JnMIGfMA0GCSqGSIb3\nDQEBAQUAA4GNADCBiQKBgQDRWssrK8Gyr+500hpLjCGR3+AHL8/hEJM5zKi/MgLW\njTkvsgOwbYwXOiNtAbR9y4/ucDq7EY+cMUMHES4uFaPTcOaAV0aZRmk8AgslN1tQ\ngNS6ew7/Luq3DcVeWkX8PYgR9VG0mD1MPfJ6+IFA5d3vKpdBkBgN4l46jjO0/2Xf\newIDAQABo4GPMIGMMAwGA1UdEwEB/wQCMAAwMQYJYIZIAYb4QgENBCQWIlJ1Ynkv\nT3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwHQYDVR0OBBYEFOFvay0H7lr2\nxUx6waYEV2bVDYQhMAsGA1UdDwQEAwIF4DAdBgNVHSUEFjAUBggrBgEFBQcDAgYI\nKwYBBQUHAwQwDQYJKoZIhvcNAQEFBQADggEBABd2dYWqbDIWf5sWFvslezxJv8gI\nw64KCJBuyJAiDuf+oazr3016kMzAlt97KecLZDusGNagPrq02UX7YMoQFsWJBans\ncDtHrkM0al5r6/WGexNMgtYbNTYzt/IwodISGBgZ6dsOuhznwms+IBsTNDAvWeLP\nlt2tOqD8kEmjwMgn0GDRuKjs4EoboA3kMULb1p9akDV9ZESU3eOtpS5/G5J5msLI\n9WXbYBjcjvkLuJH9VsJhb+R58Vl0ViemvAHhPilSl1SPWVunGhv6FcIkdBEi1k9F\ne8BNMmsEjFiANiIRvpdLRbiGBt0KrKTndVfsmoKCvY48oCOvnzxtahFxfs8=\n-----END CERTIFICATE-----"
+    raw_ca_cert = "-----BEGIN CERTIFICATE-----\nMIID0DCCArigAwIBAgIBADANBgkqhkiG9w0BAQUFADA8MQswCQYDVQQGDAJKUDES\nMBAGA1UECgwJSklOLkdSLkpQMQwwCgYDVQQLDANSUlIxCzAJBgNVBAMMAkNBMB4X\nDTA0MDEzMDAwNDIzMloXDTM2MDEyMjAwNDIzMlowPDELMAkGA1UEBgwCSlAxEjAQ\nBgNVBAoMCUpJTi5HUi5KUDEMMAoGA1UECwwDUlJSMQswCQYDVQQDDAJDQTCCASIw\nDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANbv0x42BTKFEQOE+KJ2XmiSdZpR\nwjzQLAkPLRnLB98tlzs4xo+y4RyY/rd5TT9UzBJTIhP8CJi5GbS1oXEerQXB3P0d\nL5oSSMwGGyuIzgZe5+vZ1kgzQxMEKMMKlzA73rbMd4Jx3u5+jdbP0EDrPYfXSvLY\nbS04n2aX7zrN3x5KdDrNBfwBio2/qeaaj4+9OxnwRvYP3WOvqdW0h329eMfHw0pi\nJI0drIVdsEqClUV4pebT/F+CPUPkEh/weySgo9wANockkYu5ujw2GbLFcO5LXxxm\ndEfcVr3r6t6zOA4bJwL0W/e6LBcrwiG/qPDFErhwtgTLYf6Er67SzLyA66UCAwEA\nAaOB3DCB2TAPBgNVHRMBAf8EBTADAQH/MDEGCWCGSAGG+EIBDQQkFiJSdWJ5L09w\nZW5TU0wgR2VuZXJhdGVkIENlcnRpZmljYXRlMB0GA1UdDgQWBBRJ7Xd380KzBV7f\nUSKIQ+O/vKbhDzAOBgNVHQ8BAf8EBAMCAQYwZAYDVR0jBF0wW4AUSe13d/NCswVe\n31EiiEPjv7ym4Q+hQKQ+MDwxCzAJBgNVBAYMAkpQMRIwEAYDVQQKDAlKSU4uR1Iu\nSlAxDDAKBgNVBAsMA1JSUjELMAkGA1UEAwwCQ0GCAQAwDQYJKoZIhvcNAQEFBQAD\nggEBAIu/mfiez5XN5tn2jScgShPgHEFJBR0BTJBZF6xCk0jyqNx/g9HMj2ELCuK+\nr/Y7KFW5c5M3AQ+xWW0ZSc4kvzyTcV7yTVIwj2jZ9ddYMN3nupZFgBK1GB4Y05GY\nMJJFRkSu6d/Ph5ypzBVw2YMT/nsOo5VwMUGLgS7YVjU+u/HNWz80J3oO17mNZllj\nPvORJcnjwlroDnS58KoJ7GDgejv3ESWADvX1OHLE4cRkiQGeLoEU4pxdCxXRqX0U\nPbwIkZN9mXVcrmPHq8MWi4eC/V7hnbZETMHuWhUoiNdOEfsAXr3iP4KjyyRdwc7a\nd/xgcK06UVQRL/HbEYGiQL056mc=\n-----END CERTIFICATE-----"
+    ca_cert = ::OpenSSL::X509::Certificate.new(raw_ca_cert)
+    cert = ::OpenSSL::X509::Certificate.new(raw_cert)
     store = ::OpenSSL::X509::Store.new
     store.add_cert(ca_cert)
-    assert(store.verify(cert))
+    store.time = Time.new(2017, 01, 01)
+    assert(store.verify(cert), "Verify failed: #{store.error_string}, #{store.error}")
   end
 
   def test_verification
@@ -277,39 +247,10 @@ end
     end
   end
 
-  def test_load_cacerts
-    omit_if(RUBY_ENGINE == 'jruby', 'SSL_CERT_FILE environment does not work on JRuby')
-
-    # disables loading default openssl paths
-    stub_x509_const(:DEFAULT_CERT_FILE, '/invalid') do
-      assert_raise(OpenSSL::SSL::SSLError) do
-        @client.get(@url)
-      end
-
-      setup_client
-
-      escape_env do
-        ENV['SSL_CERT_FILE'] = File.join(DIR, 'ca-chain.pem')
-        @client.get(@url)
-      end
-    end
-  end
-
-  def test_default_paths
-    assert_raise(OpenSSL::SSL::SSLError) do
-      @client.get(@url)
-    end
-    escape_env do
-      ENV['SSL_CERT_FILE'] = File.join(DIR, 'ca-chain.pem')
-      setup_client
-      @client.get(@url)
-    end
-  end
-
   def test_no_sslv3
     teardown_server
     setup_server_with_ssl_version(:SSLv3)
-    assert_raise() do
+    assert_raise(OpenSSL::SSL::SSLError) do
       @client.ssl_config.verify_mode = nil
       @client.get("https://localhost:#{serverport}/hello")
     end
@@ -325,7 +266,7 @@ end
   end
 
   def test_use_higher_TLS
-    # TODO: it does not pass with Java 7 or old openssl
+    omit('TODO: it does not pass with Java 7 or old openssl ')
     teardown_server
     setup_server_with_ssl_version('TLSv1_2')
     assert_nothing_raised do
@@ -490,20 +431,6 @@ e61RBaxk5OHOA0bLtvJblV6NL72ZEZhX60wAWbrOPhpT
 
 private
 
-  def stub_x509_const(name, value)
-    OpenSSL::X509.module_eval do
-      begin
-        original = remove_const(name)
-        const_set(name, value)
-
-        yield
-      ensure
-        remove_const(name)
-        const_set(name, original)
-      end
-    end
-  end
-
   def cert(filename)
     OpenSSL::X509::Certificate.new(File.read(File.join(DIR, filename)))
   end
@@ -549,7 +476,7 @@ private
       ssl_version = ssl_version.tr('_', '.')
     end
     logger = Logger.new(STDERR)
-    logger.level = Logger::Severity::FATAL     # avoid logging SSLError (ERROR level)
+    logger.level = Logger::Severity::FATAL	# avoid logging SSLError (ERROR level)
     @server = WEBrick::HTTPServer.new(
       :BindAddress => "localhost",
       :Logger => logger,
