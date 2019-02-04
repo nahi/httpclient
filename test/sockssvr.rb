@@ -58,6 +58,8 @@ class SOCKSServer
               send_protocol_error_response(client_socket)
             rescue RuntimeError => e1
               @logger.warn(e1)
+            rescue Errno::ECONNRESET => e2
+              @logger.warn("SOCKSServer: Connection Reset by peer")
             ensure
               client_socket.close
             end
@@ -325,13 +327,13 @@ class SOCKSServer
 
         readables.each do |io|
           if io == client_socket
-            client_msg = client_socket.recvmsg[0]
+            client_msg = client_socket.recv(4096)
             next if client_msg.length.zero?
             @logger.debug("recvmsg from client => #{client_msg.length} bytes")
             @logger.debug("send to dest #{target_addr} => #{client_msg}")
             dest_socket.sendmsg(client_msg)
           elsif io == dest_socket
-            dest_msg = dest_socket.recvmsg[0]
+            dest_msg = dest_socket.recv(4096)
             next if dest_msg.length.zero?
             @logger.debug("recvmsg from dest => #{dest_msg.length} bytes")
             @logger.debug("send to client #{client_addr} => #{dest_msg}")
