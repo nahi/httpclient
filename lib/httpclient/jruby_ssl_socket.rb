@@ -552,16 +552,13 @@ unless defined?(SSLSocket)
     def create_ssl_socket(socket, dest, config, opts)
       ctx = create_ssl_context(config)
       factory = ctx.getSocketFactory
-      if socket
-        ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
-      else
+      unless socket
         # Create a plain socket first to set connection timeouts on,
         # then wrap it in a SSL socket so that SNI gets setup on it.
         socket = javax.net.SocketFactory.getDefault.createSocket
         JavaSocketWrap.connect(socket, dest, opts)
-        ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
       end
-      ssl_socket
+      factory.createSocket(socket, dest.host, dest.port, true)
     end
 
     def peer_cert
