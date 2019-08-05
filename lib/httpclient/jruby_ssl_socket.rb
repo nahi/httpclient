@@ -20,14 +20,18 @@ unless defined?(SSLSocket)
 
     BUF_SIZE = 1024 * 16
 
+    def self.normalize_timeout(timeout)
+      [Java::JavaLang::Integer::MAX_VALUE, timeout].min
+    end
+
     def self.connect(socket, site, opts = {})
       socket_addr = InetSocketAddress.new(site.host, site.port)
       if opts[:connect_timeout]
-        socket.connect(socket_addr, opts[:connect_timeout])
+        socket.connect(socket_addr, normalize_timeout(opts[:connect_timeout]))
       else
         socket.connect(socket_addr)
       end
-      socket.setSoTimeout(opts[:so_timeout]) if opts[:so_timeout]
+      socket.setSoTimeout(normalize_timeout(opts[:so_timeout])) if opts[:so_timeout]
       socket.setKeepAlive(true) if opts[:tcp_keepalive]
       socket
     end
@@ -491,6 +495,8 @@ unless defined?(SSLSocket)
         ssl_connect(dest.host)
       rescue java.security.GeneralSecurityException => e
         raise OpenSSL::SSL::SSLError.new(e.getMessage)
+      rescue java.net.SocketTimeoutException => e
+        raise HTTPClient::ConnectTimeoutError.new(e.getMessage)
       rescue java.io.IOException => e
         raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
       end
@@ -546,13 +552,13 @@ unless defined?(SSLSocket)
     def create_ssl_socket(socket, dest, config, opts)
       ctx = create_ssl_context(config)
       factory = ctx.getSocketFactory
-      if socket
-        ssl_socket = factory.createSocket(socket, dest.host, dest.port, true)
-      else
-        ssl_socket = factory.createSocket
-        JavaSocketWrap.connect(ssl_socket, dest, opts)
+      unless socket
+        # Create a plain socket first to set connection timeouts on,
+        # then wrap it in a SSL socket so that SNI gets setup on it.
+        socket = javax.net.SocketFactory.getDefault.createSocket
+        JavaSocketWrap.connect(socket, dest, opts)
       end
-      ssl_socket
+      factory.createSocket(socket, dest.host, dest.port, true)
     end
 
     def peer_cert

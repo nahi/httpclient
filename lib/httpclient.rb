@@ -753,6 +753,10 @@ class HTTPClient
     request(:patch, uri, new_args, &block)
   end
 
+  # :call-seq:
+  #   post(uri, {query: query, body: body, header: header, follow_redirect: follow_redirect}) -> HTTP::Message
+  #   post(uri, body, header, follow_redirect) -> HTTP::Message
+  #
   # Sends POST request to the specified URL.  See request for arguments.
   # You should not depend on :follow_redirect => true for POST method.  It
   # sends the same POST method to the new location which is prohibited in HTTP spec.
