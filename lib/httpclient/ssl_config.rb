@@ -129,6 +129,9 @@ class HTTPClient
     # ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH
     # See ciphers(1) man in OpenSSL for more detail.
     attr_config :ciphers
+    # A list of OpenSSL::X509::Certificates to send as the intermediate
+    # certificate chain for a client certificate.
+    attr_config :extra_chain_certs
 
     # OpenSSL::X509::X509::Store used for verification.  You can reset the
     # store with clear_cert_store and set the new store with cert_store=.
@@ -162,6 +165,7 @@ class HTTPClient
       @options |= OpenSSL::SSL::OP_NO_SSLv3 if defined?(OpenSSL::SSL::OP_NO_SSLv3)
       # OpenSSL 0.9.8 default: "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
       @ciphers = CIPHERS_DEFAULT
+      @extra_chain_certs = []
       @cacerts_loaded = false
     end
 
@@ -302,6 +306,7 @@ class HTTPClient
       ctx.timeout = @timeout
       ctx.options = @options
       ctx.ciphers = @ciphers
+      ctx.extra_chain_cert = @extra_chain_certs
       ctx.ssl_version = @ssl_version unless @ssl_version == :auto
     end
 
