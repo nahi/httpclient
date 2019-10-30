@@ -280,14 +280,15 @@ class HTTPClient
 
     def scrub_cached_session(now)
       @sess_pool.each do |site, pool|
-        pool.replace(pool.select { |sess|
-          if valid_session?(sess, now)
-            true
-          else
-            sess.close # close & remove from the pool
-            false
-          end
-        })
+        valid, invalid = pool.partition { |sess| valid_session?(sess, now) }
+        # Ensure that the pool now only contains good connections.
+        pool.replace valid
+        # Clean up invalid connections.
+        # This may raise `HTTPClient::KeepAliveDisconnected Broken pipe` for example
+        # If you rescue from that, then you may have a memory leak
+        # But since we already switched out the contents of pool, at least you
+        # won't have invalid sessions in there any more.
+        invalid.each { |sess| sess.close }
       end
     end
 
