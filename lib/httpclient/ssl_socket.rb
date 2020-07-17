@@ -24,6 +24,9 @@ class HTTPClient
           session.connect_ssl_proxy(socket, Util.urify(session.dest.to_s))
         end
         new(socket, session.dest, session.ssl_config, opts)
+      rescue Errno::ECONNRESET
+        socket.close
+        raise OpenSSL::SSL::SSLError.new($!)
       rescue
         socket.close
         raise
