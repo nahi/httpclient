@@ -7,6 +7,7 @@ rvm:
   - 2.6.1
   - ruby-head
   - jruby-head
+  - truffleruby-head
 
 script: "bundle exec rake --trace"
 
