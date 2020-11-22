@@ -1,4 +1,4 @@
-sudo: false
+language: ruby
 
 rvm:
   - 2.3.8
@@ -10,6 +10,10 @@ rvm:
   - truffleruby-head
 
 script: "bundle exec rake --trace"
+
+matrix:
+  allow_failures:
+    - rvm: ruby-head
 
 notifications:
   recipients:
