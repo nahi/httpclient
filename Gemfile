@@ -13,7 +13,7 @@ group :development do
   gem 'simplecov'
   gem 'simplecov-rcov'
   gem 'pry'
-  gem 'rack', '~> 1.0'
+  gem 'rack', '~> 2.2'
   gem 'rubysspi'
   gem 'rubyntlm'
   gem 'rack-ntlm-test-service'
