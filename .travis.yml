@@ -5,6 +5,7 @@ rvm:
   - 2.4.4
   - 2.5.3
   - 2.6.1
+  - 2.7.0
   - ruby-head
   - jruby-head
   - truffleruby-head
