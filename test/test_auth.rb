@@ -230,11 +230,11 @@ class TestAuth < Test::Unit::TestCase
       c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
 
-      100.times.map { |idx|
+      20.times.map { |idx|
         Thread.new(idx) { |idx2|
           Thread.abort_on_exception = true
           Thread.pass
-          c.get("http://localhost:#{serverport}/basic_auth?#{idx2}")
+          assert_equal('basic_auth OK', c.get("http://localhost:#{serverport}/basic_auth?#{idx2}").body)
         }
       }.map { |t|
         t.join
