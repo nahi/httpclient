@@ -39,26 +39,28 @@ class HTTPClient
     if SSLEnabled
       include OpenSSL
 
-      module ::OpenSSL
-        module X509
-          class Store
-            attr_reader :_httpclient_cert_store_items
+      if defined? JRUBY_VERSION
+        module ::OpenSSL
+          module X509
+            class Store
+              attr_reader :_httpclient_cert_store_items
 
-            # TODO: use prepend instead when we drop JRuby + 1.9.x support
-            wrapped = {}
+              # TODO: use prepend instead when we drop JRuby + 1.9.x support
+              wrapped = {}
 
-            wrapped[:initialize] = instance_method(:initialize)
-            define_method(:initialize) do |*args|
-              wrapped[:initialize].bind(self).call(*args)
-              @_httpclient_cert_store_items = [ENV['SSL_CERT_FILE'] || :default]
-            end
+              wrapped[:initialize] = instance_method(:initialize)
+              define_method(:initialize) do |*args|
+                wrapped[:initialize].bind(self).call(*args)
+                @_httpclient_cert_store_items = [ENV['SSL_CERT_FILE'] || :default]
+              end
 
-            [:add_cert, :add_file, :add_path].each do |m|
-              wrapped[m] = instance_method(m)
-              define_method(m) do |cert|
-                res = wrapped[m].bind(self).call(cert)
-                @_httpclient_cert_store_items << cert
-                res
+              [:add_cert, :add_file, :add_path].each do |m|
+                wrapped[m] = instance_method(m)
+                define_method(m) do |cert|
+                  res = wrapped[m].bind(self).call(cert)
+                  @_httpclient_cert_store_items << cert
+                  res
+                end
               end
             end
           end
@@ -138,7 +140,9 @@ class HTTPClient
     attr_config :client_ca # :nodoc:
 
     # These array keeps original files/dirs that was added to @cert_store
-    def cert_store_items; @cert_store._httpclient_cert_store_items; end
+    if defined? JRUBY_VERSION
+      def cert_store_items; @cert_store._httpclient_cert_store_items; end
+    end
     attr_reader :cert_store_crl_items
 
     # Creates a SSLConfig.
@@ -204,7 +208,9 @@ class HTTPClient
     def clear_cert_store
       @cacerts_loaded = true # avoid lazy override
       @cert_store = X509::Store.new
-      @cert_store._httpclient_cert_store_items.clear
+      if defined? JRUBY_VERSION
+        @cert_store._httpclient_cert_store_items.clear
+      end
       change_notify
     end
 
