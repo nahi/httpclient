@@ -11,4 +11,5 @@ Gem::Specification.new { |s|
   s.require_paths = ['lib']
   s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.md']
   s.license = 'ruby'
+  s.metadata = { 'yard.run' => 'yard' }
 }
