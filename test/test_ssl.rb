@@ -248,6 +248,7 @@ end
   end
 
   def test_no_sslv3
+    omit('TODO: SSLv3 is not supported in many environments. re-enable when disable TLSv1')
     teardown_server
     setup_server_with_ssl_version(:SSLv3)
     assert_raise(OpenSSL::SSL::SSLError) do
@@ -266,7 +267,7 @@ end
   end
 
   def test_use_higher_TLS
-    omit('TODO: it does not pass with Java 7 or old openssl ')
+    omit('TODO: it does not pass with Java 7 or old openssl')
     teardown_server
     setup_server_with_ssl_version('TLSv1_2')
     assert_nothing_raised do
