@@ -574,17 +574,19 @@ module HTTP
       end
 
       def dump_file(io, dev, sz)
+
         buf = ''
         rest = sz
         while rest > 0
           n = io.read([rest, @chunk_size].min, buf)
-          raise ArgumentError.new("Illegal size value: #size returns #{sz} but cannot read") if n.nil?
+          return if n.nil?
           dev << buf
           rest -= n.bytesize
         end
       end
 
       def dump_chunks(io, dev)
+
         buf = ''
         while !io.read(@chunk_size, buf).nil?
           dev << dump_chunk(buf)
