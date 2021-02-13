@@ -10,5 +10,5 @@ Gem::Specification.new { |s|
   s.summary = 'gives something like the functionality of libwww-perl (LWP) in Ruby'
   s.require_paths = ['lib']
   s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.md']
-  s.license = 'ruby'
+  s.license = 'Ruby'
 }
