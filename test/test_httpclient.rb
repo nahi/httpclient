@@ -629,6 +629,41 @@ EOS
     end
   end
 
+  def test_get_content_with_path
+    with_tmp_path do |path|
+      @client.get_content(serverurl + 'hello', to: path)
+      assert_equal('hello', File.read(path))
+    end
+  end
+
+  def test_get_content_with_io
+    with_tmp_path do |path|
+      File.open(path, 'w+') do |io|
+        @client.get_content(serverurl + 'hello', to: io)
+      end
+      assert_equal('hello', File.read(path))
+    end
+  end
+
+  def test_get_gzipped_content_with_io
+    @client.transparent_gzip_decompression = true
+
+    with_tmp_path do |path|
+      @client.get_content(serverurl + 'compressed?enc=gzip', to: path)
+      assert_equal('hello', File.read(path))
+    end
+
+    with_tmp_path do |path|
+      @client.get_content(serverurl + 'compressed?enc=deflate', to: path)
+      assert_equal('hello', File.read(path))
+    end
+
+    with_tmp_path do |path|
+      @client.get_content(serverurl + 'compressed?enc=deflate_noheader', to: path)
+      assert_equal('hello', File.read(path))
+    end
+  end
+
   def test_post_content
     assert_equal('hello', @client.post_content(serverurl + 'hello'))
     assert_equal('hello', @client.post_content(serverurl + 'redirect1'))
@@ -827,16 +862,6 @@ EOS
     assert(called)
     # res does not have a content
     assert_nil(res.content)
-  end
-
-  def test_get_with_block_string_recycle
-    @client.read_block_size = 2
-    body = []
-    _res = @client.get(serverurl + 'servlet') { |str|
-      body << str
-    }
-    assert_equal(2, body.size)
-    assert_equal("get", body.join) # Was "tt" by String object recycle...
   end
 
   def test_get_with_block_chunked_string_recycle
@@ -1921,6 +1946,14 @@ EOS
   end
 
 private
+
+  def with_tmp_path
+    path = File.join(Dir.tmpdir, 'http-client-test')
+    File.delete(path) if File.exists?(path)
+    yield path
+  ensure
+    File.delete(path) if File.exists?(path)
+  end
 
   def check_query_get(query)
     WEBrick::HTTPUtils.parse_query(

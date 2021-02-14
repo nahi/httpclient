@@ -29,8 +29,6 @@ end
 
 
 class HTTPClient
-
-
   # Represents a Site: protocol scheme, host String and port Number.
   class Site
     # Protocol scheme.
@@ -574,29 +572,31 @@ class HTTPClient
       end
     end
 
-    def get_body(&block)
-      begin
-        read_header if @state == :META
-        return nil if @state != :DATA
-        if @transparent_gzip_decompression
-          block = content_inflater_block(@content_encoding, block)
-        end
-        if @chunked
-          read_body_chunked(&block)
-        elsif @content_length
-          read_body_length(&block)
-        else
-          read_body_rest(&block)
-        end
-      rescue
-        close
-        raise
-      end
-      if eof?
-        if @next_connection
-          @state = :WAIT
-        else
+    def get_body(to = nil, &block)
+      cast_to_io(to, block) do |io|
+        begin
+          read_header if @state == :META
+          return nil if @state != :DATA
+          if @transparent_gzip_decompression
+            io = content_inflater(@content_encoding, io)
+          end
+          if @chunked
+            read_body_chunked(io)
+          elsif @content_length
+            read_body_length(io)
+          else
+            read_body_rest(io)
+          end
+        rescue
           close
+          raise
+        end
+        if eof?
+          if @next_connection
+            @state = :WAIT
+          else
+            close
+          end
         end
       end
       nil
@@ -697,7 +697,7 @@ class HTTPClient
       end
     end
 
-    def content_inflater_block(content_encoding, block)
+    def content_inflater(content_encoding, io)
       case content_encoding
       when 'gzip', 'x-gzip'
         # zlib itself has a functionality to decompress gzip stream.
@@ -706,15 +706,12 @@ class HTTPClient
         # > windowBits can also be greater than 15 for optional gzip decoding. Add 32 to
         # > windowBits to enable zlib and gzip decoding with automatic header detection,
         # > or add 16 to decode only the gzip format
-        inflate_stream = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
+        IOInflater.new(io, Zlib::Inflate.new(Zlib::MAX_WBITS + 32))
       when 'deflate'
-        inflate_stream = LenientInflater.new
+        IOInflater.new(io, LenientInflater.new)
       else
-        return block
+        io
       end
-      Proc.new { |buf|
-        block.call(inflate_stream.inflate(buf))
-      }
     end
 
     def set_header(req)
@@ -872,35 +869,20 @@ class HTTPClient
       end
     end
 
-    def read_body_length(&block)
-      return nil if @content_length == 0
-      while true
-        buf = empty_bin_str
-        maxbytes = @read_block_size
-        maxbytes = @content_length if maxbytes > @content_length && @content_length > 0
-        ::Timeout.timeout(@receive_timeout, ReceiveTimeoutError) do
-          begin
-            @socket.readpartial(maxbytes, buf)
-          rescue EOFError
-            close
-            buf = nil
-            if @strict_response_size_check
-              raise BadResponseError.new("EOF while reading rest #{@content_length} bytes")
-            end
-          end
-        end
-        if buf && buf.bytesize > 0
-          @content_length -= buf.bytesize
-          yield buf
-        else
-          @content_length = 0
-        end
-        return if @content_length == 0
+    def read_body_length(io)
+      ::Timeout.timeout(@receive_timeout, ReceiveTimeoutError) do
+        @content_length -= IO.copy_stream(@socket, io, @content_length)
+      end
+
+      if @strict_response_size_check && @content_length > 0
+        raise BadResponseError.new("EOF while reading rest #{@content_length} bytes")
+      else
+        @content_length = 0
       end
     end
 
     RS = "\r\n"
-    def read_body_chunked(&block)
+    def read_body_chunked(io)
       buf = empty_bin_str
       while true
        ::Timeout.timeout(@receive_timeout, ReceiveTimeoutError) do
@@ -919,14 +901,14 @@ class HTTPClient
           @socket.read(2)
         end
         unless buf.empty?
-          yield buf
+          io.write(buf)
         end
       end
     end
 
-    def read_body_rest
+    def read_body_rest(io)
       if @readbuf and @readbuf.bytesize > 0
-        yield @readbuf
+        io.write(@readbuf)
         @readbuf = nil
       end
       while true
@@ -942,10 +924,45 @@ class HTTPClient
           end
         end
         if buf && buf.bytesize > 0
-          yield buf
+          io.write(buf)
         else
           return
         end
+      end
+    end
+
+    def cast_to_io(to, block)
+      if to.respond_to?(:write)
+        yield to
+      elsif to
+        File.open(to, 'w+') do |file|
+          yield file
+        end
+      else
+        yield IOBlockAdapter.new(block)
+      end
+    end
+
+    class IOInflater
+      def initialize(io, inflater)
+        @io = io
+        @inflater = inflater
+      end
+
+      def write(chunk)
+        @io.write(@inflater.inflate(chunk))
+        chunk.bytesize
+      end
+    end
+
+    class IOBlockAdapter
+      def initialize(block)
+        @block = block
+      end
+
+      def write(chunk)
+        @block.call(chunk)
+        chunk.bytesize
       end
     end
 
@@ -955,6 +972,4 @@ class HTTPClient
       str
     end
   end
-
-
 end
