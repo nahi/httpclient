@@ -246,13 +246,6 @@ class HTTPClient
       end
     end
 
-    # Loads default trust anchors.
-    # Calling this method resets all existing sessions.
-    def load_trust_ca
-      load_cacerts(@cert_store)
-      change_notify
-    end
-
     # Adds CRL for verification.
     # crl:: a OpenSSL::X509::CRL or a filename of a PEM/DER formatted
     #       OpenSSL::X509::CRL.
@@ -282,7 +275,7 @@ class HTTPClient
 
     # interfaces for SSLSocket.
     def set_context(ctx) # :nodoc:
-      load_trust_ca unless @cacerts_loaded
+      set_default_paths unless @cacerts_loaded
       @cacerts_loaded = true
       # Verification: Use Store#verify_callback instead of SSLContext#verify*?
       ctx.cert_store = @cert_store
@@ -411,12 +404,6 @@ class HTTPClient
     def change_notify
       @client.reset_all
       nil
-    end
-
-    # Use 2048 bit certs trust anchor
-    def load_cacerts(cert_store)
-      file = File.join(File.dirname(__FILE__), 'cacert.pem')
-      add_trust_ca_to_store(cert_store, file)
     end
   end
 
