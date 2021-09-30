@@ -450,6 +450,7 @@ class HTTPClient
     self.proxy = proxy if proxy
     keep_webmock_compat
     instance_eval(&block) if block
+    @session_manager&.ssl_config&.set_default_paths
   end
 
   # webmock 1.6.2 depends on HTTP::Message#body.content to work.
