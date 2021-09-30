@@ -3,6 +3,9 @@
 if ! test -d ./lib/httpclient; then
     echo missing lib/httpclient directory
     exit 1
+elif ! test -d /usr/share/ca-certificates/mozilla; then
+    echo please install ca-certificates -- and execute on Debian
+    exit 1
 fi
 
 NOW=$(date)
