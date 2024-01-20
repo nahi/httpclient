@@ -618,8 +618,8 @@ module HTTP
           if Message.file?(part)
             @as_stream = true
             @body << part
-            if part.respond_to?(:lstat)
-              sz = part.lstat.size
+            if part.respond_to?(:stat)
+              sz = part.stat.size
               add_size(part, sz)
             elsif part.respond_to?(:size)
               if sz = part.size
