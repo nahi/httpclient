@@ -44,7 +44,7 @@ class WebAgent
         # allows; host == rubyforge.org, domain == .rubyforge.org
         return tail_match?(domainname, '.' + hostname)
       else
-        return (hostname == domainname)
+        return (hostname == domainname) || tail_match?(domainname, '.' + hostname)
       end
     end
   end
