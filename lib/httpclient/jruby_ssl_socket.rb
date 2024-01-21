@@ -485,6 +485,9 @@ unless defined?(SSLSocket)
     DEFAULT_SSL_PROTOCOL = (java.lang.System.getProperty('java.specification.version') == '1.7') ? 'TLSv1.2' : 'TLS'
     def initialize(socket, dest, config, opts = {})
       @config = config
+      raise NotImplementedError.new('SSL min_version is not yet supported by jruby') if config.min_version
+      raise NotImplementedError.new('SSL max_version is not yet supported by jruby') if config.max_version
+
       begin
         @ssl_socket = create_ssl_socket(socket, dest, config, opts)
         ssl_version = java_ssl_version(config)
