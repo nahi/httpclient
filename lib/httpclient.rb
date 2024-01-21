@@ -1076,6 +1076,9 @@ private
     else
       self.proxy = getenv('http_proxy')
     end
+    if getenv('SSL_CERT_DIR')
+      self.ssl_config.add_trust_ca(getenv('SSL_CERT_DIR'))
+    end
     # no_proxy
     self.no_proxy = getenv('no_proxy')
   end
