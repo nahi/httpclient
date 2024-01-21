@@ -1894,7 +1894,15 @@ EOS
     }
     uri = "http://[::1]:#{server.addr[1]}/"
     begin
-      assert_equal('12345', @client.get(uri).body)
+      str = ""
+      @client.debug_dev = str
+      res = @client.get(uri)
+      assert_equal('12345', res.body)
+      lines = str.split(/(?:\r?\n)+/)
+      assert_equal("= Request", lines[0])
+      assert_equal("! CONNECTION ESTABLISHED", lines[2])
+      assert_equal("GET / HTTP/1.1", lines[3])
+      assert_equal("Host: [::1]:#{server.addr[1]}", lines[7])
     ensure
       server.close
       server_thread.kill
