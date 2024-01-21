@@ -21,6 +21,7 @@ require 'zlib'
 require 'httpclient/timeout' # TODO: remove this once we drop 1.8 support
 require 'httpclient/ssl_config'
 require 'httpclient/http'
+require 'httpclient/socks'
 if defined? JRUBY_VERSION
   require 'httpclient/jruby_ssl_socket'
 else
@@ -92,6 +93,8 @@ class HTTPClient
 
   # Manages sessions for a HTTPClient instance.
   class SessionManager
+    include Util
+
     # Name of this client.  Used for 'User-Agent' header in HTTP request.
     attr_accessor :agent_name
     # Owner of this client.  Used for 'From' header in HTTP request.
@@ -132,6 +135,8 @@ class HTTPClient
     def initialize(client)
       @client = client
       @proxy = client.proxy
+      @socks_user = nil
+      @socks_password = nil
 
       @agent_name = nil
       @from = nil
@@ -167,6 +172,10 @@ class HTTPClient
         @proxy = nil
       else
         @proxy = Site.new(proxy)
+        if socks?(proxy)
+          @socks_user = proxy.user
+          @socks_password = proxy.password
+        end
       end
     end
 
@@ -218,6 +227,8 @@ class HTTPClient
       site = Site.new(uri)
       sess = Session.new(@client, site, @agent_name, @from)
       sess.proxy = via_proxy ? @proxy : nil
+      sess.socks_user = @socks_user
+      sess.socks_password = @socks_password
       sess.socket_sync = @socket_sync
       sess.tcp_keepalive = @tcp_keepalive
       sess.requested_version = @protocol_version if @protocol_version
@@ -448,6 +459,9 @@ class HTTPClient
     # Device for dumping log for debugging
     attr_accessor :debug_dev
 
+    attr_accessor :socks_user
+    attr_accessor :socks_password
+
     attr_accessor :connect_timeout
     attr_accessor :connect_retry
     attr_accessor :send_timeout
@@ -469,6 +483,8 @@ class HTTPClient
       @client = client
       @dest = dest
       @proxy = nil
+      @socks_user = nil
+      @socks_password = nil
       @socket_sync = true
       @tcp_keepalive = false
       @requested_version = nil
@@ -627,6 +643,32 @@ class HTTPClient
       socket
     end
 
+    def via_socks_proxy?
+      @proxy && socks?(@proxy)
+    end
+
+    def via_http_proxy?
+      @proxy && !socks?(@proxy)
+    end
+
+    def create_socks_socket(proxy, dest)
+      if socks4?(proxy)
+        options = {}
+        options = { user: @socks_user } if @socks_user
+        socks_socket = SOCKS4Socket.new(proxy.host, proxy.port, options)
+      elsif socks5?(proxy)
+        options = {}
+        options = { user: @socks_user } if @socks_user
+        options[:password] = @socks_password if @socks_password
+        socks_socket = SOCKS5Socket.new(proxy.host, proxy.port, options)
+      else
+        raise "invalid proxy url #{proxy}"
+      end
+      dest_site = Site.new(dest)
+      opened_socket = socks_socket.open(dest_site.host, dest_site.port, {})
+      opened_socket
+    end
+
     def create_loopback_socket(host, port, str)
       @debug_dev << "! CONNECT TO #{host}:#{port}\n" if @debug_dev
       socket = LoopBackSocket.new(host, port, str)
@@ -751,6 +793,8 @@ class HTTPClient
           elsif https?(@dest)
             @socket = SSLSocket.create_socket(self)
             @ssl_peer_cert = @socket.peer_cert
+          elsif socks?(@proxy)
+            @socket = create_socks_socket(@proxy, @dest)
           else
             @socket = create_socket(site.host, site.port)
           end
