@@ -378,6 +378,9 @@ class HTTPClient
   # Default User-Agent header
   DEFAULT_AGENT_NAME = 'HTTPClient/1.0'
 
+  # Authorization Header
+  AUTH_HEADER = 'Authorization'
+
   # Creates a HTTPClient instance which manages sessions, cookies, etc.
   #
   # HTTPClient.new takes optional arguments as a Hash.
@@ -1112,16 +1115,29 @@ private
           raise BadResponseError.new("Missing Location header for redirect", res)
         end
         method = :get if res.see_other? # See RFC2616 10.3.4
+        orig_uri = uri
         uri = urify(@redirect_uri_callback.call(uri, res))
         # To avoid duped query parameter. 'location' must include query part.
         request_query = nil
         previous = res
         retry_number += 1
+        header = clear_auth_header(header, orig_uri, uri)
       else
         return res
       end
     end
     raise BadResponseError.new("retry count exceeded", res)
+  end
+
+  def clear_auth_header(header, from_uri, to_uri)
+    return header if same_host?(from_uri, to_uri)
+    header.delete_if {|h| h[0] == AUTH_HEADER}
+  end
+
+  def same_host?(from_uri, to_uri)
+    return true if to_uri.path.start_with?("/")
+
+    [from_uri.scheme, from_uri.host, from_uri.port] == [to_uri.scheme, to_uri.host, to_uri.port]
   end
 
   def success_content(res)
