@@ -71,7 +71,7 @@ class HTTPClient
     end
 
     def find(uri)
-      warning('CookieManager#find is deprecated and will be removed in near future. Use HTTP::Cookie.cookie_value(CookieManager#cookies) instead')
+      warning('CookieManager#find is deprecated and will be removed in near future. Use HTTP::Cookie.cookie_value(CookieManager#cookies) instead') if log_http_cookie_warnings?
       if cookie = cookies(uri)
         HTTP::Cookie.cookie_value(cookie)
       end
@@ -197,7 +197,7 @@ class WebAgent
     alias original_domain domain
 
     def domain
-      warning('Cookie#domain returns dot-less domain name now. Use Cookie#dot_domain if you need "." at the beginning.')
+      warning('Cookie#domain returns dot-less domain name now. Use Cookie#dot_domain if you need "." at the beginning.') if log_http_cookie_warnings?
       self.original_domain
     end
 
@@ -209,11 +209,14 @@ class WebAgent
   private
 
     def deprecated(old, new)
-      warning("WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie##{new} instead of Cookie##{old} for the replacement.")
+      warning("WebAgent::Cookie is deprecated and will be replaced with HTTP::Cookie in the near future. Please use Cookie##{new} instead of Cookie##{old} for the replacement.") if log_http_cookie_warnings?
     end
   end
 end
 
+def log_http_cookie_warnings?
+  ENV['HTTPCLIENT_LOG_HTTP_COOKIE_WARNING'] != "disabled"
+end
 rescue LoadError
   require 'httpclient/webagent-cookie'
 end
