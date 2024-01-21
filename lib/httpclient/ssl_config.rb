@@ -106,6 +106,10 @@ class HTTPClient
     # OpenSSL::PKey::PKey:: private key pass phrase for client_key.
     # nil by default. (no pass phrase)
     attr_config :client_key_pass
+    # Array:: Extra certificates of OpenSSL::X509::Certificate to be presented
+    # along with the client certificate to the server.
+    # nil by default (no extra certificates)
+    attr_config :client_extra_certs
 
     # A number which represents OpenSSL's verify mode.  Default value is
     # OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT.
@@ -151,7 +155,7 @@ class HTTPClient
       @client = client
       @cert_store = X509::Store.new
       @cert_store_crl_items = []
-      @client_cert = @client_key = @client_key_pass = @client_ca = nil
+      @client_cert = @client_key = @client_key_pass = @client_ca = @client_extra_certs = nil
       @verify_mode = SSL::VERIFY_PEER | SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       @verify_depth = nil
       @verify_callback = nil
@@ -303,6 +307,13 @@ class HTTPClient
       if @client_key
         ctx.key = @client_key.is_a?(PKey::PKey) ? @client_key :
           PKey::RSA.new(File.open(@client_key) { |f| f.read }, @client_key_pass)
+      end
+      if @client_extra_certs
+        ctx.extra_chain_cert = Array(client_extra_certs).
+          map do |cert|
+            cert.is_a?(X509::Certificate) ? cert :
+              X509::Certificate.new(File.open(cert)) { |f| f.read }
+        end
       end
       ctx.client_ca = @client_ca
       ctx.timeout = @timeout
