@@ -11,7 +11,7 @@ module HexDump
     result = []
     while raw = str.slice(offset, 16) and raw.length > 0
       # data field
-      data = ''
+      data = ''.dup
       for v in raw.unpack('N* a*')
 	if v.kind_of? Integer
 	  data << sprintf("%08x ", v)

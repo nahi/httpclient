@@ -34,7 +34,7 @@ class TestClient < Test::Unit::TestCase
 
   def test_agent_name
     @client = HTTPAccess2::Client.new(nil, "agent_name_foo")
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -44,7 +44,7 @@ class TestClient < Test::Unit::TestCase
 
   def test_from
     @client = HTTPAccess2::Client.new(nil, nil, "from_bar")
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -53,7 +53,7 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_debug_dev
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     assert(str.empty?)
     @client.get(serverurl)
@@ -62,7 +62,7 @@ class TestClient < Test::Unit::TestCase
 
   def _test_protocol_version_http09
     @client.protocol_version = 'HTTP/0.9'
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl + 'hello')
     lines = str.split(/(?:\r?\n)+/)
@@ -76,7 +76,7 @@ class TestClient < Test::Unit::TestCase
 
   def test_protocol_version_http10
     @client.protocol_version = 'HTTP/1.0'
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl + 'hello')
     lines = str.split(/(?:\r?\n)+/)
@@ -88,7 +88,7 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_protocol_version_http11
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -97,7 +97,7 @@ class TestClient < Test::Unit::TestCase
     assert_equal("GET / HTTP/1.1", lines[3])
     assert_equal("Host: localhost:#{serverport}", lines[7])
     @client.protocol_version = 'HTTP/1.1'
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -105,7 +105,7 @@ class TestClient < Test::Unit::TestCase
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
     @client.protocol_version = 'HTTP/1.0'
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -314,14 +314,14 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_extra_headers
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.head(serverurl, nil, {"ABC" => "DEF"})
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_match("ABC: DEF", lines[4])
     #
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl, nil, [["ABC", "DEF"], ["ABC", "DEF"]])
     lines = str.split(/(?:\r?\n)+/)

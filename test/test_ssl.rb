@@ -32,7 +32,7 @@ class TestSSL < Test::Unit::TestCase
       @client.ssl_config.set_client_cert_file(path('client.cert'), path('client.key'))
       @client.ssl_config.add_trust_ca(path('ca.cert'))
       @client.ssl_config.add_trust_ca(path('subca.cert'))
-      @client.debug_dev = str = ""
+      @client.debug_dev = str = "".dup
       assert_equal(200, @client.get(@url).status)
       assert(/accept/ =~ @proxyio.string, 'proxy is not used')
       assert(/Host: localhost:#{serverport}/ =~ str)
@@ -71,7 +71,7 @@ unless defined?(HTTPClient::JRubySSLSocket)
 end
 
   def test_debug_dev
-    str = @client.debug_dev = ''
+    str = @client.debug_dev = ''.dup
     cfg = @client.ssl_config
     cfg.client_cert = path("client.cert")
     cfg.client_key = path("client.key")

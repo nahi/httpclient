@@ -64,7 +64,7 @@ class HTTPClient
         # Overwrites the original definition just for one line...
         def authority
           self.host && @authority ||= (begin
-            authority = ""
+            authority = "".dup
             if self.userinfo != nil
               authority << "#{self.userinfo}@"
             end
