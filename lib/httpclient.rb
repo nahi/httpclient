@@ -1240,7 +1240,7 @@ private
       conn.push(res)
       return res
     end
-    content = block ? nil : ''
+    content = block ? nil : ''.dup
     res = HTTP::Message.new_response(content, req.header)
     @debug_dev << "= Request\n\n" if @debug_dev
     sess = @session_manager.query(req, proxy)

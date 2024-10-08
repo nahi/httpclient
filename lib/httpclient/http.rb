@@ -574,7 +574,7 @@ module HTTP
       end
 
       def dump_file(io, dev, sz)
-        buf = ''
+        buf = ''.dup
         rest = sz
         while rest > 0
           n = io.read([rest, @chunk_size].min, buf)
