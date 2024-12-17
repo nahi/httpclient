@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # HTTPClient - HTTP client library.
 # Copyright (C) 2000-2015  NAKAMURA, Hiroshi  <nahi@ruby-lang.org>.
 #
@@ -949,7 +951,7 @@ class HTTPClient
   def request_async2(method, uri, *args)
     query, body, header = keyword_argument(args, :query, :body, :header)
     if [:post, :put].include?(method)
-      body ||= ''
+      body ||= ''.dump
     end
     if method == :propfind
       header ||= PROPFIND_DEFAULT_EXTHEADER

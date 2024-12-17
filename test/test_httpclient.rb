@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+# frozen_string_literal: true
 require File.expand_path('helper', File.dirname(__FILE__))
 require 'tempfile'
 
@@ -20,7 +21,7 @@ class TestHTTPClient < Test::Unit::TestCase
   def test_initialize
     setup_proxyserver
     escape_noproxy do
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client = HTTPClient.new(proxyurl)
       assert_equal(urify(proxyurl), @client.proxy)
       assert_equal(200, @client.head(serverurl).status)
@@ -30,7 +31,7 @@ class TestHTTPClient < Test::Unit::TestCase
 
   def test_agent_name
     @client = HTTPClient.new(nil, "agent_name_foo")
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -40,7 +41,7 @@ class TestHTTPClient < Test::Unit::TestCase
 
   def test_from
     @client = HTTPClient.new(nil, nil, "from_bar")
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -49,7 +50,7 @@ class TestHTTPClient < Test::Unit::TestCase
   end
 
   def test_debug_dev
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     assert_equal(str.object_id, @client.debug_dev.object_id)
     assert(str.empty?)
@@ -58,7 +59,7 @@ class TestHTTPClient < Test::Unit::TestCase
   end
 
   def test_debug_dev_stream
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     conn = @client.get_async(serverurl)
     Thread.pass while !conn.finished?
@@ -67,7 +68,7 @@ class TestHTTPClient < Test::Unit::TestCase
 
   def test_protocol_version_http09
     @client.protocol_version = 'HTTP/0.9'
-    @client.debug_dev = str = ''
+    @client.debug_dev = str = ''.dup
     @client.test_loopback_http_response << "hello\nworld\n"
     res = @client.get(serverurl + 'hello')
     assert_equal('0.9', res.http_version)
@@ -88,7 +89,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal(nil, @client.protocol_version)
     @client.protocol_version = 'HTTP/1.0'
     assert_equal('HTTP/1.0', @client.protocol_version)
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl + 'hello')
     lines = str.split(/(?:\r?\n)+/)
@@ -100,7 +101,7 @@ class TestHTTPClient < Test::Unit::TestCase
   end
 
   def test_header_accept_by_default
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -108,7 +109,7 @@ class TestHTTPClient < Test::Unit::TestCase
   end
 
   def test_header_accept
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl, :header => {:Accept => 'text/html'})
     lines = str.split(/(?:\r?\n)+/)
@@ -116,7 +117,7 @@ class TestHTTPClient < Test::Unit::TestCase
   end
 
   def test_header_symbol
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.post(serverurl + 'servlet', :header => {:'Content-Type' => 'application/json'}, :body => 'hello')
     lines = str.split(/(?:\r?\n)+/).grep(/^Content-Type/)
@@ -124,7 +125,7 @@ class TestHTTPClient < Test::Unit::TestCase
   end
 
   def test_host_given
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -134,7 +135,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("Host: localhost:#{serverport}", lines[7])
     #
     @client.reset_all
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl, nil, {'Host' => 'foo'})
     lines = str.split(/(?:\r?\n)+/)
@@ -166,7 +167,7 @@ class TestHTTPClient < Test::Unit::TestCase
 
   def test_protocol_version_http11
     assert_equal(nil, @client.protocol_version)
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -176,7 +177,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("Host: localhost:#{serverport}", lines[7])
     @client.protocol_version = 'HTTP/1.1'
     assert_equal('HTTP/1.1', @client.protocol_version)
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -184,7 +185,7 @@ class TestHTTPClient < Test::Unit::TestCase
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
     @client.protocol_version = 'HTTP/1.0'
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -201,7 +202,7 @@ class TestHTTPClient < Test::Unit::TestCase
       rescue => e
         assert_match(/InvalidURIError/, e.class.to_s)
       end
-      @client.proxy = ""
+      @client.proxy = "".dup
       assert_nil(@client.proxy)
       @client.proxy = "http://admin:admin@foo:1234"
       assert_equal(urify("http://admin:admin@foo:1234"), @client.proxy)
@@ -209,14 +210,14 @@ class TestHTTPClient < Test::Unit::TestCase
       @client.proxy = uri
       assert_equal(uri, @client.proxy)
       #
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = nil
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
-      @client.debug_dev = str = ""
+      @client.debug_dev = str = "".dup
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ =~ @proxyio.string)
       assert(/Host: localhost:#{serverport}/ =~ str)
@@ -225,13 +226,13 @@ class TestHTTPClient < Test::Unit::TestCase
 
   def test_host_header
     @client.proxy = proxyurl
-    @client.debug_dev = str = ""
+    @client.debug_dev = str = "".dup
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
     assert_equal(200, @client.head('http://www.example.com/foo').status)
     # ensure no ':80' is added.  some servers dislike that.
     assert(/\r\nHost: www\.example\.com\r\n/ =~ str)
     #
-    @client.debug_dev = str = ""
+    @client.debug_dev = str = "".dup
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
     assert_equal(200, @client.head('http://www.example.com:12345/foo').status)
     # ensure ':12345' exists.
@@ -266,14 +267,14 @@ class TestHTTPClient < Test::Unit::TestCase
   def test_empty_proxy_env
     setup_proxyserver
     escape_env do
-      ENV['http_proxy'] = ""
+      ENV['http_proxy'] = "".dup
       client = HTTPClient.new
       assert_equal(nil, client.proxy)
     end
   end
 
   def test_noproxy_for_localhost
-    @proxyio.string = ""
+    @proxyio.string = "".dup
     @client.proxy = proxyurl
     assert_equal(200, @client.head(serverurl).status)
     assert(/accept/ !~ @proxyio.string)
@@ -286,36 +287,36 @@ class TestHTTPClient < Test::Unit::TestCase
       assert_equal(nil, @client.no_proxy)
       @client.no_proxy = 'localhost'
       assert_equal('localhost', @client.no_proxy)
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = nil
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar'
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ =~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:baz'
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:443'
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ =~ @proxyio.string)
       #
       @client.no_proxy = "foobar,localhost:443:localhost:#{serverport},baz"
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
@@ -323,28 +324,28 @@ class TestHTTPClient < Test::Unit::TestCase
   end
 
   def test_no_proxy_with_initial_dot
-    @client.debug_dev = str = ""
+    @client.debug_dev = str = "".dup
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
     @client.no_proxy = ''
     @client.proxy = proxyurl
     @client.head('http://www.foo.com')
     assert(/CONNECT TO localhost/ =~ str, 'via proxy')
     #
-    @client.debug_dev = str = ""
+    @client.debug_dev = str = "".dup
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
     @client.no_proxy = '.foo.com'
     @client.proxy = proxyurl
     @client.head('http://www.foo.com')
     assert(/CONNECT TO www.foo.com/ =~ str, 'no proxy because .foo.com matches with www.foo.com')
     #
-    @client.debug_dev = str = ""
+    @client.debug_dev = str = "".dup
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
     @client.no_proxy = '.foo.com'
     @client.proxy = proxyurl
     @client.head('http://foo.com')
     assert(/CONNECT TO localhost/ =~ str, 'via proxy because .foo.com does not matche with foo.com')
     #
-    @client.debug_dev = str = ""
+    @client.debug_dev = str = "".dup
     @client.test_loopback_http_response << "HTTP/1.0 200 OK\r\n\r\n"
     @client.no_proxy = 'foo.com'
     @client.proxy = proxyurl
@@ -370,7 +371,7 @@ Connection: close\r
 \r
 hello
 EOS
-      @client.debug_dev = str = ''
+      @client.debug_dev = str = ''.dup
       @client.set_auth("http://www.example.org/baz/", 'admin', 'admin')
       assert_equal('hello', @client.get('http://www.example.org/baz/foo').content)
       assert_match(/^Cookie: foo=bar/, str)
@@ -411,7 +412,7 @@ EOS
     assert_equal('message body 1', @client.get_content('http://somewhere'))
     assert_equal('message body 2', @client.get_content('http://somewhere'))
     #
-    @client.debug_dev = str = ''
+    @client.debug_dev = str = ''.dup
     @client.test_loopback_response << 'message body 3'
     assert_equal('message body 3', @client.get_content('http://somewhere'))
     assert_match(/message body 3/, str)
@@ -597,9 +598,9 @@ EOS
     assert(called)
   end
 
-  GZIP_CONTENT = "\x1f\x8b\x08\x00\x1a\x96\xe0\x4c\x00\x03\xcb\x48\xcd\xc9\xc9\x07\x00\x86\xa6\x10\x36\x05\x00\x00\x00"
-  DEFLATE_CONTENT = "\x78\x9c\xcb\x48\xcd\xc9\xc9\x07\x00\x06\x2c\x02\x15"
-  DEFLATE_NOHEADER_CONTENT = "x\x9C\xCBH\xCD\xC9\xC9\a\x00\x06,\x02\x15"
+  GZIP_CONTENT = "\x1f\x8b\x08\x00\x1a\x96\xe0\x4c\x00\x03\xcb\x48\xcd\xc9\xc9\x07\x00\x86\xa6\x10\x36\x05\x00\x00\x00".dup
+  DEFLATE_CONTENT = "\x78\x9c\xcb\x48\xcd\xc9\xc9\x07\x00\x06\x2c\x02\x15".dup
+  DEFLATE_NOHEADER_CONTENT = "x\x9C\xCBH\xCD\xC9\xC9\a\x00\x06,\x02\x15".dup
   [GZIP_CONTENT, DEFLATE_CONTENT, DEFLATE_NOHEADER_CONTENT].each do |content|
     content.force_encoding('BINARY') if content.respond_to?(:force_encoding)
   end
@@ -867,7 +868,7 @@ EOS
   end
 
   def test_post_empty
-    @client.debug_dev = str = ''
+    @client.debug_dev = str = ''.dup
     # nil body means 'no content' that is allowed but WEBrick cannot handle it.
     @client.post(serverurl + 'servlet', :body => nil)
     # request does not have 'Content-Type'
@@ -1092,7 +1093,7 @@ EOS
   def test_patch
     assert_equal("patch", @client.patch(serverurl + 'servlet', '').content)
     param = {'1'=>'2', '3'=>'4'}
-    @client.debug_dev = str = ''
+    @client.debug_dev = str = ''.dup
     res = @client.patch(serverurl + 'servlet', param)
     assert_equal(param, params(res.header["x-query"][0]))
     assert_equal('Content-Type: application/x-www-form-urlencoded', str.split(/\r?\n/)[5])
@@ -1122,7 +1123,7 @@ EOS
   def test_put
     assert_equal("put", @client.put(serverurl + 'servlet', '').content)
     param = {'1'=>'2', '3'=>'4'}
-    @client.debug_dev = str = ''
+    @client.debug_dev = str = ''.dup
     res = @client.put(serverurl + 'servlet', param)
     assert_equal(param, params(res.header["x-query"][0]))
     assert_equal('Content-Type: application/x-www-form-urlencoded', str.split(/\r?\n/)[5])
@@ -1169,7 +1170,7 @@ EOS
   # Not prohibited by spec, but normally it's ignored
   def test_delete_with_body
     param = {'1'=>'2', '3'=>'4'}
-    @client.debug_dev = str = ''
+    @client.debug_dev = str = ''.dup
     assert_equal("delete", @client.delete(serverurl + 'servlet', param).content)
     assert_equal({'1' => ['2'], '3' => ['4']}, HTTP::Message.parse(str.split(/\r?\n\r?\n/)[2]))
   end
@@ -1309,14 +1310,14 @@ EOS
   end
 
   def test_extra_headers
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.head(serverurl, nil, {"ABC" => "DEF"})
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_match("ABC: DEF", lines[4])
     #
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl, nil, [["ABC", "DEF"], ["ABC", "DEF"]])
     lines = str.split(/(?:\r?\n)+/)
@@ -1326,7 +1327,7 @@ EOS
   end
 
   def test_http_custom_date_header
-    @client.debug_dev = (str = "")
+    @client.debug_dev = (str = "".dup)
     _res = @client.get(serverurl + 'hello', :header => {'Date' => 'foo'})
     lines = str.split(/(?:\r?\n)+/)
     assert_equal('Date: foo', lines[4])
@@ -1416,9 +1417,9 @@ EOS
   end
 
   def test_eof_error_length
-    io = StringIO.new('')
+    io = StringIO.new(''.dup)
     def io.gets(*arg)
-      @buf ||= ["HTTP/1.0 200 OK\n", "content-length: 123\n", "\n"]
+      @buf ||= ["HTTP/1.0 200 OK\n".dup, "content-length: 123\n".dup, "\n".dup]
       @buf.shift
     end
     def io.readpartial(size, buf)
@@ -1444,9 +1445,9 @@ EOS
   end
 
   def test_eof_error_rest
-    io = StringIO.new('')
+    io = StringIO.new(''.dup)
     def io.gets(*arg)
-      @buf ||= ["HTTP/1.0 200 OK\n", "\n"]
+      @buf ||= ["HTTP/1.0 200 OK\n".dup, "\n".dup]
       @buf.shift
     end
     def io.readpartial(size, buf)
@@ -1870,7 +1871,7 @@ EOS
 
   if RUBY_VERSION >= "1.9.3"
     def test_continue
-      @client.debug_dev = str = ''
+      @client.debug_dev = str = ''.dup
       res = @client.get(serverurl + 'continue', :header => {:Expect => '100-continue'})
       assert_equal(200, res.status)
       assert_equal('done!', res.body)

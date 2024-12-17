@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require File.expand_path('helper', File.dirname(__FILE__))
 require 'digest/md5'
 require 'rack'
@@ -176,7 +177,7 @@ class TestAuth < Test::Unit::TestCase
       c.www_auth.basic_auth.instance_eval { @scheme = "BASIC" }
       #
       c.force_basic_auth = true
-      c.debug_dev = str = ''
+      c.debug_dev = str = ''.dup
       c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
       assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth"))
       assert_equal('Authorization: Basic YWRtaW46YWRtaW4='.upcase, str.split(/\r?\n/)[5].upcase)
@@ -249,7 +250,7 @@ class TestAuth < Test::Unit::TestCase
     c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
     assert_equal('basic_auth OK', c.get_content("http://localhost:#{serverport}/basic_auth/"))
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content("http://localhost:#{serverport}/basic_auth/sub/dir/")
     assert_match(/Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
@@ -265,7 +266,7 @@ class TestAuth < Test::Unit::TestCase
     c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
     assert_equal('digest_auth OK', c.get_content("http://localhost:#{serverport}/digest_auth/"))
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content("http://localhost:#{serverport}/digest_auth/sub/dir/")
     assert_match(/Authorization: Digest/, str)
   end
@@ -311,7 +312,7 @@ class TestAuth < Test::Unit::TestCase
     c.set_auth('http://example.com/', 'admin', 'admin')
     c.test_loopback_http_response << "HTTP/1.0 401 Unauthorized\nWWW-Authenticate: Basic realm=\"foo\"\nWWW-Authenticate: Digest realm=\"foo\", nonce=\"nonce\", stale=false\nContent-Length: 2\n\nNG"
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content('http://example.com/')
     assert_match(/^Authorization: Digest/, str)
   end
@@ -327,7 +328,7 @@ class TestAuth < Test::Unit::TestCase
     c.set_proxy_auth('admin', 'admin')
     c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Basic realm=\"foo\"\nContent-Length: 2\n\nNG"
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content('http://example.com/')
     assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
@@ -337,7 +338,7 @@ class TestAuth < Test::Unit::TestCase
     c.set_proxy_auth('admin', 'admin')
     c.force_basic_auth = true
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content('http://example.com/')
     assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
@@ -349,7 +350,7 @@ class TestAuth < Test::Unit::TestCase
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
     c.get_content('http://www1.example.com/')
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content('http://www2.example.com/')
     assert_match(/Proxy-Authorization: Basic YWRtaW46YWRtaW4=/, str)
   end
@@ -363,7 +364,7 @@ class TestAuth < Test::Unit::TestCase
     ha1 = md5.hexdigest("admin:foo:admin")
     ha2 = md5.hexdigest("GET:/")
     response = md5.hexdigest("#{ha1}:nonce:#{ha2}")
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content('http://example.com/')
     assert_match(/Proxy-Authorization: Digest/, str)
     assert_match(%r"response=\"#{response}\"", str)
@@ -394,7 +395,7 @@ class TestAuth < Test::Unit::TestCase
     ha1 = md5.hexdigest("admin:foo:admin")
     ha2 = md5.hexdigest("GET:/")
     response = md5.hexdigest("#{ha1}:nonce:#{ha2}")
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content('http://example.com/')
     assert_match(/Proxy-Authorization: Digest/, str)
     assert_match(%r"response=\"#{response}\"", str)
@@ -411,7 +412,7 @@ class TestAuth < Test::Unit::TestCase
     ha2 = md5.hexdigest("GET:/")
     response = md5.hexdigest("#{ha1}:nonce:#{ha2}")
     c.get_content('http://www1.example.com/')
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content('http://www2.example.com/')
     assert_match(/Proxy-Authorization: Digest/, str)
     assert_match(%r"response=\"#{response}\"", str)
@@ -433,19 +434,19 @@ class TestAuth < Test::Unit::TestCase
     c.www_auth.oauth.set_config('http://photos.example.net/', config)
     c.www_auth.oauth.challenge('http://photos.example.net/')
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content('http://photos.example.net/photos', [[:file, 'vacation.jpg'], [:size, 'original']])
     assert(str.index(%q(GET /photos?file=vacation.jpg&size=original)))
     assert(str.index(%q(Authorization: OAuth realm="http://photos.example.net/", oauth_consumer_key="dpf43f3p2l4k3l03", oauth_nonce="kllo9940pd9333jh", oauth_signature="tR3%2BTy81lMeYAr%2FFid0kMTYa%2FWM%3D", oauth_signature_method="HMAC-SHA1", oauth_timestamp="1191242096", oauth_token="nnch734d00sl2jdk", oauth_version="1.0")))
     #
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get_content('http://photos.example.net/photos?file=vacation.jpg&size=original')
     assert(str.index(%q(GET /photos?file=vacation.jpg&size=original)))
     assert(str.index(%q(Authorization: OAuth realm="http://photos.example.net/", oauth_consumer_key="dpf43f3p2l4k3l03", oauth_nonce="kllo9940pd9333jh", oauth_signature="tR3%2BTy81lMeYAr%2FFid0kMTYa%2FWM%3D", oauth_signature_method="HMAC-SHA1", oauth_timestamp="1191242096", oauth_token="nnch734d00sl2jdk", oauth_version="1.0")))
     #
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.post_content('http://photos.example.net/photos', [[:file, 'vacation.jpg'], [:size, 'original']])
     assert(str.index(%q(POST /photos)))
     assert(str.index(%q(Authorization: OAuth realm="http://photos.example.net/", oauth_consumer_key="dpf43f3p2l4k3l03", oauth_nonce="kllo9940pd9333jh", oauth_signature="wPkvxykrw%2BBTdCcGqKr%2B3I%2BPsiM%3D", oauth_signature_method="HMAC-SHA1", oauth_timestamp="1191242096", oauth_token="nnch734d00sl2jdk", oauth_version="1.0")))
@@ -475,7 +476,7 @@ class TestAuth < Test::Unit::TestCase
     c.test_loopback_http_response << %Q(HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: NTLM TlRMTVNTUAACAAAAAAAAACgAAAABAAAAAAAAAAAAAAA=\r\nConnection: Keep-Alive\r\nContent-Length: 0\r\n\r\n)
     c.test_loopback_http_response << %Q(HTTP/1.0 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 1\r\n\r\na)
     c.test_loopback_http_response << %Q(HTTP/1.0 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 1\r\n\r\nb)
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.set_auth('http://www.example.org/', 'admin', 'admin')
     # Do NTLM negotiation
     c.get('http://www.example.org/foo')
@@ -484,7 +485,7 @@ class TestAuth < Test::Unit::TestCase
     assert_match(%r(Authorization: NTLM), str)
     assert_not_match(%r(Authorization: Basic), str)
     # ditto for other resource that is protected with NTLM
-    c.debug_dev = str = ''
+    c.debug_dev = str = ''.dup
     c.get('http://www.example.org/foo/subdir')
     assert_not_match(%r(Authorization: NTLM), str)
     assert_not_match(%r(Authorization: Basic), str)

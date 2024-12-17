@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'webrick/https'
 require 'logger'
 require 'rbconfig'

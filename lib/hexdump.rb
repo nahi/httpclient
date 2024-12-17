@@ -1,4 +1,5 @@
 # encoding: binary
+# frozen_string_literal: true
 
 # This was written by Arai-san and published at
 # http://blade.nagaokaut.ac.jp/cgi-bin/scat.rb/ruby/ruby-list/31987
@@ -11,7 +12,7 @@ module HexDump
     result = []
     while raw = str.slice(offset, 16) and raw.length > 0
       # data field
-      data = ''
+      data = ''.dup
       for v in raw.unpack('N* a*')
 	if v.kind_of? Integer
 	  data << sprintf("%08x ", v)

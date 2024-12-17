@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require File.expand_path('helper', File.join(File.dirname(__FILE__),  ".."))
 
 

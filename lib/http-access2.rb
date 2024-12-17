@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # HTTPAccess2 - HTTP accessing library.
 # Copyright (C) 2000-2007  NAKAMURA, Hiroshi  <nakahiro@sarion.co.jp>.
 

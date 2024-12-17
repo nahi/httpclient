@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # cookie.rb is redistributed file which is originally included in Webagent
 # version 0.6.2 by TAKAHASHI `Maki' Masayoshi.  And it contains some bug fixes.
 # You can download the entire package of Webagent from

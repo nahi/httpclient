@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+# frozen_string_literal: true
 require 'http-access2'
 require File.expand_path('helper', File.dirname(__FILE__))
 require 'tempfile'
@@ -24,7 +25,7 @@ class TestClient < Test::Unit::TestCase
   def test_initialize
     setup_proxyserver
     escape_noproxy do
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client = HTTPAccess2::Client.new(proxyurl)
       assert_equal(urify(proxyurl), @client.proxy)
       assert_equal(200, @client.head(serverurl).status)
@@ -34,7 +35,7 @@ class TestClient < Test::Unit::TestCase
 
   def test_agent_name
     @client = HTTPAccess2::Client.new(nil, "agent_name_foo")
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -44,7 +45,7 @@ class TestClient < Test::Unit::TestCase
 
   def test_from
     @client = HTTPAccess2::Client.new(nil, nil, "from_bar")
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -53,7 +54,7 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_debug_dev
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     assert(str.empty?)
     @client.get(serverurl)
@@ -62,7 +63,7 @@ class TestClient < Test::Unit::TestCase
 
   def _test_protocol_version_http09
     @client.protocol_version = 'HTTP/0.9'
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl + 'hello')
     lines = str.split(/(?:\r?\n)+/)
@@ -76,7 +77,7 @@ class TestClient < Test::Unit::TestCase
 
   def test_protocol_version_http10
     @client.protocol_version = 'HTTP/1.0'
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl + 'hello')
     lines = str.split(/(?:\r?\n)+/)
@@ -88,7 +89,7 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_protocol_version_http11
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -97,7 +98,7 @@ class TestClient < Test::Unit::TestCase
     assert_equal("GET / HTTP/1.1", lines[3])
     assert_equal("Host: localhost:#{serverport}", lines[7])
     @client.protocol_version = 'HTTP/1.1'
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -105,7 +106,7 @@ class TestClient < Test::Unit::TestCase
     assert_equal("! CONNECTION ESTABLISHED", lines[2])
     assert_equal("GET / HTTP/1.1", lines[3])
     @client.protocol_version = 'HTTP/1.0'
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl)
     lines = str.split(/(?:\r?\n)+/)
@@ -122,7 +123,7 @@ class TestClient < Test::Unit::TestCase
       rescue => e
         assert_match(/InvalidURIError/, e.class.to_s)
       end
-      @client.proxy = ""
+      @client.proxy = "".dup
       assert_nil(@client.proxy)
       @client.proxy = "http://foo:1234"
       assert_equal(urify("http://foo:1234"), @client.proxy)
@@ -130,12 +131,12 @@ class TestClient < Test::Unit::TestCase
       @client.proxy = uri
       assert_equal(uri, @client.proxy)
       #
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = nil
       assert_equal(200, @client.head(serverurl).status)
       assert(@proxyio.string.empty?)
       #
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(!@proxyio.string.empty?)
@@ -143,7 +144,7 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_noproxy_for_localhost
-    @proxyio.string = ""
+    @proxyio.string = "".dup
     @client.proxy = proxyurl
     assert_equal(200, @client.head(serverurl).status)
     assert(@proxyio.string.empty?)
@@ -154,36 +155,36 @@ class TestClient < Test::Unit::TestCase
     escape_noproxy do
       # proxy is not set.
       @client.no_proxy = 'localhost'
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = nil
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar'
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ =~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:baz'
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
       #
       @client.no_proxy = 'foobar,localhost:443'
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ =~ @proxyio.string)
       #
       @client.no_proxy = "foobar,localhost:443:localhost:#{serverport},baz"
-      @proxyio.string = ""
+      @proxyio.string = "".dup
       @client.proxy = proxyurl
       assert_equal(200, @client.head(serverurl).status)
       assert(/accept/ !~ @proxyio.string)
@@ -314,14 +315,14 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_extra_headers
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.head(serverurl, nil, {"ABC" => "DEF"})
     lines = str.split(/(?:\r?\n)+/)
     assert_equal("= Request", lines[0])
     assert_match("ABC: DEF", lines[4])
     #
-    str = ""
+    str = "".dup
     @client.debug_dev = str
     @client.get(serverurl, nil, [["ABC", "DEF"], ["ABC", "DEF"]])
     lines = str.split(/(?:\r?\n)+/)
