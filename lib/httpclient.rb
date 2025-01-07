@@ -951,7 +951,7 @@ class HTTPClient
   def request_async2(method, uri, *args)
     query, body, header = keyword_argument(args, :query, :body, :header)
     if [:post, :put].include?(method)
-      body ||= ''.dump
+      body ||= ''.dup
     end
     if method == :propfind
       header ||= PROPFIND_DEFAULT_EXTHEADER
