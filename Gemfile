@@ -15,6 +15,7 @@ group :development do
   gem 'rubysspi'
   gem 'rubyntlm'
   gem 'rack-ntlm-test-service'
+  gem 'logger'
 end
 
 gemspec
