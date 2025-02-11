@@ -5,7 +5,6 @@ group :development do
   gem 'http-cookie', '~> 1.0'
 end
 
-
 group :development do
   gem 'rake', :require => false
   gem 'rdoc'
@@ -14,6 +13,7 @@ group :development do
   gem 'rack', '~> 2.2'
   gem 'rubysspi'
   gem 'rubyntlm'
+  gem 'base64'
   gem 'rack-ntlm-test-service'
   gem 'logger'
 end
