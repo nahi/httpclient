@@ -16,6 +16,7 @@ group :development do
   gem 'base64'
   gem 'rack-ntlm-test-service'
   gem 'logger'
+  gem 'ostruct' # For rack-2.2.11/lib/rack/show_exceptions.rb
 end
 
 gemspec
