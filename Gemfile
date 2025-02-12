@@ -7,7 +7,7 @@ end
 
 group :development do
   gem 'rake', :require => false
-  gem 'rdoc'
+  gem 'rdoc' unless ENV['CI'] # Avoid dependency on psych for Ruby 2.5 compatibility
   gem 'test-unit'
   gem 'pry'
   gem 'rack', '~> 2.2'

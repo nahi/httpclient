@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         ruby-version:
-          # - '2.5', # 2.5 is broken in ruby/setup-ruby. It ships with a very old bundler but Pysch 5.x and crash.
+          - '2.5',
           - '2.6',
           - '2.7',
           - '3.0',
@@ -30,6 +30,7 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true
+        cache-version: 2
     - name: Run tests
       run: bundle exec rake --trace
       env:
