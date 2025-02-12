@@ -8,6 +8,8 @@ class TestSSL < Test::Unit::TestCase
 
   DIR = File.dirname(File.expand_path(__FILE__))
 
+  OPENSSL_VERSION = Integer(OpenSSL::OPENSSL_LIBRARY_VERSION.match(/OpenSSL (\d+)\./)[1])
+
   def setup
     super
     @serverpid = @client = nil
@@ -257,12 +259,24 @@ end
     end
   end
 
-  def test_allow_tlsv1
-    teardown_server
-    setup_server_with_ssl_version(:TLSv1)
-    assert_nothing_raised do
-      @client.ssl_config.verify_mode = nil
-      @client.get("https://localhost:#{serverport}/hello")
+  if OPENSSL_VERSION < 3
+    def test_allow_tlsv1
+      teardown_server
+      setup_server_with_ssl_version(:TLSv1)
+      assert_nothing_raised do
+        @client.ssl_config.verify_mode = nil
+        @client.get("https://localhost:#{serverport}/hello")
+      end
+    end
+  else
+    def test_disallow_tlsv1
+      teardown_server
+      setup_server_with_ssl_version(:TLSv1)
+      ssle = assert_raise(OpenSSL::SSL::SSLError) do
+        @client.ssl_config.verify_mode = nil
+        @client.get("https://localhost:#{serverport}/hello")
+      end
+      assert_match(/tlsv1 alert protocol version/, ssle.message)
     end
   end
 
