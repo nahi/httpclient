@@ -5,18 +5,18 @@ group :development do
   gem 'http-cookie', '~> 1.0'
 end
 
-
 group :development do
   gem 'rake', :require => false
-  gem 'rdoc'
+  gem 'rdoc' unless ENV['CI'] # Avoid dependency on psych for Ruby 2.5 compatibility
   gem 'test-unit'
-  gem 'simplecov'
-  gem 'simplecov-rcov'
   gem 'pry'
   gem 'rack', '~> 2.2'
   gem 'rubysspi'
   gem 'rubyntlm'
+  gem 'base64'
   gem 'rack-ntlm-test-service'
+  gem 'logger'
+  gem 'ostruct' # For rack-2.2.11/lib/rack/show_exceptions.rb
 end
 
 gemspec

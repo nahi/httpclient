@@ -1,6 +1,5 @@
 require 'bundler/setup'
 require 'rake/testtask'
-require 'rdoc/task'
 require 'bundler/gem_tasks'
 
 task :default => :test
@@ -13,13 +12,17 @@ Rake::TestTask.new('test') do |test|
   test.test_files = Dir.glob('test/test_*.rb')
 end
 
-Rake::RDocTask.new("doc") do |rdoc|
-  load 'lib/httpclient/version.rb'
-  rdoc.rdoc_dir = 'doc'
-  rdoc.title = "HTTPClient Library Document: Version #{HTTPClient::VERSION}"
-  rdoc.rdoc_files.include('README.txt')
-  rdoc.rdoc_files.include('lib/httpclient/*.rb')
-  rdoc.rdoc_files.include('lib/httpclient.rb')
+unless ENV['CI']
+  require 'rdoc/task'
+
+  Rake::RDocTask.new("doc") do |rdoc|
+    load 'lib/httpclient/version.rb'
+    rdoc.rdoc_dir = 'doc'
+    rdoc.title = "HTTPClient Library Document: Version #{HTTPClient::VERSION}"
+    rdoc.rdoc_files.include('README.txt')
+    rdoc.rdoc_files.include('lib/httpclient/*.rb')
+    rdoc.rdoc_files.include('lib/httpclient.rb')
+  end
 end
 
 task 'tags' do

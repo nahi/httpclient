@@ -1,11 +1,4 @@
 # -*- encoding: utf-8 -*-
-begin
-  require 'simplecov'
-  require 'simplecov-rcov'
-  SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
-  SimpleCov.start
-rescue LoadError
-end
 require 'test/unit'
 
 require 'httpclient'
@@ -57,6 +50,11 @@ module Helper
 
   def setup_client
     @client = HTTPClient.new
+    # Set more reasonable timeouts to make debug easier
+    @client.connect_timeout = 3
+    @client.send_timeout = 3
+    @client.receive_timeout = 3
+    @client
   end
 
   def escape_noproxy

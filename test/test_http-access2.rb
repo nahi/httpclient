@@ -331,9 +331,17 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_timeout
-    assert_equal(60, @client.connect_timeout)
-    assert_equal(120, @client.send_timeout)
-    assert_equal(60, @client.receive_timeout)
+    client = HTTPClient.new
+    assert_equal(60, client.connect_timeout)
+    assert_equal(120, client.send_timeout)
+    assert_equal(60, client.receive_timeout)
+    #
+    client.connect_timeout = 1
+    client.send_timeout = 2
+    client.receive_timeout = 3
+    assert_equal(1, client.connect_timeout)
+    assert_equal(2, client.send_timeout)
+    assert_equal(3, client.receive_timeout)
   end
 
   def test_connect_timeout

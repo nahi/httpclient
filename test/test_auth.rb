@@ -127,6 +127,10 @@ class TestAuth < Test::Unit::TestCase
         def data_size
           @active && @value ? @value.size : 0
         end
+
+        def value
+          @value ||= ""
+        end
       end
     end
   end
