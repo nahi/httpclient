@@ -216,6 +216,19 @@ class HTTPClient
     def http?(uri)
       uri.scheme && uri.scheme.downcase == 'http'
     end
+
+    def socks?(uri)
+      uri && (socks4?(uri) || socks5?(uri))
+    end
+
+    def socks4?(uri)
+      uri && uri.scheme && uri.scheme.downcase == 'socks4'
+    end
+
+    def socks5?(uri)
+      uri && uri.scheme && uri.scheme.downcase == 'socks5'
+    end
+
   end
 
 

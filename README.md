@@ -11,7 +11,7 @@ See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentati
 ## Features
 
 * methods like GET/HEAD/POST/* via HTTP/1.1.
-* HTTPS(SSL), Cookies, proxy, authentication(Digest, NTLM, Basic), etc.
+* HTTPS(SSL), Cookies, (HTTP, socks[45])proxy, authentication(Digest, NTLM, Basic), etc.
 * asynchronous HTTP request, streaming HTTP request.
 * debug mode CLI.
 * by contrast with net/http in standard distribution;
@@ -24,6 +24,7 @@ See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentati
   * extensible with filter interface
   * you don't have to care HTTP/1.1 persistent connection
     (httpclient cares instead of you)
+  * socks proxy
 * Not supported now
   * Cache
   * Rather advanced HTTP/1.1 usage such as Range, deflate, etc.

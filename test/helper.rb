@@ -3,12 +3,14 @@ require 'test/unit'
 
 require 'httpclient'
 require 'webrick'
+require 'webrick/https'
 require 'webrick/httpproxy.rb'
 require 'logger'
 require 'stringio'
 require 'cgi'
 require 'webrick/httputils'
 
+require File.expand_path('sockssvr', File.dirname(__FILE__))
 
 module Helper
   Port = 17171
@@ -28,6 +30,22 @@ module Helper
 
   def proxyurl
     "http://localhost:#{proxyport}/"
+  end
+
+  def socks4_proxyurl
+    "socks4://username@localhost:#{proxyport}/"
+  end
+
+  def socks5_noauth_proxyurl
+    "socks5://localhost:#{proxyport}/"
+  end
+
+  def socks5_auth_proxyurl
+    "socks5://admin:admin@localhost:#{proxyport}/"
+  end
+
+  def socks5_invalid_user_proxyurl
+    "socks5://invaliduser:pass@localhost:#{proxyport}/"
   end
 
   def setup
@@ -88,6 +106,12 @@ module Helper
   def teardown_proxyserver
     @proxyserver.shutdown
     #@proxyserver_thread.kill
+  end
+
+  def setup_socksproxyserver
+    @proxyserver = SOCKSServer.new(0)
+    @proxyport = @proxyserver.port
+    @proxyserver.start
   end
 
   def start_server_thread(server)
