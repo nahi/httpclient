@@ -12,7 +12,11 @@ group :development do
   gem 'pry'
   gem 'rack', '~> 2.2'
   gem 'rubysspi'
-  gem 'rubyntlm'
+  if RUBY_VERSION >= '3.2'
+    gem 'rubyntlm', github: 'https://github.com/WinRb/rubyntlm/pull/64'
+  else
+    gem 'rubyntlm'
+  end
   gem 'base64'
   gem 'rack-ntlm-test-service'
   gem 'logger'

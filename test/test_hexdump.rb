@@ -5,8 +5,7 @@ require 'hexdump'
 
 class TestHexDump < Test::Unit::TestCase
   def test_encode
-    str = "\032l\277\370\2429\216\236\351[{\{\262\350\274\376"
-    str.force_encoding('BINARY') if str.respond_to?(:force_encoding)
+    str = "\032l\277\370\2429\216\236\351[{\{\262\350\274\376".b
     assert_equal(["00000000  1a6cbff8 a2398e9e e95b7b7b b2e8bcfe   .l...9...[{{...."], HexDump.encode(str))
   end
 end if defined?(RUBY_ENGINE) && RUBY_ENGINE != "rbx" && RUBY_VERSION >= "1.9.0"

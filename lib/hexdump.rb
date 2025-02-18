@@ -11,13 +11,13 @@ module HexDump
     result = []
     while raw = str.slice(offset, 16) and raw.length > 0
       # data field
-      data = ''
+      data = ''.dup
       for v in raw.unpack('N* a*')
-	if v.kind_of? Integer
-	  data << sprintf("%08x ", v)
-	else
-	  v.each_byte {|c| data << sprintf("%02x", c) }
-	end
+        if v.kind_of? Integer
+          data << sprintf("%08x ", v)
+        else
+          v.each_byte {|c| data << sprintf("%02x", c) }
+        end
       end
       # text field
       text = raw.tr("\000-\037\177-\377", ".")
@@ -25,12 +25,12 @@ module HexDump
       offset += 16
       # omit duplicate line
       if /^(#{regex_quote_n(raw)})+/n =~ str[offset .. -1]
-	result << sprintf("%08x  ...", offset)
-	offset += $&.length
-	# should print at the end
-	if offset == str.length
-	  result << sprintf("%08x  %-36s  %s", offset-16, data, text)
-	end
+        result << sprintf("%08x  ...", offset)
+        offset += $&.length
+        # should print at the end
+        if offset == str.length
+          result << sprintf("%08x  %-36s  %s", offset-16, data, text)
+        end
       end
     end
     result

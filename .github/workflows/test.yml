@@ -24,6 +24,10 @@ jobs:
           '3.4',
           'head'
           ]
+        ruby-opt: [""]
+        include:
+          - ruby-version: '3.4'
+            ruby-opt: '--enable-frozen-string-literal --debug-frozen-string-literal'
 
     steps:
     - uses: actions/checkout@v3
@@ -34,6 +38,4 @@ jobs:
         bundler-cache: true
         cache-version: 2
     - name: Run tests
-      run: bundle exec rake --trace
-      env:
-        RUBYOPT: "--disable-frozen-string-literal" # Silence these warnings for now.
+      run: bundle exec rake --trace RUBYOPT="${{ matrix.ruby-opt }}"
