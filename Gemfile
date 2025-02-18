@@ -21,6 +21,7 @@ group :development do
   gem 'rack-ntlm-test-service'
   gem 'logger'
   gem 'ostruct' # For rack-2.2.11/lib/rack/show_exceptions.rb
+  gem 'webrick'
 end
 
 gemspec

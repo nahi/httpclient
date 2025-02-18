@@ -12,5 +12,4 @@ Gem::Specification.new { |s|
   s.files = Dir.glob('{bin,lib,sample,test}/**/*') + ['README.md']
   s.license = 'ruby'
   s.add_dependency "mutex_m"
-  s.add_dependency "webrick"
 }
