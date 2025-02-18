@@ -238,7 +238,7 @@ module HTTP
       if defined?(Encoding::ASCII_8BIT)
         def set_body_encoding
           if type = self.content_type
-            OpenURI::Meta.init(o = '')
+            OpenURI::Meta.init(o = ''.dup)
             o.meta_add_field('content-type', type)
             @body_encoding = o.encoding
           end
@@ -491,7 +491,7 @@ module HTTP
       # String.
       #
       # assert: @size is not nil
-      def dump(header = '', dev = '')
+      def dump(header = '', dev = ''.dup)
         if @body.is_a?(Parts)
           dev << header
           @body.parts.each do |part|
@@ -521,7 +521,7 @@ module HTTP
       # reason. (header is dumped to dev, too)
       # If no dev (the second argument) given, this method returns a dumped
       # String.
-      def dump_chunked(header = '', dev = '')
+      def dump_chunked(header = '', dev = ''.dup)
         dev << header
         if @body.is_a?(Parts)
           @body.parts.each do |part|
@@ -574,7 +574,7 @@ module HTTP
       end
 
       def dump_file(io, dev, sz)
-        buf = ''
+        buf = ''.dup
         rest = sz
         while rest > 0
           n = io.read([rest, @chunk_size].min, buf)
@@ -585,7 +585,7 @@ module HTTP
       end
 
       def dump_chunks(io, dev)
-        buf = ''
+        buf = ''.dup
         while !io.read(@chunk_size, buf).nil?
           dev << dump_chunk(buf)
         end
@@ -954,7 +954,7 @@ module HTTP
 
     # Dumps message (header and body) to given dev.
     # dev needs to respond to <<.
-    def dump(dev = '')
+    def dump(dev = ''.dup)
       str = @http_header.dump + CRLF
       if @http_header.chunked
         dev = @http_body.dump_chunked(str, dev)

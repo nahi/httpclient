@@ -15,7 +15,7 @@ end
 buf_size = 1024 * 16
 STDOUT.sync = true
 File.open(File.expand_path('10M.bin', File.dirname(__FILE__))) do |file|
-  buf = ''
+  buf = ''.dup
   while !file.read(buf_size, buf).nil?
     print dump_chunk(buf)
   end
