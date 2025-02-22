@@ -1,5 +1,36 @@
 ## Changes
 
+## Change Log
+
+### Changes in 2.9.0
+
+* Make webrick a dev dependency ([#472](https://github.com/nahi/httpclient/pull/472))
+* Make CI pass with `--enable-frozen-string-literal` ([#471](https://github.com/nahi/httpclient/pull/471))
+* Address `warning: literal string will be frozen in the future` warnings ([#470](https://github.com/nahi/httpclient/pull/470))
+* Migrate to GitHub actions ([#469](https://github.com/nahi/httpclient/pull/469))
+* Fix Ruby 2.5 CI by avoiding dependency on psych ([#468](https://github.com/nahi/httpclient/pull/468))
+* Regenerate keys and certs used for `test_post_connection_check` ([#466](https://github.com/nahi/httpclient/pull/466))
+* Check OpenSSL version to define what feature is supported ([#465](https://github.com/nahi/httpclient/pull/465))
+* Improve rubyntlm compatibility monkey patch ([#462](https://github.com/nahi/httpclient/pull/462))
+* Add logger to Gemfile ([#461](https://github.com/nahi/httpclient/pull/461))
+* lib/jsonclient.rb is executable but has no shebang, removing executable bit ([#450](https://github.com/nahi/httpclient/pull/450))
+* Use `stat` instead of `lstat` to find file size ([#451](https://github.com/nahi/httpclient/pull/451))
+* Add dependency to `webrick` and `mutex_m` for Ruby 3.0 and Ruby 3.4 ([#455](https://github.com/nahi/httpclient/pull/455))
+* Suppress OpenSSL method redefinition warnings ([#430](https://github.com/nahi/httpclient/pull/430))
+* warning: unused variable - pathlen ([#407](https://github.com/nahi/httpclient/pull/407))
+* JSONClient convert Hash body to JSON string for PATCH ([#420](https://github.com/nahi/httpclient/pull/420))
+* Fix SNI handling for JRuby ([#363](https://github.com/nahi/httpclient/pull/363))
+* Improve timeout error during jruby ssl connection ([#382](https://github.com/nahi/httpclient/pull/382))
+* Array accepted as a legit JSON object for JSONClient put/post requests ([#392](https://github.com/nahi/httpclient/pull/392))
+* Fix for too-big-for-int error ([#375](https://github.com/nahi/httpclient/pull/375))
+* Stop mutating header argument in JSONClient ([#367](https://github.com/nahi/httpclient/pull/367))
+* Add call-seq to HTTPClient#post ([#397](https://github.com/nahi/httpclient/pull/397))
+* set time to verify cert, so verification does not fail after cert/cacert are expired ([#392](https://github.com/nahi/httpclient/pull/392))
+* Improve timeout error during jruby ssl connection ([#381](https://github.com/nahi/httpclient/pull/381))
+* Check jruby a different way ([#358](https://github.com/nahi/httpclient/pull/358))
+
+, and some changes for testing.
+
 ### Changes in 2.8.3
 
 Dec 8, 2016 - version 2.8.3
