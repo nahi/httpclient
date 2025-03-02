@@ -95,8 +95,17 @@ class HTTPClient
     # String name of OpenSSL's SSL version method name: TLSv1_2, TLSv1_1, TLSv1,
     # SSLv2, SSLv23, SSLv3 or :auto (and nil) to allow version negotiation (default).
     # See {OpenSSL::SSL::SSLContext::METHODS} for a list of available versions
-    # in your specific Ruby environment.
+    # in your specific Ruby environment. This is
+    # deprecated and only provided for backwards compatibility. Use
+    # #min_version= and #max_version= instead.
     attr_config :ssl_version
+    # Sets the upper bound on the supported SSL/TLS protocol version.
+    # See min_version for possible values.
+    attr_config :max_version
+    # Sets the lower bound on the supported SSL/TLS protocol version.
+    # The version may be specified by an integer constant named
+    # OpenSSL::SSL::*_VERSION, a Symbol, or +nil+ which means "any version".
+    attr_config :min_version
     # OpenSSL::X509::Certificate:: certificate for SSL client authentication.
     # nil by default. (no client authentication)
     attr_config :client_cert
@@ -125,7 +134,7 @@ class HTTPClient
     # A number of OpenSSL's SSL options.  Default value is
     # OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2
     # CAUTION: this is OpenSSL specific option and ignored on JRuby.
-    # Use ssl_version to specify the TLS version you want to use.
+    # Use min_version and max_version to specify the TLS versions you want to use.
     attr_config :options
     # A String of OpenSSL's cipher configuration.  Default value is
     # ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH
@@ -158,6 +167,8 @@ class HTTPClient
       @dest = nil
       @timeout = nil
       @ssl_version = :auto
+      @max_version = nil
+      @min_version = nil
       # Follow ruby-ossl's definition
       @options = OpenSSL::SSL::OP_ALL
       @options &= ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS if defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS)
@@ -309,6 +320,8 @@ class HTTPClient
       ctx.options = @options
       ctx.ciphers = @ciphers
       ctx.ssl_version = @ssl_version unless @ssl_version == :auto
+      ctx.min_version = @min_version if @min_version
+      ctx.max_version = @max_version if @max_version
     end
 
     # post connection check proc for ruby < 1.8.5.

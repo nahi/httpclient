@@ -257,7 +257,7 @@ end
     omit('TODO: SSLv3 is not supported in many environments. re-enable when disable TLSv1')
     teardown_server
     setup_server_with_ssl_version(:SSLv3)
-    assert_raise(OpenSSL::SSL::SSLError) do
+    assert_raise(NotImplementedError) do
       @client.ssl_config.verify_mode = nil
       @client.get("https://localhost:#{serverport}/hello")
     end
@@ -281,6 +281,19 @@ end
         @client.get("https://localhost:#{serverport}/hello")
       end
       assert_match(/tlsv1 alert protocol version/, ssle.message)
+    end
+  end
+
+  def test_allow_with_min_max
+    if RUBY_ENGINE == 'jruby'
+      omit('jruby does not currently support setting OpenSSL min_version or max_version')
+    else
+      teardown_server
+      setup_server_with_min_and_max_version(:TLS1_2)
+      assert_nothing_raised do
+        @client.ssl_config.verify_mode = nil
+        @client.get("https://localhost:#{serverport}/hello")
+      end
     end
   end
 
@@ -450,6 +463,33 @@ private
       :SSLPrivateKey => key('server.key')
     )
     @server.ssl_context.ssl_version = ssl_version
+    @serverport = @server.config[:Port]
+    [:hello].each do |sym|
+      @server.mount(
+        "/#{sym}",
+        WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
+      )
+    end
+    @server_thread = start_server_thread(@server)
+  end
+
+  def setup_server_with_min_and_max_version(version)
+    logger = Logger.new(STDERR)
+    logger.level = Logger::Severity::FATAL	# avoid logging SSLError (ERROR level)
+    @server = WEBrick::HTTPServer.new(
+      :BindAddress => "localhost",
+      :Logger => logger,
+      :Port => 0,
+      :AccessLog => [],
+      :DocumentRoot => DIR,
+      :SSLEnable => true,
+      :SSLCACertificateFile => File.join(DIR, 'ca.cert'),
+      :SSLCertificate => cert('server.cert'),
+      :SSLPrivateKey => key('server.key')
+    )
+    @server.ssl_context.min_version = version
+    @server.ssl_context.max_version = version
+
     @serverport = @server.config[:Port]
     [:hello].each do |sym|
       @server.mount(
