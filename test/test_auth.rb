@@ -227,6 +227,8 @@ class TestAuth < Test::Unit::TestCase
   #   Util.uri_part_of(target_uri, uri) and ok
   # }
   def test_BASIC_auth_multi_thread
+    omit "Fails on TruffleRuby" if RUBY_ENGINE == "truffleruby"
+
     c = HTTPClient.new
     webrick_backup = @basic_auth.instance_eval { @auth_scheme }
     begin
