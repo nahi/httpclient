@@ -8,7 +8,7 @@ require 'logger'
 require 'stringio'
 require 'cgi'
 require 'webrick/httputils'
-
+require 'tmpdir'
 
 module Helper
   Port = 17171
