@@ -599,6 +599,9 @@ class HTTPClient
           close
         end
       end
+
+      @debug_dev << "\n" if @debug_dev
+
       nil
     end
 

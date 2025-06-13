@@ -60,6 +60,15 @@ class TestClient < Test::Unit::TestCase
     assert(!str.empty?)
   end
 
+  def test_debug_dev_shared_dev
+    str = "".dup
+    @client.debug_dev = str
+    @client.get(serverurl)
+    str << "another stuff\n"
+    lines = str.split(/(?:\r?\n)+/)
+    assert_equal('another stuff', lines[-1])
+  end
+
   def _test_protocol_version_http09
     @client.protocol_version = 'HTTP/0.9'
     str = "".dup

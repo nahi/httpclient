@@ -57,12 +57,36 @@ class TestHTTPClient < Test::Unit::TestCase
     assert(!str.empty?)
   end
 
+  def test_debug_dev_shared_dev
+    str = "".dup
+    @client.debug_dev = str
+    @client.get(serverurl + 'hello')
+
+    str << "another stuff\n"
+    lines = str.split(/(?:\r?\n)+/)
+
+    assert_equal('hello', lines[-2])
+    assert_equal('another stuff', lines[-1])
+  end
+
   def test_debug_dev_stream
     str = "".dup
     @client.debug_dev = str
     conn = @client.get_async(serverurl)
     Thread.pass while !conn.finished?
     assert(!str.empty?)
+  end
+
+  def test_debug_dev_stream_shared_dev
+    str = "".dup
+    @client.debug_dev = str
+    conn = @client.get_async(serverurl)
+    Thread.pass while !conn.finished?
+
+    str << "another stuff\n"
+    lines = str.split(/(?:\r?\n)+/)
+
+    assert_equal('another stuff', lines[-1])
   end
 
   def test_protocol_version_http09
