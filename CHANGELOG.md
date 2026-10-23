@@ -1,5 +1,7 @@
 ## Changes
 
+* Refresh the bundled Mozilla CA certificates to the October 20, 2026 snapshot, building on [#444](https://github.com/nahi/httpclient/pull/444).
+
 ## Change Log
 
 ### Changes in 2.9.0
