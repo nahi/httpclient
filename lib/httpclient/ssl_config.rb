@@ -89,6 +89,26 @@ class HTTPClient
 
     CIPHERS_DEFAULT = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
 
+    # SHA-256 hashes of DER-encoded SubjectPublicKeyInfo for eight distrusted
+    # eMudhra intermediate CA keys, covering cross-signed variants.
+    # Matches distrustedSPKIHashes in Go's crypto/x509 at:
+    # https://github.com/golang/go/blob/7f86f957633ee31a1c17a1eb8452ca7a3d9bc141/src/crypto/x509/verify.go
+    # Related Go mitigation: https://go.dev/issue/82345 (CVE-2026-111943).
+    BLOCKED_SPKI_SHA256 = %w[
+      43bffa19d6ef651451f6841e019931e96f6f2eaeff28ab4b6f1ce4576de2717b
+      49dd353dc2b919a3770645117d0e60c16115e7d1bc259eefe734b00ea434fe5f
+      5c0660a2b164910d8ff589c18e14552e9e0ec237dcefe2cb736d41a4811f81a0
+      63ecefee431d49523bc1136c4e72d0206a477086caf606cd5cf025686c109cf8
+      92c063d67e8f14db71d288e11266ffdaf69cbf115f7bab14f3bc2f68d25e0e30
+      e0254c7fcdc265e2f0f8a428dabb75ab4ae039b4872d62f5ee57f0877d5a8a41
+      ebed6475c2c2d80fcb199f3fe8dd6e6b3ce60b77eb15d4e42c3dec0c6f5b5105
+      ec4ffa1ad0ac88081314b7aaffef6a91f97cd57291bb5ba686c5415f5eb4f6b6
+    ].map(&:freeze).freeze
+
+    def self.blocked_public_key?(public_key_der)
+      BLOCKED_SPKI_SHA256.include?(OpenSSL::Digest::SHA256.hexdigest(public_key_der))
+    end
+
     # Which TLS protocol version (also called method) will be used. Defaults
     # to :auto which means that OpenSSL decides (In my tests this resulted
     # with always the highest available protocol being used).
@@ -294,7 +314,7 @@ class HTTPClient
       ctx.cert_store = @cert_store
       ctx.verify_mode = @verify_mode
       ctx.verify_depth = @verify_depth if @verify_depth
-      ctx.verify_callback = @verify_callback || method(:default_verify_callback)
+      ctx.verify_callback = method(:certificate_verify_callback)
       # SSL config
       if @client_cert
         ctx.cert = @client_cert.is_a?(X509::Certificate) ?  @client_cert :
@@ -309,6 +329,39 @@ class HTTPClient
       ctx.options = @options
       ctx.ciphers = @ciphers
       ctx.ssl_version = @ssl_version unless @ssl_version == :auto
+    end
+
+    # Reject compromised keys regardless of the configured trust store or callback.
+    def check_peer_certificates(certificates) # :nodoc:
+      certificates = certificates.to_a if certificates.respond_to?(:to_a)
+      certificates.each do |certificate|
+        public_key = if certificate.respond_to?(:public_key)
+          certificate.public_key
+        else
+          certificate.getPublicKey
+        end
+        public_key_der = if public_key.respond_to?(:getEncoded)
+          String.from_java_bytes(public_key.getEncoded)
+        elsif public_key.respond_to?(:public_to_der)
+          public_key.public_to_der
+        else
+          public_key.to_der
+        end
+        if self.class.blocked_public_key?(public_key_der)
+          raise SSL::SSLError, 'certificate chain contains a compromised eMudhra public key'
+        end
+      end
+    end
+
+    def certificate_verify_callback(is_ok, ctx) # :nodoc:
+      begin
+        # Check the full chain so a later user callback cannot override rejection.
+        check_peer_certificates(ctx.chain)
+      rescue SSL::SSLError
+        return false
+      end
+      callback = @verify_callback || method(:default_verify_callback)
+      callback.call(is_ok, ctx)
     end
 
     # post connection check proc for ruby < 1.8.5.

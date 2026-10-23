@@ -101,6 +101,7 @@ class HTTPClient
         @ssl_socket.hostname = hostname
       end
       @ssl_socket.connect
+      @config.check_peer_certificates(@ssl_socket.peer_cert_chain)
       if $DEBUG
         if @ssl_socket.respond_to?(:ssl_version)
           warn("Protocol version: #{@ssl_socket.ssl_version}")

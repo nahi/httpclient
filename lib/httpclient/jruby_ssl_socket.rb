@@ -164,6 +164,10 @@ unless defined?(SSLSocket)
         @cert.getSubjectDN
       end
 
+      def public_key
+        @cert.getPublicKey
+      end
+
       def to_text
         @cert.toString
       end
@@ -213,7 +217,9 @@ unless defined?(SSLSocket)
         end
 
         def checkServerTrusted(chain, authType)
-          @verify_callback.call(true, chain)
+          unless @verify_callback.call(true, chain)
+            raise OpenSSL::SSL::SSLError.new('verifycallback failed')
+          end
         end
 
         def checkClientTrusted(chain, authType); end
@@ -527,7 +533,7 @@ unless defined?(SSLSocket)
       end
 
       trust_store = nil
-      verify_callback = config.verify_callback || config.method(:default_verify_callback)
+      verify_callback = config.method(:certificate_verify_callback)
       if !config.verify?
         tmf = VerifyNoneTrustManagerFactory.new(verify_callback)
       else
@@ -570,6 +576,7 @@ unless defined?(SSLSocket)
     def ssl_connect(hostname)
       @ssl_socket.startHandshake
       ssl_session = @ssl_socket.getSession
+      @config.check_peer_certificates(ssl_session.getPeerCertificates)
       @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
       if $DEBUG
         warn("Protocol version: #{ssl_session.getProtocol}")

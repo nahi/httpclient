@@ -1,5 +1,7 @@
 ## Changes
 
+* Reject TLS chains containing compromised eMudhra intermediate CA keys, including cross-signed variants ([#480](https://github.com/nahi/httpclient/issues/480)).
+
 ## Change Log
 
 ### Changes in 2.9.0
