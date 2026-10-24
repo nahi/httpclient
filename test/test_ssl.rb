@@ -148,6 +148,23 @@ class TestSSL < Test::Unit::TestCase
     end
   end
 
+  data('VERIFY_NONE with nil' => [OpenSSL::SSL::VERIFY_NONE, nil],
+       'VERIFY_NONE with false' => [OpenSSL::SSL::VERIFY_NONE, false],
+       'nil with nil' => [nil, nil],
+       'nil with false' => [nil, false])
+  def test_verification_disabled_ignores_callback_result(settings)
+    verify_mode, callback_result = settings
+    cfg = @client.ssl_config
+    cfg.verify_mode = verify_mode
+    callback_certificates = []
+    cfg.verify_callback = proc { |ok, ctx|
+      callback_certificates << ctx.current_cert
+      callback_result
+    }
+    assert_equal('hello', @client.get_content(@url))
+    assert(!callback_certificates.empty?, 'custom verification callback was not invoked')
+  end
+
   def test_custom_verify_callback_with_untrusted_blocked_intermediate
     cfg = @client.ssl_config
     cfg.clear_cert_store

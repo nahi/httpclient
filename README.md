@@ -87,9 +87,9 @@ even when another valid path exists.
 Setting `verify_mode` to `OpenSSL::SSL::VERIFY_NONE` or `nil` disables this check.
 A custom `verify_callback` replaces the default verification policy, including
 the blocked public key check. It receives the underlying verifier's result and
-context, and its return value controls certificate verification. The caller is
-responsible for the custom callback's validation policy. Hostname verification
-is unchanged.
+context. With peer verification enabled, its return value controls certificate
+verification. The caller is responsible for the custom callback's validation
+policy. Hostname verification is unchanged.
 
 Note: MRI uses HTTPClient's bundled `cacert.pem` by default, while JRuby uses
 the JVM's CA certificates and certificate validation. Secure operation on JRuby

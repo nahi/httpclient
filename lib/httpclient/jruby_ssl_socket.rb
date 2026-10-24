@@ -217,9 +217,7 @@ unless defined?(SSLSocket)
         end
 
         def checkServerTrusted(chain, authType)
-          unless @verify_callback.call(true, chain)
-            raise OpenSSL::SSL::SSLError.new('verifycallback failed')
-          end
+          @verify_callback.call(true, chain)
         end
 
         def checkClientTrusted(chain, authType); end

@@ -53,7 +53,8 @@ class HTTPClient
   # Setting verify_mode to OpenSSL::SSL::VERIFY_NONE or nil disables this check.
   # A custom verify_callback replaces the default verification policy, including
   # the blocked public key check. The callback receives the underlying verifier's
-  # result and context, and its return value controls certificate verification.
+  # result and context. With peer verification enabled, its return value controls
+  # certificate verification.
   # The caller is responsible for the custom callback's validation policy.
   # Hostname verification is unchanged.
   #
