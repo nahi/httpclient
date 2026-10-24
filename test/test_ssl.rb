@@ -61,6 +61,129 @@ class TestSSL < Test::Unit::TestCase
     assert_instance_of(OpenSSL::X509::Store, cfg.cert_store)
   end
 
+  def test_emudhra_cross_signed_public_key
+    certificates = read_path('fixtures/emudhra-dv-g3b.pem').scan(/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/m).map { |pem|
+      OpenSSL::X509::Certificate.new(pem)
+    }
+    assert_equal(2, certificates.size)
+    assert_not_equal(certificates[0].issuer, certificates[1].issuer)
+    assert_equal(8, HTTPClient::SSLConfig::BLOCKED_SPKI_SHA256.size)
+    certificates.each do |certificate|
+      assert(HTTPClient::SSLConfig.blocked_public_key?(certificate.public_key.to_der))
+    end
+    assert_equal(false, HTTPClient::SSLConfig.blocked_public_key?(cert('ca.cert').public_key.to_der))
+  end
+
+  def test_blocked_peer_certificate_before_request
+    cfg = @client.ssl_config
+    cfg.add_trust_ca(path('ca-chain.pem'))
+    requests = Queue.new
+    @server.mount_proc('/blocked') { |req, res| requests << req; res.body = 'unexpected' }
+    intermediate = cert('subca.cert')
+    # This unrelated self-signed certificate cannot be part of the valid path.
+    unused = cert('fixtures/verify.foo.cert')
+    @server.ssl_context.extra_chain_cert = [intermediate, unused]
+    assert_equal('hello', @client.get_content(@url))
+
+    @client.reset_all
+    with_blocked_public_key(intermediate) do
+      error = assert_raise(OpenSSL::SSL::SSLError) do
+        @client.post("https://localhost:#{serverport}/blocked", 'secret', 'Authorization' => 'secret')
+      end
+      assert_match(/certificate verify failed|verifycallback failed|revoked|blocked eMudhra/, error.message)
+    end
+    assert(requests.empty?, 'HTTP request reached a server supplying an intermediate containing a blocked public key')
+
+    @client.reset_all
+    with_blocked_public_key(unused) do
+      error = assert_raise(OpenSSL::SSL::SSLError) do
+        @client.post("https://localhost:#{serverport}/blocked", 'secret', 'Authorization' => 'secret')
+      end
+      assert_match(/certificate verify failed|verifycallback failed|revoked|blocked eMudhra/, error.message)
+    end
+    assert(requests.empty?, 'HTTP request reached a server supplying an unused certificate containing a blocked public key')
+  end
+
+  def test_blocked_intermediate_with_default_paths
+    escape_env do
+      ENV['SSL_CERT_FILE'] = path('ca-chain.pem')
+      @client.ssl_config.set_default_paths
+      @server.ssl_context.extra_chain_cert = [cert('subca.cert')]
+      assert_equal('hello', @client.get_content(@url))
+      @client.reset_all
+      with_blocked_public_key(cert('subca.cert')) do
+        assert_raise(OpenSSL::SSL::SSLError) { @client.get(@url) }
+      end
+    end
+  end
+
+  def test_blocked_intermediate_with_verification_overrides
+    cfg = @client.ssl_config
+    cfg.add_trust_ca(path('ca-chain.pem'))
+    @server.ssl_context.extra_chain_cert = [cert('subca.cert')]
+    assert_equal('hello', @client.get_content(@url))
+    @client.reset_all
+    with_blocked_public_key(cert('subca.cert')) do
+      cfg.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      assert_equal('hello', @client.get_content(@url))
+
+      cfg.verify_mode = nil
+      assert_equal('hello', @client.get_content(@url))
+
+      cfg.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      callback_results = []
+      cfg.verify_callback = proc { |ok, ctx| callback_results << ok; true }
+      assert_equal('hello', @client.get_content(@url))
+      assert(!callback_results.empty?, 'custom verification callback was not invoked')
+      assert(callback_results.all?, 'custom callback did not receive the original verification result')
+
+      cfg.verify_callback = proc { |ok, ctx| false }
+      assert_raise(OpenSSL::SSL::SSLError) { @client.get_content(@url) }
+
+      cfg.verify_callback = cfg.method(:default_verify_callback)
+      assert_raise(OpenSSL::SSL::SSLError) { @client.get_content(@url) }
+
+      cfg.verify_callback = nil
+      assert_raise(OpenSSL::SSL::SSLError) { @client.get_content(@url) }
+    end
+  end
+
+  data('VERIFY_NONE with nil' => [OpenSSL::SSL::VERIFY_NONE, nil],
+       'VERIFY_NONE with false' => [OpenSSL::SSL::VERIFY_NONE, false],
+       'nil with nil' => [nil, nil],
+       'nil with false' => [nil, false])
+  def test_verification_disabled_ignores_callback_result(settings)
+    verify_mode, callback_result = settings
+    cfg = @client.ssl_config
+    cfg.verify_mode = verify_mode
+    callback_certificates = []
+    cfg.verify_callback = proc { |ok, ctx|
+      callback_certificates << ctx.current_cert
+      callback_result
+    }
+    assert_equal('hello', @client.get_content(@url))
+    assert(!callback_certificates.empty?, 'custom verification callback was not invoked')
+  end
+
+  def test_custom_verify_callback_with_untrusted_blocked_intermediate
+    cfg = @client.ssl_config
+    cfg.clear_cert_store
+    @server.ssl_context.extra_chain_cert = [cert('subca.cert')]
+    callback_results = []
+    cfg.verify_callback = proc { |ok, ctx|
+      callback_results << [ok, ctx.error]
+      true
+    }
+    with_blocked_public_key(cert('subca.cert')) do
+      assert_equal('hello', @client.get_content(@url))
+      assert(callback_results.any? { |ok, error| !ok && error && error != 0 },
+             'custom callback did not receive the underlying verification error')
+
+      cfg.verify_callback = proc { |ok, ctx| ok }
+      assert_raise(OpenSSL::SSL::SSLError) { @client.get_content(@url) }
+    end
+  end
+
 unless defined?(HTTPClient::JRubySSLSocket)
   # JRubySSLSocket does not support sync mode.
   def test_sync
@@ -323,6 +446,11 @@ end
     assert_raises(OpenSSL::SSL::SSLError) do
       @client.get("https://localhost:#{serverport}/hello")
     end
+    @client.ssl_config.verify_callback = proc { |ok, ctx| true }
+    assert_raises(OpenSSL::SSL::SSLError) do
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+    @client.ssl_config.verify_callback = nil
     @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
     assert_nothing_raised do
       @client.get("https://localhost:#{serverport}/hello")
@@ -391,6 +519,20 @@ end
   end
 
 private
+
+  def with_blocked_public_key(certificate)
+    config = HTTPClient::SSLConfig
+    original = config::BLOCKED_SPKI_SHA256
+    digest = OpenSSL::Digest::SHA256.hexdigest(certificate.public_key.to_der)
+    config.send(:remove_const, :BLOCKED_SPKI_SHA256)
+    config.const_set(:BLOCKED_SPKI_SHA256, original + [digest])
+    yield
+  ensure
+    if original
+      config.send(:remove_const, :BLOCKED_SPKI_SHA256)
+      config.const_set(:BLOCKED_SPKI_SHA256, original)
+    end
+  end
 
   def cert(filename)
     OpenSSL::X509::Certificate.new(File.read(File.join(DIR, filename)))
