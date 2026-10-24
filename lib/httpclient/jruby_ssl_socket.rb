@@ -533,7 +533,7 @@ unless defined?(SSLSocket)
       end
 
       trust_store = nil
-      verify_callback = config.method(:certificate_verify_callback)
+      verify_callback = config.verify_callback || config.method(:default_verify_callback)
       if !config.verify?
         tmf = VerifyNoneTrustManagerFactory.new(verify_callback)
       else
@@ -576,7 +576,9 @@ unless defined?(SSLSocket)
     def ssl_connect(hostname)
       @ssl_socket.startHandshake
       ssl_session = @ssl_socket.getSession
-      @config.check_peer_certificates(ssl_session.getPeerCertificates)
+      if @config.verify? && !@config.verify_callback
+        @config.check_peer_certificates(ssl_session.getPeerCertificates)
+      end
       @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
       if $DEBUG
         warn("Protocol version: #{ssl_session.getProtocol}")

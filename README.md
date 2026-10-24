@@ -72,6 +72,35 @@ You can install httpclient via rubygems: `gem install httpclient`
 See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentation.
 You can also check sample/howto.rb how to use APIs.
 
+### TLS certificate restrictions
+
+Blocked public keys are identified by their SPKI SHA-256 hashes in
+`HTTPClient::SSLConfig::BLOCKED_SPKI_SHA256`. The list covers eight eMudhra
+intermediate CA public keys whose corresponding private keys were compromised.
+
+With peer verification enabled and no custom `verify_callback`, HTTPClient
+rejects a connection before sending an HTTP request if any certificate supplied
+by the server contains a blocked eMudhra public key. This includes cross-signed
+certificates and extra certificates that are not used in the verification path,
+even when another valid path exists.
+
+Setting `verify_mode` to `OpenSSL::SSL::VERIFY_NONE` or `nil` disables this check.
+A custom `verify_callback` replaces the default verification policy, including
+the blocked public key check. It receives the underlying verifier's result and
+context, and its return value controls certificate verification. The caller is
+responsible for the custom callback's validation policy. Hostname verification
+is unchanged.
+
+This mitigation does not guarantee rejection of certificates containing blocked
+public keys when those certificates are found only in a locally configured
+trust store.
+
+Remove unused certificates containing blocked public keys from the server's
+certificate chain configuration. If a certificate containing a blocked public key
+is required for validation, replace the affected server certificate and chain
+with ones issued under unaffected CA keys.
+See [#480](https://github.com/nahi/httpclient/issues/480) for background.
+
 ## Bug report or Feature request
 
 Please file a ticket at the project web site.

@@ -79,18 +79,29 @@ class TestSSL < Test::Unit::TestCase
     cfg.add_trust_ca(path('ca-chain.pem'))
     requests = Queue.new
     @server.mount_proc('/blocked') { |req, res| requests << req; res.body = 'unexpected' }
-    @server.ssl_context.extra_chain_cert = [cert('subca.cert')]
+    intermediate = cert('subca.cert')
+    # This unrelated self-signed certificate cannot be part of the valid path.
+    unused = cert('fixtures/verify.foo.cert')
+    @server.ssl_context.extra_chain_cert = [intermediate, unused]
+    assert_equal('hello', @client.get_content(@url))
 
-    with_blocked_public_key(cert('subca.cert')) do
-      [nil, proc { true }].each do |callback|
-        cfg.verify_callback = callback
-        error = assert_raise(OpenSSL::SSL::SSLError) do
-          @client.post("https://localhost:#{serverport}/blocked", 'secret', 'Authorization' => 'secret')
-        end
-        assert_match(/certificate verify failed|verifycallback failed|revoked|compromised eMudhra/, error.message)
+    @client.reset_all
+    with_blocked_public_key(intermediate) do
+      error = assert_raise(OpenSSL::SSL::SSLError) do
+        @client.post("https://localhost:#{serverport}/blocked", 'secret', 'Authorization' => 'secret')
       end
+      assert_match(/certificate verify failed|verifycallback failed|revoked|blocked eMudhra/, error.message)
     end
-    assert(requests.empty?, 'HTTP request reached a server with a blocked intermediate')
+    assert(requests.empty?, 'HTTP request reached a server supplying an intermediate containing a blocked public key')
+
+    @client.reset_all
+    with_blocked_public_key(unused) do
+      error = assert_raise(OpenSSL::SSL::SSLError) do
+        @client.post("https://localhost:#{serverport}/blocked", 'secret', 'Authorization' => 'secret')
+      end
+      assert_match(/certificate verify failed|verifycallback failed|revoked|blocked eMudhra/, error.message)
+    end
+    assert(requests.empty?, 'HTTP request reached a server supplying an unused certificate containing a blocked public key')
   end
 
   def test_blocked_intermediate_with_default_paths
@@ -106,13 +117,52 @@ class TestSSL < Test::Unit::TestCase
     end
   end
 
-  def test_blocked_intermediate_with_verify_none
-    @client.ssl_config.add_trust_ca(path('ca-chain.pem'))
-    @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
+  def test_blocked_intermediate_with_verification_overrides
+    cfg = @client.ssl_config
+    cfg.add_trust_ca(path('ca-chain.pem'))
     @server.ssl_context.extra_chain_cert = [cert('subca.cert')]
     assert_equal('hello', @client.get_content(@url))
     @client.reset_all
     with_blocked_public_key(cert('subca.cert')) do
+      cfg.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      assert_equal('hello', @client.get_content(@url))
+
+      cfg.verify_mode = nil
+      assert_equal('hello', @client.get_content(@url))
+
+      cfg.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      callback_results = []
+      cfg.verify_callback = proc { |ok, ctx| callback_results << ok; true }
+      assert_equal('hello', @client.get_content(@url))
+      assert(!callback_results.empty?, 'custom verification callback was not invoked')
+      assert(callback_results.all?, 'custom callback did not receive the original verification result')
+
+      cfg.verify_callback = proc { |ok, ctx| false }
+      assert_raise(OpenSSL::SSL::SSLError) { @client.get_content(@url) }
+
+      cfg.verify_callback = cfg.method(:default_verify_callback)
+      assert_raise(OpenSSL::SSL::SSLError) { @client.get_content(@url) }
+
+      cfg.verify_callback = nil
+      assert_raise(OpenSSL::SSL::SSLError) { @client.get_content(@url) }
+    end
+  end
+
+  def test_custom_verify_callback_with_untrusted_blocked_intermediate
+    cfg = @client.ssl_config
+    cfg.clear_cert_store
+    @server.ssl_context.extra_chain_cert = [cert('subca.cert')]
+    callback_results = []
+    cfg.verify_callback = proc { |ok, ctx|
+      callback_results << [ok, ctx.error]
+      true
+    }
+    with_blocked_public_key(cert('subca.cert')) do
+      assert_equal('hello', @client.get_content(@url))
+      assert(callback_results.any? { |ok, error| !ok && error && error != 0 },
+             'custom callback did not receive the underlying verification error')
+
+      cfg.verify_callback = proc { |ok, ctx| ok }
       assert_raise(OpenSSL::SSL::SSLError) { @client.get_content(@url) }
     end
   end
@@ -379,6 +429,11 @@ end
     assert_raises(OpenSSL::SSL::SSLError) do
       @client.get("https://localhost:#{serverport}/hello")
     end
+    @client.ssl_config.verify_callback = proc { |ok, ctx| true }
+    assert_raises(OpenSSL::SSL::SSLError) do
+      @client.get("https://localhost:#{serverport}/hello")
+    end
+    @client.ssl_config.verify_callback = nil
     @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
     assert_nothing_raised do
       @client.get("https://localhost:#{serverport}/hello")

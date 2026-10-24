@@ -2,7 +2,9 @@
 
 * Refresh the bundled Mozilla CA certificates to the October 20, 2026 snapshot, building on [#444](https://github.com/nahi/httpclient/pull/444).
 
-* Reject TLS chains containing compromised eMudhra intermediate CA keys, including cross-signed variants ([#480](https://github.com/nahi/httpclient/issues/480)).
+* With peer verification enabled and no custom verification callback, reject TLS connections when a server supplies certificates containing blocked eMudhra intermediate CA public keys, including cross-signed variants ([#480](https://github.com/nahi/httpclient/issues/480)).
+  Connections are also rejected when a server supplies an unused certificate containing a blocked public key.
+  `VERIFY_NONE`/`nil` disables this check; a custom verification callback replaces the default policy and is responsible for certificate validation.
 
 ## Change Log
 

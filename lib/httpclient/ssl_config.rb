@@ -34,6 +34,30 @@ class HTTPClient
   #
   # You may want to change trust anchor by yourself.  Call clear_cert_store
   # then add_trust_ca for that purpose.
+  #
+  # == TLS certificate restrictions
+  #
+  # Blocked public keys are identified by their SPKI SHA-256 hashes in
+  # BLOCKED_SPKI_SHA256. The list covers eight eMudhra intermediate CA public
+  # keys whose corresponding private keys were compromised.
+  #
+  # With peer verification enabled and no custom verify_callback, HTTPClient
+  # rejects a connection before sending an HTTP request if any certificate
+  # supplied by the server contains a blocked eMudhra public key. This includes
+  # cross-signed certificates and extra certificates that are not used in the
+  # verification path, even when another valid path exists.
+  #
+  # Setting verify_mode to OpenSSL::SSL::VERIFY_NONE or nil disables this check.
+  # A custom verify_callback replaces the default verification policy, including
+  # the blocked public key check. The callback receives the underlying verifier's
+  # result and context, and its return value controls certificate verification.
+  # The caller is responsible for the custom callback's validation policy.
+  # Hostname verification is unchanged.
+  #
+  # This mitigation does not guarantee rejection of certificates containing
+  # blocked public keys when those certificates are found only in a locally
+  # configured trust store.
+  # See https://github.com/nahi/httpclient/issues/480 for background.
   class SSLConfig
     include HTTPClient::Util
     if SSLEnabled
@@ -89,8 +113,10 @@ class HTTPClient
 
     CIPHERS_DEFAULT = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
 
-    # SHA-256 hashes of DER-encoded SubjectPublicKeyInfo for eight distrusted
-    # eMudhra intermediate CA keys, covering cross-signed variants.
+    # Public keys whose SPKI SHA-256 hashes are listed below are considered blocked.
+    # The list covers eight eMudhra intermediate CA public keys whose corresponding
+    # private keys were compromised. Hashes use DER-encoded SubjectPublicKeyInfo,
+    # covering cross-signed variants.
     # Includes six TLS keys and two code-signing keys.
     # CA names are from CCADB's public intermediate certificate inventory:
     # https://ccadb.my.salesforce-sites.com/mozilla/PublicAllIntermediateCertsWithPEMCSV
@@ -140,6 +166,7 @@ class HTTPClient
 
     # A number which represents OpenSSL's verify mode.  Default value is
     # OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT.
+    # VERIFY_NONE or nil disables the default blocked public key check.
     attr_config :verify_mode
     # A number of verify depth.  Certification path which length is longer than
     # this depth is not allowed.
@@ -150,6 +177,9 @@ class HTTPClient
     # OpenSSL's verification.  handler.call is invoked with 2 arguments,
     # ok and ctx; ok is a result of general OpenSSL's verification.  ctx is a
     # OpenSSL::X509::StoreContext.
+    # Setting a handler replaces the default verification policy, including its
+    # blocked public key check. The caller is responsible for the
+    # handler's validation policy. Hostname verification is unchanged.
     attr_config :verify_callback
     # SSL timeout in sec.  nil by default.
     attr_config :timeout
@@ -325,7 +355,7 @@ class HTTPClient
       ctx.cert_store = @cert_store
       ctx.verify_mode = @verify_mode
       ctx.verify_depth = @verify_depth if @verify_depth
-      ctx.verify_callback = method(:certificate_verify_callback)
+      ctx.verify_callback = @verify_callback || method(:default_verify_callback)
       # SSL config
       if @client_cert
         ctx.cert = @client_cert.is_a?(X509::Certificate) ?  @client_cert :
@@ -342,7 +372,8 @@ class HTTPClient
       ctx.ssl_version = @ssl_version unless @ssl_version == :auto
     end
 
-    # Reject compromised keys regardless of the configured trust store or callback.
+    # Reject blocked public keys in the given certificate collection.
+    # Peer certificates are checked even when unused in the verification path.
     def check_peer_certificates(certificates) # :nodoc:
       certificates = certificates.to_a if certificates.respond_to?(:to_a)
       certificates.each do |certificate|
@@ -359,20 +390,9 @@ class HTTPClient
           public_key.to_der
         end
         if self.class.blocked_public_key?(public_key_der)
-          raise SSL::SSLError, 'certificate chain contains a compromised eMudhra public key'
+          raise SSL::SSLError, 'certificate chain contains a blocked eMudhra public key'
         end
       end
-    end
-
-    def certificate_verify_callback(is_ok, ctx) # :nodoc:
-      begin
-        # Check the full chain so a later user callback cannot override rejection.
-        check_peer_certificates(ctx.chain)
-      rescue SSL::SSLError
-        return false
-      end
-      callback = @verify_callback || method(:default_verify_callback)
-      callback.call(is_ok, ctx)
     end
 
     # post connection check proc for ruby < 1.8.5.
@@ -404,8 +424,13 @@ class HTTPClient
       raise SSL::SSLError, "hostname was not match with the server certificate"
     end
 
-    # Default callback for verification: only dumps error.
+    # Default callback: reject blocked public keys and report verification errors.
     def default_verify_callback(is_ok, ctx)
+      begin
+        check_peer_certificates(ctx.chain) if verify?
+      rescue SSL::SSLError
+        return false
+      end
       if $DEBUG
         if is_ok
           warn("ok: #{ctx.current_cert.subject.to_s.dump}")
