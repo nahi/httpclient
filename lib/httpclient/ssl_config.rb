@@ -32,6 +32,9 @@ class HTTPClient
   #
   #   HTTPClient.new { self.ssl_config.load_trust_ca }.get("https://...")
   #
+  # Secure operation on JRuby depends on keeping the JVM and its CA certificates
+  # up to date.
+  #
   # You may want to change trust anchor by yourself.  Call clear_cert_store
   # then add_trust_ca for that purpose.
   #
@@ -54,9 +57,9 @@ class HTTPClient
   # The caller is responsible for the custom callback's validation policy.
   # Hostname verification is unchanged.
   #
-  # This mitigation does not guarantee rejection of certificates containing
-  # blocked public keys when those certificates are found only in a locally
-  # configured trust store.
+  # On JRuby, this additional check may not detect blocked intermediates found
+  # only in a local trust store or obtained through JVM issuer retrieval (such as
+  # AIA when enabled). These paths depend on the JVM's certificate validation.
   # See https://github.com/nahi/httpclient/issues/480 for background.
   class SSLConfig
     include HTTPClient::Util

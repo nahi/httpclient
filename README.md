@@ -91,9 +91,11 @@ context, and its return value controls certificate verification. The caller is
 responsible for the custom callback's validation policy. Hostname verification
 is unchanged.
 
-This mitigation does not guarantee rejection of certificates containing blocked
-public keys when those certificates are found only in a locally configured
-trust store.
+Note: MRI uses HTTPClient's bundled `cacert.pem` by default, while JRuby uses
+the JVM's CA certificates and certificate validation. Secure operation on JRuby
+depends on keeping the JVM and its CA certificates up to date. HTTPClient's
+additional check may not detect blocked intermediates found only in a local
+trust store or obtained through JVM issuer retrieval (such as AIA when enabled).
 
 Remove unused certificates containing blocked public keys from the server's
 certificate chain configuration. If a certificate containing a blocked public key
