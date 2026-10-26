@@ -24,10 +24,11 @@ jobs:
           '3.4',
           'head'
           ]
-        ruby-opt: [""]
+        # Rake replaces RUBYOPT for the test subprocess; keep it in Bundler's context.
+        ruby-opt: ["-rbundler/setup"]
         include:
           - ruby-version: '3.4'
-            ruby-opt: '--enable-frozen-string-literal --debug-frozen-string-literal'
+            ruby-opt: '-rbundler/setup --enable-frozen-string-literal --debug-frozen-string-literal'
 
     steps:
     - uses: actions/checkout@v3
