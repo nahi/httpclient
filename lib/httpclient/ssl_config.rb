@@ -390,8 +390,14 @@ class HTTPClient
           String.from_java_bytes(public_key.getEncoded)
         elsif public_key.respond_to?(:public_to_der)
           public_key.public_to_der
-        else
+        elsif public_key.respond_to?(:to_der)
           public_key.to_der
+        else
+          # Older ruby-openssl cannot export generic PKey objects.
+          fields = OpenSSL::ASN1.decode(certificate.to_der).value[0].value
+          # The optional version field shifts SubjectPublicKeyInfo by one.
+          spki_index = fields[0].tag_class == :CONTEXT_SPECIFIC ? 6 : 5
+          fields[spki_index].to_der
         end
         if self.class.blocked_public_key?(public_key_der)
           raise SSL::SSLError, 'certificate chain contains a blocked eMudhra public key'
