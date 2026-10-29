@@ -164,6 +164,10 @@ unless defined?(SSLSocket)
         @cert.getSubjectDN
       end
 
+      def public_key
+        @cert.getPublicKey
+      end
+
       def to_text
         @cert.toString
       end
@@ -570,6 +574,9 @@ unless defined?(SSLSocket)
     def ssl_connect(hostname)
       @ssl_socket.startHandshake
       ssl_session = @ssl_socket.getSession
+      if @config.verify? && !@config.verify_callback
+        @config.check_peer_certificates(ssl_session.getPeerCertificates)
+      end
       @peer_cert = JavaCertificate.new(ssl_session.getPeerCertificates.first)
       if $DEBUG
         warn("Protocol version: #{ssl_session.getProtocol}")
