@@ -128,6 +128,8 @@ unless defined?(SSLSocket)
           @bufstr << String.from_java_bytes(@buf, Encoding::BINARY)[0, size]
         end
         size
+      rescue java.net.SocketTimeoutException => e
+        raise HTTPClient::ReceiveTimeoutError.new(e.getMessage)
       rescue java.io.IOException => e
         raise OpenSSL::SSL::SSLError.new("#{e.class}: #{e.getMessage}")
       end

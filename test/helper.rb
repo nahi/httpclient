@@ -9,6 +9,38 @@ require 'stringio'
 require 'cgi'
 require 'webrick/httputils'
 
+if RUBY_ENGINE == 'jruby'
+  require 'delegate'
+
+  module JRubyWEBrickSSLReadBuffer
+    class ReadableIO < SimpleDelegator
+      def initialize(socket)
+        @ssl_socket = socket
+        super(socket.to_io)
+      end
+
+      def wait_readable(timeout = nil)
+        # JRuby may buffer request bytes while completing the TLS handshake.
+        @ssl_socket.pending > 0 || super
+      end
+    end
+
+    module HTTPServerPatch
+      def run(sock)
+        if sock.respond_to?(:pending)
+          readable_io = ReadableIO.new(sock)
+          sock.define_singleton_method(:to_io) { readable_io }
+        end
+        super
+      ensure
+        sock.singleton_class.remove_method(:to_io) if readable_io
+      end
+    end
+  end
+
+  WEBrick::HTTPServer.prepend(JRubyWEBrickSSLReadBuffer::HTTPServerPatch)
+end
+
 
 module Helper
   Port = 17171
