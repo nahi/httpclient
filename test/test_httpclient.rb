@@ -768,7 +768,7 @@ EOS
   if RUBY_VERSION > "1.9"
     def test_post_async_with_default_internal
       original_encoding = Encoding.default_internal
-      Encoding.default_internal = Encoding::UTF_8
+      silent { Encoding.default_internal = Encoding::UTF_8 }
       begin
         post_body = StringIO.new("こんにちは")
         conn = @client.post_async(serverurl + 'servlet', post_body)
@@ -776,7 +776,7 @@ EOS
         res = conn.pop
         assert_equal 'post,こんにちは', res.content.read
       ensure
-        Encoding.default_internal = original_encoding
+        silent { Encoding.default_internal = original_encoding }
       end
     end
   end
