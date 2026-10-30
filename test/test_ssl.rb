@@ -106,6 +106,8 @@ class TestSSL < Test::Unit::TestCase
 
   def test_blocked_intermediate_with_default_paths
     escape_env do
+      # Nix's OpenSSL can prioritize this CA bundle path over SSL_CERT_FILE.
+      ENV.delete('NIX_SSL_CERT_FILE')
       ENV['SSL_CERT_FILE'] = path('ca-chain.pem')
       @client.ssl_config.set_default_paths
       @server.ssl_context.extra_chain_cert = [cert('subca.cert')]
@@ -370,6 +372,8 @@ end
       @client.get(@url)
     end
     escape_env do
+      # Nix's OpenSSL can prioritize this CA bundle path over SSL_CERT_FILE.
+      ENV.delete('NIX_SSL_CERT_FILE')
       ENV['SSL_CERT_FILE'] = File.join(DIR, 'ca-chain.pem')
       @client.ssl_config.set_default_paths
       @client.get(@url)

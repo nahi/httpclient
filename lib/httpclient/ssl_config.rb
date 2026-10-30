@@ -116,6 +116,7 @@ class HTTPClient
 
 
     CIPHERS_DEFAULT = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
+    BUNDLED_CACERT_FILE = File.join(File.dirname(__FILE__), 'cacert.pem').freeze
 
     # Public keys whose SPKI SHA-256 hashes are listed below are considered blocked.
     # The list covers eight eMudhra intermediate CA public keys whose corresponding
@@ -200,6 +201,7 @@ class HTTPClient
     # OpenSSL::X509::X509::Store used for verification.  You can reset the
     # store with clear_cert_store and set the new store with cert_store=.
     attr_reader :cert_store # don't use if you don't know what it is.
+    attr_reader :cacert_file
 
     # For server side configuration.  Ignore this.
     attr_config :client_ca # :nodoc:
@@ -214,6 +216,7 @@ class HTTPClient
     def initialize(client)
       return unless SSLEnabled
       @client = client
+      @cacert_file = X509::DEFAULT_CERT_FILE
       @cert_store = X509::Store.new
       @cert_store_crl_items = []
       @client_cert = @client_key = @client_key_pass = @client_ca = nil
@@ -308,6 +311,14 @@ class HTTPClient
       change_notify
     end
     alias set_trust_ca add_trust_ca
+
+    def cacert_file=(file)
+      store = X509::Store.new
+      store._httpclient_cert_store_items.clear if defined?(JRUBY_VERSION)
+      add_trust_ca_to_store(store, file)
+      @cacert_file = file
+      self.cert_store = store
+    end
 
     def add_trust_ca_to_store(cert_store, trust_ca_file_or_hashed_dir)
       if FileTest.directory?(trust_ca_file_or_hashed_dir)
@@ -523,8 +534,7 @@ class HTTPClient
 
     # Use 2048 bit certs trust anchor
     def load_cacerts(cert_store)
-      file = File.join(File.dirname(__FILE__), 'cacert.pem')
-      add_trust_ca_to_store(cert_store, file)
+      add_trust_ca_to_store(cert_store, @cacert_file)
     end
   end
 
