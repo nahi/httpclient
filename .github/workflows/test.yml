@@ -8,7 +8,7 @@ permissions:
 jobs:
   test:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -27,8 +27,28 @@ jobs:
         # Rake replaces RUBYOPT for the test subprocess; keep it in Bundler's context.
         ruby-opt: ["-rbundler/setup"]
         include:
+          # Ruby 2.5 through 3.1 have no prebuilt binaries for Ubuntu 26.04.
+          - ruby-version: '2.5'
+            os: ubuntu-24.04
+          - ruby-version: '2.6'
+            os: ubuntu-24.04
+          - ruby-version: '2.7'
+            os: ubuntu-24.04
+          - ruby-version: '3.0'
+            os: ubuntu-24.04
+          - ruby-version: '3.1'
+            os: ubuntu-24.04
+          - ruby-version: '3.2'
+            os: ubuntu-latest
+          - ruby-version: '3.3'
+            os: ubuntu-latest
+          - ruby-version: '3.4'
+            os: ubuntu-latest
+          - ruby-version: 'head'
+            os: ubuntu-latest
           - ruby-version: '3.4'
             ruby-opt: '-rbundler/setup --enable-frozen-string-literal --debug-frozen-string-literal'
+            os: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
