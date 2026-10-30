@@ -386,7 +386,15 @@ end
     end
   end
 
-  if OPENSSL_VERSION < 3
+  if RUBY_ENGINE == 'jruby'
+    def test_disallow_tlsv1
+      @client.ssl_config.ssl_version = :TLSv1
+      @client.ssl_config.verify_mode = nil
+      assert_raise(OpenSSL::SSL::SSLError) do
+        @client.get(@url)
+      end
+    end
+  elsif OPENSSL_VERSION < 3
     def test_allow_tlsv1
       teardown_server
       setup_server_with_ssl_version(:TLSv1)
@@ -408,7 +416,7 @@ end
   end
 
   def test_use_higher_TLS
-    omit('TODO: it does not pass with Java 7 or old openssl')
+    omit('TODO: it does not pass with Java 7 or old openssl') unless RUBY_ENGINE == 'jruby'
     teardown_server
     setup_server_with_ssl_version('TLSv1_2')
     assert_nothing_raised do
