@@ -18,9 +18,14 @@ class HTTPClient
         :debug_dev => session.debug_dev
       }
       site = session.proxy || session.dest
-      socket = session.create_socket(site.host, site.port)
+      if session.via_socks_proxy?
+        socket = session.create_socks_socket(session.proxy, session.dest)
+      else
+        socket = session.create_socket(site.host, site.port)
+      end
+
       begin
-        if session.proxy
+        if session.via_http_proxy?
           session.connect_ssl_proxy(socket, Util.urify(session.dest.to_s))
         end
         new(socket, session.dest, session.ssl_config, opts)

@@ -28,6 +28,32 @@ class TestHTTPClient < Test::Unit::TestCase
     end
   end
 
+  def test_socks_initialize
+    setup_socksproxyserver
+
+    [
+      socks4_proxyurl,
+      socks5_noauth_proxyurl,
+      socks5_auth_proxyurl
+    ].each do |proxyurl|
+      escape_noproxy do
+        @client = HTTPClient.new(proxyurl)
+        assert_equal(urify(proxyurl), @client.proxy)
+        assert_equal(200, @client.head(serverurl).status)
+      end
+    end
+  end
+
+  def test_socks5_autherror
+    setup_socksproxyserver
+    escape_noproxy do
+      @client = HTTPClient.new(socks5_invalid_user_proxyurl)
+      assert_raises(HTTPClient::SOCKSUnauthorizedError) do
+        @client.get(serverurl)
+      end
+    end
+  end
+
   def test_agent_name
     @client = HTTPClient.new(nil, "agent_name_foo")
     str = "".dup
@@ -241,10 +267,23 @@ class TestHTTPClient < Test::Unit::TestCase
   def test_proxy_env
     setup_proxyserver
     escape_env do
+      # put HTTP_PROXY env ahead of SOCKS_PROXY
       ENV['http_proxy'] = "http://admin:admin@foo:1234"
+      ENV['socks_proxy'] = 'socks5://admin:admin@foo:1234'
       ENV['NO_PROXY'] = "foobar"
       client = HTTPClient.new
       assert_equal(urify("http://admin:admin@foo:1234"), client.proxy)
+      assert_equal('foobar', client.no_proxy)
+    end
+  end
+
+  def test_socks_proxy_env
+    setup_socksproxyserver
+    escape_env do
+      ENV['socks_proxy'] = 'socks5://admin:admin@foo:1234'
+      ENV['NO_PROXY'] = "foobar"
+      client = HTTPClient.new
+      assert_equal(urify("socks5://admin:admin@foo:1234"), client.proxy)
       assert_equal('foobar', client.no_proxy)
     end
   end
@@ -402,6 +441,20 @@ Connection: close\r
 hello
 EOS
       assert_equal('hello', @client.get('https://localhost:17171/baz').content)
+    end
+  end
+
+  def test_socks_proxy_ssl
+    setup_socksproxyserver
+    setup_sslserver
+    escape_noproxy do
+      curdir = File.dirname(File.expand_path(__FILE__))
+      @client.proxy = socks5_auth_proxyurl
+      @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      assert_equal(
+        'hello',
+        @client.get("https://localhost:#{@serverport}/hello").content
+      )
     end
   end
 
@@ -1953,6 +2006,38 @@ private
       )
     end
     @server.mount('/servlet', TestServlet.new(@server))
+    @server_thread = start_server_thread(@server)
+  end
+
+  def setup_sslserver
+    curdir = File.dirname(File.expand_path(__FILE__))
+    servercert = OpenSSL::X509::Certificate.new(File.open(File.join(curdir, 'server.cert')) { |f|
+      f.read
+    })
+    key = OpenSSL::PKey::RSA.new(File.open(File.join(curdir, 'server.key')) { |f|
+      f.read
+    })
+
+    @server = WEBrick::HTTPServer.new(
+      :BindAddress => "localhost",
+      :Logger => @logger,
+      :Port => 0,
+      :DocumentRoot => curdir,
+      :SSLEnable => true,
+      :SSLCACertificateFile => File.join(curdir, 'ca.cert'),
+      :SSLCertificate => servercert,
+      :SSLPrivateKey => key,
+      :SSLVerifyClient => ::OpenSSL::SSL::VERIFY_NONE,
+      :SSLCertName => nil
+    )
+    @serverport = @server.config[:Port]
+
+    [:hello].each do |sym|
+      @server.mount(
+        "/#{sym}",
+        WEBrick::HTTPServlet::ProcHandler.new(method("do_#{sym}").to_proc)
+      )
+    end
     @server_thread = start_server_thread(@server)
   end
 
