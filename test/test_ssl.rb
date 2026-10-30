@@ -332,6 +332,9 @@ if defined?(HTTPClient::JRubySSLSocket)
       assert_match(/No appropriate protocol/, ssle.message)
     end
     #
+    # CI's Temurin 21 disables static-RSA suites such as
+    # TLS_RSA_WITH_AES_128_CBC_SHA in jdk.tls.disabledAlgorithms. Use an enabled
+    # ECDHE suite to verify explicitly configured ciphers can be negotiated.
     cfg.ciphers = %w(TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
     assert_equal("hello", @client.get_content(@url))
     #
