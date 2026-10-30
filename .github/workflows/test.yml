@@ -63,3 +63,25 @@ jobs:
         cache-version: 2
     - name: Run tests
       run: bundle exec rake --trace RUBYOPT="${{ matrix.ruby-opt }}"
+
+  jruby:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Java
+      uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: '21'
+    - name: Set up JRuby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: jruby-10.1.2.0
+        bundler-cache: true
+        cache-version: 2
+    - name: Run tests
+      run: bundle exec rake --trace RUBYOPT="-rbundler/setup"
+    - name: Run JRuby-specific tests
+      run: bundle exec ruby -Ilib test/jruby_ssl_socket/test_pemutils.rb
+    - name: Run JRuby socket timeout tests
+      run: bundle exec ruby -Ilib test/jruby_ssl_socket/test_socket_timeout.rb
