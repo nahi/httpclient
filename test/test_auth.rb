@@ -135,6 +135,7 @@ class TestAuth < Test::Unit::TestCase
           @active && @value ? @value.size : 0
         end
 
+        remove_method(:value) if method_defined?(:value)
         def value
           @value ||= ""
         end
