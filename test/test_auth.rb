@@ -320,6 +320,27 @@ class TestAuth < Test::Unit::TestCase
     assert_match(/^Authorization: Digest/, str)
   end
 
+  def test_digest_auth_multi_value_qop
+    # RFC 2617/7616: a server MAY offer several qop-options as a quoted,
+    # comma-separated list in WWW-Authenticate (qop="auth,auth-int"), but the
+    # client's Authorization header carries exactly ONE unquoted qop-value.
+    # Regression for issue #441: parse_challenge_param split on the comma INSIDE
+    # the quotes, so the request header came out malformed as
+    #   qop="auth, response="...  (unclosed qop quote swallowing response=)
+    # which strict servers reject.
+    c = HTTPClient.new
+    c.set_auth('http://example.com/', 'admin', 'admin')
+    c.test_loopback_http_response << %{HTTP/1.0 401 Unauthorized\nWWW-Authenticate: Digest realm="foo", qop="auth,auth-int", nonce="nonce", opaque="xyz", stale=false\nContent-Length: 2\n\nNG}
+    c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
+    c.debug_dev = str = ''.dup
+    c.get_content('http://example.com/')
+    auth = str[/^Authorization: Digest.*$/]
+    assert(auth, 'no Authorization header sent')
+    assert_match(/(?:\A|, )qop=auth(?:,|\z)/, auth)   # single, unquoted qop-value
+    assert_no_match(/qop="/, auth)                    # never a quoted qop in the request
+    assert_match(/, response="[0-9a-f]{32}"/, auth)   # response= is its own well-formed field
+  end
+
   def test_digest_sess_auth
     c = HTTPClient.new
     c.set_auth("http://localhost:#{serverport}/", 'admin', 'admin')
