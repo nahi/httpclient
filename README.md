@@ -72,6 +72,25 @@ You can install httpclient via rubygems: `gem install httpclient`
 See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentation.
 You can also check sample/howto.rb how to use APIs.
 
+### TLS trust store
+
+On MRI, HTTPClient uses `OpenSSL::X509::DEFAULT_CERT_FILE` by default. To
+preserve compatibility with previous releases' default CA selection, select the
+bundled Mozilla CA certificates explicitly:
+
+```ruby
+client = HTTPClient.new
+client.ssl_config.cacert_file = HTTPClient::SSLConfig::BUNDLED_CACERT_FILE
+```
+
+Assigning `cacert_file` loads that file into a new certificate store, replacing
+the current store and resetting existing sessions. You can assign it after a
+connection has been made. `load_trust_ca` adds the selected file to the current
+store and resets existing sessions. On JRuby, the default trust store remains
+the JVM's; assigning `cacert_file` explicitly selects a certificate file. Use
+`client.ssl_config.set_default_paths` on MRI to load OpenSSL's configured
+default certificate file and directory.
+
 ### TLS certificate restrictions
 
 Blocked public keys are identified by their SPKI SHA-256 hashes in
@@ -91,11 +110,10 @@ context. With peer verification enabled, its return value controls certificate
 verification. The caller is responsible for the custom callback's validation
 policy. Hostname verification is unchanged.
 
-Note: MRI uses HTTPClient's bundled `cacert.pem` by default, while JRuby uses
-the JVM's CA certificates and certificate validation. Secure operation on JRuby
-depends on keeping the JVM and its CA certificates up to date. HTTPClient's
-additional check may not detect blocked intermediates found only in a local
-trust store or obtained through JVM issuer retrieval (such as AIA when enabled).
+On JRuby, HTTPClient uses the JVM's CA certificates and validation by default.
+Keep the JVM and its CA certificates up to date. The additional blocked-key
+check may not detect intermediates found only in a local trust store or obtained
+through JVM issuer retrieval (such as AIA when enabled).
 
 Remove unused certificates containing blocked public keys from the server's
 certificate chain configuration. If a certificate containing a blocked public key

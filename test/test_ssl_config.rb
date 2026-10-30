@@ -49,3 +49,46 @@ class TestSSLConfig < Test::Unit::TestCase
     end
   end
 end
+
+# JRuby uses its JVM trust manager instead of SSLConfig#set_context.
+unless defined?(JRUBY_VERSION)
+  class TestOpenSSLTrustStore < Test::Unit::TestCase
+    def setup
+      @client = HTTPClient.new
+      @config = @client.ssl_config
+      @loaded_files = []
+      loaded_files = @loaded_files
+      @config.define_singleton_method(:add_trust_ca_to_store) do |_store, file|
+        loaded_files << file
+      end
+    end
+
+    def teardown
+      @client.reset_all if @client
+    end
+
+    def test_default_cert_file_is_loaded_once
+      configure_context
+      configure_context
+      assert_equal([OpenSSL::X509::DEFAULT_CERT_FILE], @loaded_files)
+    end
+
+    def test_bundled_ca_can_be_selected_with_cacert_file
+      @config.cacert_file = bundled_ca_file
+      configure_context
+      assert_equal([bundled_ca_file], @loaded_files)
+    end
+
+    private
+
+    def configure_context
+      context = OpenSSL::SSL::SSLContext.new
+      @config.set_context(context)
+      assert_same(@config.cert_store, context.cert_store)
+    end
+
+    def bundled_ca_file
+      HTTPClient::SSLConfig::BUNDLED_CACERT_FILE
+    end
+  end
+end
