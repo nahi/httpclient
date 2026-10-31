@@ -1,12 +1,19 @@
 ## Changes
 
-* Refresh the bundled Mozilla CA certificates to the October 20, 2026 snapshot, building on [#444](https://github.com/nahi/httpclient/pull/444).
+## Change Log
 
-* With peer verification enabled and no custom verification callback, reject TLS connections when a server supplies certificates containing blocked eMudhra intermediate CA public keys, including cross-signed variants ([#480](https://github.com/nahi/httpclient/issues/480)).
+### Changes in 2.10.0
+
+* Refresh the bundled Mozilla CA certificates to the October 20, 2026 snapshot, building on [#444](https://github.com/nahi/httpclient/pull/444) ([#482](https://github.com/nahi/httpclient/pull/482))
+* With peer verification enabled and no custom verification callback, reject TLS connections when a server supplies certificates containing blocked eMudhra intermediate CA public keys, including cross-signed variants ([#480](https://github.com/nahi/httpclient/issues/480), [#481](https://github.com/nahi/httpclient/pull/481))
   Connections are also rejected when a server supplies an unused certificate containing a blocked public key.
   `VERIFY_NONE`/`nil` disables this check; a custom verification callback replaces the default policy and is responsible for certificate validation.
+* Report Java socket read timeouts on JRuby as `HTTPClient::ReceiveTimeoutError` ([#486](https://github.com/nahi/httpclient/pull/486))
+* Add JRuby CI coverage ([#486](https://github.com/nahi/httpclient/pull/486))
+* Restore Ruby CI coverage across supported runtimes, including Ruby 4.0 ([#485](https://github.com/nahi/httpclient/pull/485))
+* Restore Bundler setup in Ruby HEAD CI ([#483](https://github.com/nahi/httpclient/pull/483))
 
-## Change Log
+, and some changes for testing.
 
 ### Changes in 2.9.0
 
