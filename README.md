@@ -85,9 +85,10 @@ client.ssl_config.cacert_file = HTTPClient::SSLConfig::BUNDLED_CACERT_FILE
 
 Assigning `cacert_file` loads that file into a new certificate store, replacing
 the current store and resetting existing sessions. You can assign it after a
-connection has been made. `load_trust_ca` adds the selected file to the current
-store and resets existing sessions. On JRuby, the default trust store remains
-the JVM's; assigning `cacert_file` explicitly selects a certificate file. Use
+connection has been made. `load_trust_ca` adds the selected file, if any, to the
+current store and resets existing sessions. On JRuby, CA selection defaults to
+the JVM trust store and can be overridden with `SSL_CERT_FILE`; assigning
+`cacert_file` explicitly selects a certificate file. Use
 `client.ssl_config.set_default_paths` on MRI to load OpenSSL's configured
 default certificate file and directory.
 

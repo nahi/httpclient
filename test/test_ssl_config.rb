@@ -50,6 +50,48 @@ class TestSSLConfig < Test::Unit::TestCase
   end
 end
 
+class TestCACertFile < Test::Unit::TestCase
+  def setup
+    @client = HTTPClient.new
+    @config = @client.ssl_config
+    @ca_file = File.join(__dir__, 'ca.cert')
+  end
+
+  def teardown
+    @client.reset_all
+  end
+
+  if defined?(JRUBY_VERSION)
+    def test_load_trust_ca_keeps_default_selection_when_no_file_is_selected
+      default_items = @config.cert_store_items.dup
+      @config.load_trust_ca
+
+      assert_nil(@config.cacert_file)
+      assert_equal(default_items, @config.cert_store_items)
+    end
+  end
+
+  def test_cacert_file_replaces_store
+    @config.add_trust_ca(File.join(__dir__, 'ca-chain.pem'))
+    original_store = @config.cert_store
+    @config.cacert_file = @ca_file
+
+    assert_not_same(original_store, @config.cert_store)
+    assert_equal(@ca_file, @config.cacert_file)
+    assert_equal([@ca_file], @config.cert_store_items) if defined?(JRUBY_VERSION)
+  end
+
+  def test_load_trust_ca_uses_selected_file
+    @config.cacert_file = @ca_file
+    @config.clear_cert_store
+    @config.load_trust_ca
+
+    certificate = OpenSSL::X509::Certificate.new(File.read(@ca_file))
+    @config.cert_store.time = certificate.not_before + 1
+    assert(@config.cert_store.verify(certificate), @config.cert_store.error_string)
+  end
+end
+
 # JRuby uses its JVM trust manager instead of SSLConfig#set_context.
 unless defined?(JRUBY_VERSION)
   class TestOpenSSLTrustStore < Test::Unit::TestCase

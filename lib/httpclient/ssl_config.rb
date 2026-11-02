@@ -30,10 +30,10 @@ class HTTPClient
   # Assigning cacert_file loads the selected file into a new certificate store,
   # replacing the current store and resetting existing sessions. It can be
   # changed after connections have been made. load_trust_ca loads the selected
-  # file into the current store, adding to its existing certificates.
+  # file, if any, into the current store, adding to its existing certificates.
   #
-  # On JRuby, HTTPClient uses the JVM's trusted CA certificates by default.
-  # Assign cacert_file explicitly to use a certificate file instead.
+  # On JRuby, CA selection defaults to the JVM's trust store and can be
+  # overridden with SSL_CERT_FILE. Assign cacert_file to select a file directly.
   #
   # == TLS certificate restrictions
   #
@@ -200,7 +200,7 @@ class HTTPClient
     # clear_cert_store and set the new store with cert_store=.
     attr_reader :cert_store # don't use if you don't know what it is.
     # Selected CA certificate file. Defaults to OpenSSL::X509::DEFAULT_CERT_FILE
-    # on MRI.
+    # on MRI and nil on JRuby, where CA selection is left to the runtime.
     attr_reader :cacert_file
 
     # For server side configuration.  Ignore this.
@@ -216,7 +216,8 @@ class HTTPClient
     def initialize(client)
       return unless SSLEnabled
       @client = client
-      @cacert_file = X509::DEFAULT_CERT_FILE
+      # nil leaves JRuby's default CA selection (JVM store or SSL_CERT_FILE) intact.
+      @cacert_file = defined?(JRUBY_VERSION) ? nil : X509::DEFAULT_CERT_FILE
       @cert_store = X509::Store.new
       @cert_store_crl_items = []
       @client_cert = @client_key = @client_key_pass = @client_ca = nil
@@ -537,7 +538,7 @@ class HTTPClient
     end
 
     def load_cacerts(cert_store)
-      add_trust_ca_to_store(cert_store, @cacert_file)
+      add_trust_ca_to_store(cert_store, @cacert_file) unless @cacert_file.nil?
     end
   end
 
