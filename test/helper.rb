@@ -6,10 +6,15 @@ require 'webrick'
 require 'webrick/httpproxy.rb'
 require 'logger'
 require 'stringio'
-require 'cgi'
+begin
+  require 'cgi/escape'
+rescue LoadError
+  require 'cgi'
+end
 require 'webrick/httputils'
 
 if RUBY_ENGINE == 'jruby'
+  require 'webrick/https'
   require 'delegate'
 
   module JRubyWEBrickSSLReadBuffer
@@ -36,9 +41,24 @@ if RUBY_ENGINE == 'jruby'
         sock.singleton_class.remove_method(:to_io) if readable_io
       end
     end
+
+    module HTTPRequestPatch
+      def parse(socket = nil)
+        skip_peer_cert_chain = socket.respond_to?(:peer_cert_chain) &&
+          socket.respond_to?(:peer_cert) && socket.peer_cert.nil?
+        if skip_peer_cert_chain
+          # WEBrick asks JRuby for a peer chain even when no client certificate was sent.
+          socket.define_singleton_method(:peer_cert_chain) { nil }
+        end
+        super
+      ensure
+        socket.singleton_class.remove_method(:peer_cert_chain) if skip_peer_cert_chain
+      end
+    end
   end
 
   WEBrick::HTTPServer.prepend(JRubyWEBrickSSLReadBuffer::HTTPServerPatch)
+  WEBrick::HTTPRequest.prepend(JRubyWEBrickSSLReadBuffer::HTTPRequestPatch)
 end
 
 

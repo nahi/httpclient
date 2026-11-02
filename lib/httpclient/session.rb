@@ -400,6 +400,7 @@ class HTTPClient
       if str && @debug_dev
         if str.index("\0")
           require 'hexdump'
+          str = str.dup
           str.force_encoding('BINARY') if str.respond_to?(:force_encoding)
           @debug_dev << HexDump.encode(str).join("\n")
         else

@@ -65,6 +65,21 @@ class TestHTTPClient < Test::Unit::TestCase
     assert(!str.empty?)
   end
 
+  data('mutable' => false, 'frozen' => true)
+  def test_debug_socket_does_not_mutate_binary_input(freeze_payload)
+    debug_dev = StringIO.new
+    socket = Object.new
+    socket.extend(HTTPClient::DebugSocket)
+    socket.debug_dev = debug_dev
+    payload = "\x00".dup
+    payload.freeze if freeze_payload
+
+    assert_nothing_raised { socket.send(:debug, payload) }
+    assert_equal("\x00", payload)
+    assert_equal(Encoding::UTF_8, payload.encoding)
+    assert(!debug_dev.string.empty?)
+  end
+
   def test_protocol_version_http09
     @client.protocol_version = 'HTTP/0.9'
     @client.debug_dev = str = ''.dup
@@ -768,7 +783,8 @@ EOS
   if RUBY_VERSION > "1.9"
     def test_post_async_with_default_internal
       original_encoding = Encoding.default_internal
-      Encoding.default_internal = Encoding::UTF_8
+      # This test covers the legacy setter even though JRuby deprecates it.
+      silent { Encoding.default_internal = Encoding::UTF_8 }
       begin
         post_body = StringIO.new("こんにちは")
         conn = @client.post_async(serverurl + 'servlet', post_body)
@@ -776,7 +792,7 @@ EOS
         res = conn.pop
         assert_equal 'post,こんにちは', res.content.read
       ensure
-        Encoding.default_internal = original_encoding
+        silent { Encoding.default_internal = original_encoding }
       end
     end
   end
@@ -934,7 +950,7 @@ EOS
     STDOUT.sync = true
     File.open(__FILE__) do |file|
       res = @client.post(serverurl + 'servlet', {1=>2, 3=>file})
-      assert_match(/^Content-Disposition: form-data; name="1"\r\n/nm, res.content)
+      assert_match(/^Content-Disposition: form-data; name="1"\r\n/m, res.content.b)
       assert_match(/^Content-Disposition: form-data; name="3";/, res.content)
       assert_match(/FIND_TAG_IN_THIS_FILE/, res.content)
     end

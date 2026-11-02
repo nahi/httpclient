@@ -9,7 +9,7 @@ ENV['CI_REPORTS'] = File.expand_path('./reports', File.dirname(__FILE__))
 Rake::TestTask.new('test') do |test|
   test.libs << 'lib'
   test.verbose = true
-  test.test_files = Dir.glob('test/test_*.rb')
+  test.test_files = Dir.glob('test/**/test_*.rb')
 end
 
 unless ENV['CI']

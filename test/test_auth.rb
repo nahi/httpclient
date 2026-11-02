@@ -2,7 +2,14 @@ require File.expand_path('helper', File.dirname(__FILE__))
 require 'digest/md5'
 require 'rack'
 require 'rack/lint'
-require 'rack-ntlm'
+# rack-ntlm-test-service 0.0.1 assigns an unused rescue variable while loading.
+original_verbose = $VERBOSE
+begin
+  $VERBOSE = nil
+  require 'rack-ntlm'
+ensure
+  $VERBOSE = original_verbose
+end
 
 class TestAuth < Test::Unit::TestCase
   include Helper
