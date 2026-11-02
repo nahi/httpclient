@@ -42,7 +42,7 @@ unless defined?(SSLSocket)
       @outstr = @socket.getOutputStream
       @instr = BufferedInputStream.new(@socket.getInputStream)
       @buf = (' ' * BUF_SIZE).to_java_bytes
-      @bufstr = ''
+      @bufstr = ''.dup
     end
 
     def close
@@ -352,7 +352,7 @@ unless defined?(SSLSocket)
           File.read(cert_source).each_line do |line|
             case line
             when /-----BEGIN CERTIFICATE-----/
-              pem = ''
+              pem = ''.dup
             when /-----END CERTIFICATE-----/
               load_pem(pem)
               # keep parsing in case where multiple certificates in a file

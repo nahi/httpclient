@@ -3,6 +3,7 @@ require File.expand_path('../helper', File.dirname(__FILE__))
 
 class JRubySocketTimeoutTest < Test::Unit::TestCase
   def test_read_timeout_is_reported_as_receive_timeout
+    omit('JRuby-specific test') unless RUBY_ENGINE == 'jruby'
     socket = HTTPClient::JavaSocketWrap.allocate
     input = Object.new
     input.define_singleton_method(:read) do |_buffer|
