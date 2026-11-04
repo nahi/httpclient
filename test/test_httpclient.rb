@@ -9,7 +9,6 @@ class TestHTTPClient < Test::Unit::TestCase
 
   def setup
     super
-    setup_server
     setup_client
   end
 
@@ -279,7 +278,6 @@ class TestHTTPClient < Test::Unit::TestCase
   end
 
   def test_empty_proxy_env
-    setup_proxyserver
     escape_env do
       ENV['http_proxy'] = ""
       client = HTTPClient.new

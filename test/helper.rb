@@ -67,10 +67,12 @@ module Helper
   ProxyPort = 17172
 
   def serverport
+    setup_server unless @server
     @serverport
   end
 
   def proxyport
+    setup_proxyserver unless @proxyserver
     @proxyport
   end
 
@@ -95,9 +97,15 @@ module Helper
   end
 
   def teardown
-    teardown_client if @client
-    teardown_proxyserver if @proxyserver
-    teardown_server if @server
+    begin
+      teardown_client if @client
+    ensure
+      begin
+        teardown_proxyserver if @proxyserver
+      ensure
+        teardown_server if @server
+      end
+    end
   end
 
   def setup_client
@@ -134,12 +142,12 @@ module Helper
 
   def teardown_server
     @server.shutdown
-    #@server_thread.kill
+    @server_thread.join if @server_thread
   end
 
   def teardown_proxyserver
     @proxyserver.shutdown
-    #@proxyserver_thread.kill
+    @proxyserver_thread.join if @proxyserver_thread
   end
 
   def start_server_thread(server)
