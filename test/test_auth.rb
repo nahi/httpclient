@@ -102,12 +102,15 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def do_basic_auth(req, res)
+    # Drain uploads before an authentication challenge can close the connection.
+    req.body
     @basic_auth.authenticate(req, res)
     res['content-type'] = 'text/plain'
     res.body = 'basic_auth OK'
   end
 
   def do_digest_auth(req, res)
+    req.body
     @digest_auth.authenticate(req, res)
     res['content-type'] = 'text/plain'
     res['x-query'] = req.body
@@ -115,6 +118,7 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def do_digest_sess_auth(req, res)
+    req.body
     @digest_sess_auth.authenticate(req, res)
     res['content-type'] = 'text/plain'
     res['x-query'] = req.body
