@@ -143,6 +143,7 @@ class TestClient < Test::Unit::TestCase
   end
 
   def test_noproxy_for_localhost
+    setup_proxyserver
     @proxyio.truncate(0)
     @client.proxy = proxyurl
     assert_equal(200, @client.head(serverurl).status)
