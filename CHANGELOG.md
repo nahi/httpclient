@@ -1,5 +1,7 @@
 ## Changes
 
+* Use `OpenSSL::X509::DEFAULT_CERT_FILE` by default on MRI. `SSLConfig#cacert_file=` can select another CA file, including the bundled certificates via `SSLConfig::BUNDLED_CACERT_FILE` ([#480](https://github.com/nahi/httpclient/issues/480)).
+
 ## Change Log
 
 ### Changes in 2.10.0

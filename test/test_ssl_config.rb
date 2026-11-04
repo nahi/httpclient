@@ -49,3 +49,88 @@ class TestSSLConfig < Test::Unit::TestCase
     end
   end
 end
+
+class TestCACertFile < Test::Unit::TestCase
+  def setup
+    @client = HTTPClient.new
+    @config = @client.ssl_config
+    @ca_file = File.join(__dir__, 'ca.cert')
+  end
+
+  def teardown
+    @client.reset_all
+  end
+
+  if defined?(JRUBY_VERSION)
+    def test_load_trust_ca_keeps_default_selection_when_no_file_is_selected
+      default_items = @config.cert_store_items.dup
+      @config.load_trust_ca
+
+      assert_nil(@config.cacert_file)
+      assert_equal(default_items, @config.cert_store_items)
+    end
+  end
+
+  def test_cacert_file_replaces_store
+    @config.add_trust_ca(File.join(__dir__, 'ca-chain.pem'))
+    original_store = @config.cert_store
+    @config.cacert_file = @ca_file
+
+    assert_not_same(original_store, @config.cert_store)
+    assert_equal(@ca_file, @config.cacert_file)
+    assert_equal([@ca_file], @config.cert_store_items) if defined?(JRUBY_VERSION)
+  end
+
+  def test_load_trust_ca_uses_selected_file
+    @config.cacert_file = @ca_file
+    @config.clear_cert_store
+    @config.load_trust_ca
+
+    certificate = OpenSSL::X509::Certificate.new(File.read(@ca_file))
+    @config.cert_store.time = certificate.not_before + 1
+    assert(@config.cert_store.verify(certificate), @config.cert_store.error_string)
+  end
+end
+
+# JRuby uses its JVM trust manager instead of SSLConfig#set_context.
+unless defined?(JRUBY_VERSION)
+  class TestOpenSSLTrustStore < Test::Unit::TestCase
+    def setup
+      @client = HTTPClient.new
+      @config = @client.ssl_config
+      @loaded_files = []
+      loaded_files = @loaded_files
+      @config.define_singleton_method(:add_trust_ca_to_store) do |_store, file|
+        loaded_files << file
+      end
+    end
+
+    def teardown
+      @client.reset_all if @client
+    end
+
+    def test_default_cert_file_is_loaded_once
+      configure_context
+      configure_context
+      assert_equal([OpenSSL::X509::DEFAULT_CERT_FILE], @loaded_files)
+    end
+
+    def test_bundled_ca_can_be_selected_with_cacert_file
+      @config.cacert_file = bundled_ca_file
+      configure_context
+      assert_equal([bundled_ca_file], @loaded_files)
+    end
+
+    private
+
+    def configure_context
+      context = OpenSSL::SSL::SSLContext.new
+      @config.set_context(context)
+      assert_same(@config.cert_store, context.cert_store)
+    end
+
+    def bundled_ca_file
+      HTTPClient::SSLConfig::BUNDLED_CACERT_FILE
+    end
+  end
+end
