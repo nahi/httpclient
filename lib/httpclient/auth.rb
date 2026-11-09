@@ -393,6 +393,17 @@ class HTTPClient
       a_1 = "#{user}:#{param['realm']}:#{passwd}"
       a_2 = "#{method}:#{path}"
       qop = param['qop']
+      if qop
+        # A server may offer several qop-options as a comma-separated list
+        # (RFC 2617/7616: WWW-Authenticate carries qop="auth,auth-int"). The
+        # Authorization request header, however, sends exactly ONE unquoted
+        # qop-value (message-qop = "qop" "=" qop-value). Pick "auth" when it is
+        # offered (auth-int also requires hashing the entity body), else the
+        # first option. Both the response digest and the header below then use
+        # this single value, so they stay consistent. See issue #441.
+        qop_options = qop.split(',').map(&:strip)
+        qop = qop_options.include?('auth') ? 'auth' : qop_options.first
+      end
       nonce = param['nonce']
       cnonce = nil
       if qop || param['algorithm'] =~ /MD5-sess/
@@ -412,7 +423,7 @@ class HTTPClient
         @nonce_count += 1
         message_digest << ('%08x' % @nonce_count)
         message_digest << cnonce
-        message_digest << param['qop']
+        message_digest << qop
       end
       message_digest << Digest::MD5.hexdigest(a_2)
       header = []
@@ -425,7 +436,7 @@ class HTTPClient
       end
       if qop
         header << "nc=#{'%08x' % @nonce_count}"
-        header << "qop=#{param['qop']}"
+        header << "qop=#{qop}"
       end
       header << "response=\"#{Digest::MD5.hexdigest(message_digest.join(":"))}\""
       header << "algorithm=#{algorithm}"
@@ -442,12 +453,13 @@ class HTTPClient
 
     def parse_challenge_param(param_str)
       param = {}
-      param_str.scan(/\s*([^\,]+(?:\\.[^\,]*)*)/).each do |str|
-        key, value = str[0].scan(/\A([^=]+)=(.*)\z/)[0]
-        if /\A"(.*)"\z/ =~ value
-          value = $1.gsub(/\\(.)/, '\1')
-        end
-        param[key] = value
+      # Split into `key = value` pairs. A value is either a quoted string (which
+      # may itself contain commas, e.g. qop="auth,auth-int") or a bare token.
+      # Splitting naively on every comma breaks a quoted comma-separated list
+      # such as qop="auth,auth-int" into qop=%{"auth} + junk, which then yields a
+      # malformed Authorization header (qop="auth, response="...). See issue #441.
+      param_str.scan(/(\w+)\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^,]*))/).each do |key, quoted, bare|
+        param[key] = quoted ? quoted.gsub(/\\(.)/, '\1') : bare.strip
       end
       param
     end
