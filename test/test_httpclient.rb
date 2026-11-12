@@ -1272,6 +1272,22 @@ EOS
     assert_equal('', @client.get_content(serverurl + 'chunked', { 'msg' => '' }))
   end
 
+  def test_get_query_with_query_in_uri
+    request_line = lambda do |query|
+      str = "".dup
+      @client.debug_dev = str
+      @client.get(serverurl + 'hello?a=1', query)
+      @client.reset_all
+      str.split(/(?:\r?\n)+/)[3]
+    end
+
+    assert_equal("GET /hello?a=1 HTTP/1.1", request_line.call(nil))
+    assert_equal("GET /hello?a=1 HTTP/1.1", request_line.call({}))
+    assert_equal("GET /hello?a=1 HTTP/1.1", request_line.call([]))
+    assert_equal("GET /hello?a=1 HTTP/1.1", request_line.call(''))
+    assert_equal("GET /hello?a=1&b=2 HTTP/1.1", request_line.call({'b' => '2'}))
+  end
+
   def test_get_query
     assert_equal({'1'=>'2'}, check_query_get({1=>2}))
     assert_equal({'a'=>'A', 'B'=>'b'}, check_query_get({"a"=>"A", "B"=>"b"}))
