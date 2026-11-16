@@ -31,6 +31,17 @@ class TestSSL < Test::Unit::TestCase
     File.read(path(filename))
   end
 
+  def test_cacert_file_replaces_store_after_connection
+    @client.ssl_config.cacert_file = path('ca-chain.pem')
+    assert_equal('hello', @client.get_content(@url))
+
+    @client.ssl_config.cacert_file = path('fixtures/verify.foo.cert')
+    assert_raise(OpenSSL::SSL::SSLError) { @client.get(@url) }
+
+    @client.ssl_config.cacert_file = path('ca-chain.pem')
+    assert_equal('hello', @client.get_content(@url))
+  end
+
   def test_proxy_ssl
     setup_proxyserver
     escape_noproxy do
