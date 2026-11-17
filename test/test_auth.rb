@@ -339,7 +339,7 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def test_proxy_auth
-    c = HTTPClient.new
+    c = HTTPClient.new('http://proxy.example.com:8080')
     c.set_proxy_auth('admin', 'admin')
     c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Basic realm=\"foo\"\nContent-Length: 2\n\nNG"
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
@@ -349,7 +349,7 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def test_proxy_auth_force
-    c = HTTPClient.new
+    c = HTTPClient.new('http://proxy.example.com:8080')
     c.set_proxy_auth('admin', 'admin')
     c.force_basic_auth = true
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
@@ -359,7 +359,7 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def test_proxy_auth_reuses_credentials
-    c = HTTPClient.new
+    c = HTTPClient.new('http://proxy.example.com:8080')
     c.set_proxy_auth('admin', 'admin')
     c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Basic realm=\"foo\"\nContent-Length: 2\n\nNG"
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
@@ -371,7 +371,7 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def test_digest_proxy_auth_loop
-    c = HTTPClient.new
+    c = HTTPClient.new('http://proxy.example.com:8080')
     c.set_proxy_auth('admin', 'admin')
     c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Digest realm=\"foo\", nonce=\"nonce\", stale=false\nContent-Length: 2\n\nNG"
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
@@ -402,7 +402,7 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def test_prefer_digest_to_basic_proxy_auth
-    c = HTTPClient.new
+    c = HTTPClient.new('http://proxy.example.com:8080')
     c.set_proxy_auth('admin', 'admin')
     c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Digest realm=\"foo\", nonce=\"nonce\", stale=false\nProxy-Authenticate: Basic realm=\"bar\"\nContent-Length: 2\n\nNG"
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"
@@ -417,7 +417,7 @@ class TestAuth < Test::Unit::TestCase
   end
 
   def test_digest_proxy_auth_reuses_credentials
-    c = HTTPClient.new
+    c = HTTPClient.new('http://proxy.example.com:8080')
     c.set_proxy_auth('admin', 'admin')
     c.test_loopback_http_response << "HTTP/1.0 407 Unauthorized\nProxy-Authenticate: Digest realm=\"foo\", nonce=\"nonce\", stale=false\nContent-Length: 2\n\nNG"
     c.test_loopback_http_response << "HTTP/1.0 200 OK\nContent-Length: 2\n\nOK"

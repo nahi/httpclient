@@ -1228,17 +1228,26 @@ private
     false
   end
 
+  # Proxy authentication is only for forwarding requests. HTTPS authenticates
+  # CONNECT separately in Session#connect_ssl_proxy, not the origin request
+  # inside the tunnel. Use the same filters for the request and its response.
+  def filter_request(req, proxy)
+    proxy_request = proxy && !https?(req.header.request_uri)
+    filters = @request_filter.reject { |filter|
+      !proxy_request && filter.equal?(@proxy_auth)
+    }
+    filters.each do |filter|
+      filter.filter_request(req)
+    end
+    # Also remove explicit values, including those added by custom filters.
+    req.header.delete('Proxy-Authorization') unless proxy_request
+    filters
+  end
+
   # !! CAUTION !!
   #   Method 'do_get*' runs under MT conditon. Be careful to change.
   def do_get_block(req, proxy, conn, &block)
-    test_loopback = !test_loopback_http_response.empty?
-    @request_filter.each do |filter|
-      next if proxy.nil? && !test_loopback && filter.equal?(@proxy_auth)
-      filter.filter_request(req)
-    end
-    # Proxy-Authorization is scoped to the selected proxy. Remove an explicit
-    # or previously generated value before sending a direct request.
-    req.header.delete('Proxy-Authorization') if proxy.nil? && !test_loopback
+    filters = filter_request(req, proxy)
     if str = @test_loopback_response.shift
       dump_dummy_request_response(req.http_body.dump, str) if @debug_dev
       res = HTTP::Message.new_response(str, req.header)
@@ -1264,7 +1273,7 @@ private
     # there could be a race condition but it's OK to cache unreusable
     # connection because we do retry for that case.
     @session_manager.keep(sess) unless sess.closed?
-    commands = @request_filter.collect { |filter|
+    commands = filters.collect { |filter|
       filter.filter_response(req, res)
     }
     if commands.find { |command| command == :retry }
@@ -1274,9 +1283,7 @@ private
   end
 
   def do_get_stream(req, proxy, conn)
-    @request_filter.each do |filter|
-      filter.filter_request(req)
-    end
+    filters = filter_request(req, proxy)
     if str = @test_loopback_response.shift
       dump_dummy_request_response(req.http_body.dump, str) if @debug_dev
       conn.push(HTTP::Message.new_response(StringIO.new(str), req.header))
@@ -1297,7 +1304,7 @@ private
     end
     pipew.close
     @session_manager.keep(sess) unless sess.closed?
-    _ = @request_filter.collect { |filter|
+    _ = filters.collect { |filter|
       filter.filter_response(req, res)
     }
     # ignore commands (not retryable in async mode)
