@@ -20,23 +20,23 @@ class HTTPClient
   #
   # == Trust Anchor Control
   #
-  # SSLConfig loads 'httpclient/cacert.pem' as a trust anchor
-  # (trusted certificate(s)) with add_trust_ca in initialization time.
-  # This means that HTTPClient instance trusts some CA certificates by default,
-  # like Web browsers.  'httpclient/cacert.pem' is downloaded from curl web
-  # site by the author and included in released package.
+  # Before HTTPClient 3.0.0, MRI uses the bundled Mozilla CA certificates
+  # (BUNDLED_CACERT_FILE) by default. Loading them emits a deprecation warning
+  # once per process. Starting with HTTPClient 3.0.0, MRI will use
+  # OpenSSL::X509::DEFAULT_CERT_FILE by default. To opt in now:
   #
-  # On JRuby, HTTPClient uses Java runtime's trusted CA certificates, not
-  # cacert.pem by default. You can load cacert.pem by calling
-  # SSLConfig#load_trust_ca manually like:
+  #   client = HTTPClient.new
+  #   client.ssl_config.cacert_file = OpenSSL::X509::DEFAULT_CERT_FILE
   #
-  #   HTTPClient.new { self.ssl_config.load_trust_ca }.get("https://...")
+  # Assigning cacert_file loads the selected file into a new certificate store,
+  # replacing the current store and resetting existing sessions. It can be
+  # changed after connections have been made. load_trust_ca loads the selected
+  # file into the current store, adding to its existing certificates.
   #
-  # Secure operation on JRuby depends on keeping the JVM and its CA certificates
-  # up to date.
-  #
-  # You may want to change trust anchor by yourself.  Call clear_cert_store
-  # then add_trust_ca for that purpose.
+  # On JRuby, CA selection defaults to the JVM's trust store and can be
+  # overridden with SSL_CERT_FILE. Assign cacert_file to select a file directly,
+  # or call load_trust_ca to add the selected file (the bundled CA certificates
+  # unless changed explicitly) to the runtime's default trust anchors.
   #
   # == TLS certificate restrictions
   #
@@ -116,6 +116,8 @@ class HTTPClient
 
 
     CIPHERS_DEFAULT = "ALL:!aNULL:!eNULL:!SSLv2" # OpenSSL >1.0.0 default
+    # Bundled Mozilla CA certificates, used by default on MRI before HTTPClient 3.0.0.
+    BUNDLED_CACERT_FILE = File.join(File.dirname(__FILE__), 'cacert.pem').freeze
 
     # Public keys whose SPKI SHA-256 hashes are listed below are considered blocked.
     # The list covers eight eMudhra intermediate CA public keys whose corresponding
@@ -197,9 +199,12 @@ class HTTPClient
     # See ciphers(1) man in OpenSSL for more detail.
     attr_config :ciphers
 
-    # OpenSSL::X509::X509::Store used for verification.  You can reset the
-    # store with clear_cert_store and set the new store with cert_store=.
+    # OpenSSL::X509::Store used for verification. You can reset the store with
+    # clear_cert_store and set the new store with cert_store=.
     attr_reader :cert_store # don't use if you don't know what it is.
+    # Selected CA certificate file. Defaults to BUNDLED_CACERT_FILE. On JRuby,
+    # the selected file is only loaded explicitly, leaving runtime defaults intact.
+    attr_reader :cacert_file
 
     # For server side configuration.  Ignore this.
     attr_config :client_ca # :nodoc:
@@ -214,6 +219,9 @@ class HTTPClient
     def initialize(client)
       return unless SSLEnabled
       @client = client
+      # TODO(3.0.0): On MRI, the default becomes OpenSSL::X509::DEFAULT_CERT_FILE.
+      # When it changes, also update the notice below and every TODO(3.0.0) in the tests and README.
+      @cacert_file = BUNDLED_CACERT_FILE
       @cert_store = X509::Store.new
       @cert_store_crl_items = []
       @client_cert = @client_key = @client_key_pass = @client_ca = nil
@@ -309,16 +317,35 @@ class HTTPClient
     end
     alias set_trust_ca add_trust_ca
 
+    # Selects a CA certificate file. Replaces the current certificate store
+    # with a new store loaded from file and resets existing sessions. If loading
+    # fails, the current store and selected file are unchanged.
+    def cacert_file=(file)
+      store = X509::Store.new
+      store._httpclient_cert_store_items.clear if defined?(JRUBY_VERSION)
+      add_trust_ca_to_store(store, file)
+      @cacert_file = file
+      self.cert_store = store
+    end
+
     def add_trust_ca_to_store(cert_store, trust_ca_file_or_hashed_dir)
-      if FileTest.directory?(trust_ca_file_or_hashed_dir)
+      result = if FileTest.directory?(trust_ca_file_or_hashed_dir)
         cert_store.add_path(trust_ca_file_or_hashed_dir)
       else
         cert_store.add_file(trust_ca_file_or_hashed_dir)
       end
+      if File.expand_path(trust_ca_file_or_hashed_dir) == File.expand_path(BUNDLED_CACERT_FILE)
+        # TODO(3.0.0): Remove or rewrite this notice with the default change, and update its text.
+        warning('HTTPClient: the bundled CA certificates are deprecated and will be replaced ' \
+          'with OpenSSL::X509::DEFAULT_CERT_FILE as the default CA file on MRI in HTTPClient 3.0.0. ' \
+          'To switch now, use client.ssl_config.cacert_file = OpenSSL::X509::DEFAULT_CERT_FILE.')
+      end
+      result
     end
 
-    # Loads default trust anchors.
-    # Calling this method resets all existing sessions.
+    # Loads the selected cacert_file into the current certificate store.
+    # Existing certificates in the store are kept. Calling this method resets
+    # all existing sessions.
     def load_trust_ca
       load_cacerts(@cert_store)
       change_notify
@@ -521,10 +548,8 @@ class HTTPClient
       nil
     end
 
-    # Use 2048 bit certs trust anchor
     def load_cacerts(cert_store)
-      file = File.join(File.dirname(__FILE__), 'cacert.pem')
-      add_trust_ca_to_store(cert_store, file)
+      add_trust_ca_to_store(cert_store, @cacert_file)
     end
   end
 

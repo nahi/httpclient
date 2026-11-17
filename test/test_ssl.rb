@@ -31,6 +31,17 @@ class TestSSL < Test::Unit::TestCase
     File.read(path(filename))
   end
 
+  def test_cacert_file_replaces_store_after_connection
+    @client.ssl_config.cacert_file = path('ca-chain.pem')
+    assert_equal('hello', @client.get_content(@url))
+
+    @client.ssl_config.cacert_file = path('fixtures/verify.foo.cert')
+    assert_raise(OpenSSL::SSL::SSLError) { @client.get(@url) }
+
+    @client.ssl_config.cacert_file = path('ca-chain.pem')
+    assert_equal('hello', @client.get_content(@url))
+  end
+
   def test_proxy_ssl
     setup_proxyserver
     escape_noproxy do
@@ -106,6 +117,8 @@ class TestSSL < Test::Unit::TestCase
 
   def test_blocked_intermediate_with_default_paths
     escape_env do
+      # Nix's OpenSSL can prioritize this CA bundle path over SSL_CERT_FILE.
+      ENV.delete('NIX_SSL_CERT_FILE')
       ENV['SSL_CERT_FILE'] = path('ca-chain.pem')
       @client.ssl_config.set_default_paths
       @server.ssl_context.extra_chain_cert = [cert('subca.cert')]
@@ -373,6 +386,8 @@ end
       @client.get(@url)
     end
     escape_env do
+      # Nix's OpenSSL can prioritize this CA bundle path over SSL_CERT_FILE.
+      ENV.delete('NIX_SSL_CERT_FILE')
       ENV['SSL_CERT_FILE'] = File.join(DIR, 'ca-chain.pem')
       @client.ssl_config.set_default_paths
       @client.get(@url)

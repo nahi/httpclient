@@ -72,6 +72,43 @@ You can install httpclient via rubygems: `gem install httpclient`
 See [HTTPClient](http://www.rubydoc.info/gems/httpclient/frames) for documentation.
 You can also check sample/howto.rb how to use APIs.
 
+### TLS trust store
+
+<!-- TODO(3.0.0): Update this section when the MRI default changes. -->
+
+Before HTTPClient 3.0.0, MRI uses the bundled Mozilla CA certificates
+(`HTTPClient::SSLConfig::BUNDLED_CACERT_FILE`) by default. Loading them,
+implicitly or explicitly, emits a deprecation warning once per process. Merely
+creating a client does not emit the warning.
+
+**Starting with HTTPClient 3.0.0, MRI will use
+`OpenSSL::X509::DEFAULT_CERT_FILE` by default.** To opt in and test your
+application before upgrading:
+
+```ruby
+client = HTTPClient.new
+client.ssl_config.cacert_file = OpenSSL::X509::DEFAULT_CERT_FILE
+```
+
+You can also select a custom CA file with `cacert_file=`. Assigning it loads
+that file into a new certificate store, replacing the current store and
+resetting existing sessions. You can assign it after a connection has been
+made. If loading fails, the current store and selected file are unchanged.
+`load_trust_ca` adds the selected file to the current store and resets existing
+sessions. Use `client.ssl_config.set_default_paths` on MRI to load OpenSSL's
+configured default certificate file and directory instead of a single file.
+The trusted CA certificates can differ between the bundled file and your
+OpenSSL installation; test connections to your application's HTTPS endpoints
+before switching.
+
+On JRuby, CA selection continues to default to the JVM trust store and can be
+overridden with `SSL_CERT_FILE`; the MRI default change does not apply.
+Assigning `cacert_file` explicitly selects a certificate file instead of the
+runtime defaults. Calling `load_trust_ca` adds the selected file (the bundled
+CA certificates unless changed explicitly) to the current store, preserving
+the runtime's default trust anchors unless the store was replaced or cleared.
+Using the JVM defaults does not emit the bundled CA warning.
+
 ### TLS certificate restrictions
 
 Blocked public keys are identified by their SPKI SHA-256 hashes in
@@ -91,11 +128,10 @@ context. With peer verification enabled, its return value controls certificate
 verification. The caller is responsible for the custom callback's validation
 policy. Hostname verification is unchanged.
 
-Note: MRI uses HTTPClient's bundled `cacert.pem` by default, while JRuby uses
-the JVM's CA certificates and certificate validation. Secure operation on JRuby
-depends on keeping the JVM and its CA certificates up to date. HTTPClient's
-additional check may not detect blocked intermediates found only in a local
-trust store or obtained through JVM issuer retrieval (such as AIA when enabled).
+On JRuby, HTTPClient uses the JVM's CA certificates and validation by default.
+Keep the JVM and its CA certificates up to date. The additional blocked-key
+check may not detect intermediates found only in a local trust store or obtained
+through JVM issuer retrieval (such as AIA when enabled).
 
 Remove unused certificates containing blocked public keys from the server's
 certificate chain configuration. If a certificate containing a blocked public key

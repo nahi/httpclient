@@ -1,5 +1,8 @@
 ## Changes
 
+* Add `SSLConfig#cacert_file=` to select a CA file, including `OpenSSL::X509::DEFAULT_CERT_FILE` for opting in to the future MRI default. The MRI default remains the bundled CA certificates until HTTPClient 3.0.0; JRuby continues to use runtime defaults ([#480](https://github.com/nahi/httpclient/issues/480)).
+* Warn once per process when the bundled CA certificates (`SSLConfig::BUNDLED_CACERT_FILE`) are loaded. Starting with HTTPClient 3.0.0, MRI will use `OpenSSL::X509::DEFAULT_CERT_FILE` by default.
+
 ## Change Log
 
 ### Changes in 2.10.0
