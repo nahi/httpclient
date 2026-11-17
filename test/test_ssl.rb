@@ -414,7 +414,9 @@ end
         @client.ssl_config.verify_mode = nil
         @client.get("https://localhost:#{serverport}/hello")
       end
-      assert_match(/tlsv1 alert protocol version/, ssle.message)
+      # OpenSSL 3.0 may reject TLSv1 with "no suitable signature algorithm",
+      # which sends an internal_error alert instead of protocol_version.
+      assert_match(/tlsv1 alert (?:protocol version|internal error)/, ssle.message)
     end
   end
 
