@@ -2,6 +2,15 @@
 
 ## Change Log
 
+### Changes in 2.11.0
+
+* Scope proxy authentication to proxy exchanges: `Proxy-Authorization` is no longer sent to direct origins or inside HTTPS CONNECT tunnels, and origin `407` responses are no longer treated as proxy challenges. This applies to both synchronous and asynchronous requests.
+* Fix warnings in tests ([#487](https://github.com/nahi/httpclient/pull/487))
+* Enforce frozen string literals across the Ruby CI matrix and keep JRuby buffers mutable ([#488](https://github.com/nahi/httpclient/pull/488))
+* Stabilize WEBrick fixture lifecycle in tests ([#489](https://github.com/nahi/httpclient/pull/489))
+* Drain authentication request bodies before challenge in tests ([#490](https://github.com/nahi/httpclient/pull/490))
+* Accept OpenSSL 3.0 TLSv1 rejection alert in tests ([#493](https://github.com/nahi/httpclient/pull/493))
+
 ### Changes in 2.10.0
 
 * Refresh the bundled Mozilla CA certificates to the October 20, 2026 snapshot, building on [#444](https://github.com/nahi/httpclient/pull/444) ([#482](https://github.com/nahi/httpclient/pull/482))
