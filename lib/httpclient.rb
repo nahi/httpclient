@@ -1231,9 +1231,14 @@ private
   # !! CAUTION !!
   #   Method 'do_get*' runs under MT conditon. Be careful to change.
   def do_get_block(req, proxy, conn, &block)
+    test_loopback = !test_loopback_http_response.empty?
     @request_filter.each do |filter|
+      next if proxy.nil? && !test_loopback && filter.equal?(@proxy_auth)
       filter.filter_request(req)
     end
+    # Proxy-Authorization is scoped to the selected proxy. Remove an explicit
+    # or previously generated value before sending a direct request.
+    req.header.delete('Proxy-Authorization') if proxy.nil? && !test_loopback
     if str = @test_loopback_response.shift
       dump_dummy_request_response(req.http_body.dump, str) if @debug_dev
       res = HTTP::Message.new_response(str, req.header)
