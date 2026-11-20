@@ -350,7 +350,8 @@ module HTTP
         end
         if @request_query
           if query_str
-            query_str += "&#{Message.create_query_part_str(@request_query)}"
+            extra_query_str = Message.create_query_part_str(@request_query).to_s
+            query_str += "&#{extra_query_str}" unless extra_query_str.empty?
           else
             query_str = Message.create_query_part_str(@request_query)
           end
